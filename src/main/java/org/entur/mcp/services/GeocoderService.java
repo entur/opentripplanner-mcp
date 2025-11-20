@@ -3,6 +3,7 @@ package org.entur.mcp.services;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import io.micrometer.core.annotation.Timed;
 import org.entur.mcp.exception.GeocodingException;
 import org.entur.mcp.model.Location;
 import org.entur.mcp.validation.InputValidator;
@@ -22,6 +23,7 @@ import java.util.List;
 import java.util.Map;
 
 @Service
+@Timed(value = "mcp.geocoder.service", description = "Requests towards the Geocoder-service")
 public class GeocoderService {
 
     private static final Logger log = LoggerFactory.getLogger(GeocoderService.class);

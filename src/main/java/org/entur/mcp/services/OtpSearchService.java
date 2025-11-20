@@ -2,6 +2,7 @@ package org.entur.mcp.services;
 
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import io.micrometer.core.annotation.Timed;
 import org.entur.mcp.exception.TripPlanningException;
 import org.entur.mcp.model.Location;
 import org.entur.mcp.validation.InputValidator;
@@ -21,6 +22,7 @@ import java.util.List;
 import java.util.Map;
 
 @Service
+@Timed(value = "mcp.trip.service", description = "Trip request towards the OTP-service")
 public class OtpSearchService {
 
     private static final Logger log = LoggerFactory.getLogger(OtpSearchService.class);
@@ -56,28 +58,8 @@ public class OtpSearchService {
         log.info("Planning trip from '{}' to '{}' (maxResults: {})", from, to, validatedMaxResults);
 
         // First, geocode the from and to locations if they're not coordinates
-        Location fromLocation;
-        Location toLocation;
-
-        try {
-            fromLocation = geocoderService.geocodeIfNeeded(from);
-            if (fromLocation == null) {
-                throw new TripPlanningException("Error geocoding 'from' location: received null result");
-            }
-        } catch (Exception e) {
-            log.error("Failed to geocode 'from' location '{}': {}", from, e.getMessage());
-            throw new TripPlanningException("Failed to geocode 'from' location: " + from, e);
-        }
-
-        try {
-            toLocation = geocoderService.geocodeIfNeeded(to);
-            if (toLocation == null) {
-                throw new TripPlanningException("Error geocoding 'to' location: received null result");
-            }
-        } catch (Exception e) {
-            log.error("Failed to geocode 'to' location '{}': {}", to, e.getMessage());
-            throw new TripPlanningException("Failed to geocode 'to' location: " + to, e);
-        }
+        Location fromLocation = getLocation(from);
+        Location toLocation = getLocation(to);
 
         // Construct GraphQL query
         String dateTimeParam = "";
@@ -149,31 +131,8 @@ public class OtpSearchService {
             throw new TripPlanningException("Failed to create trip request", e);
         }
 
-        HttpRequest request = HttpRequest.newBuilder()
-                .uri(URI.create(otpURL))
-                .header("Content-Type", "application/json")
-                .header("ET-Client-Name", etClientName)
-                .POST(HttpRequest.BodyPublishers.ofString(reqJSON))
-                .build();
-
         // Send the request
-        HttpResponse<String> response;
-        try {
-            response = client.send(request, HttpResponse.BodyHandlers.ofString());
-        } catch (IOException e) {
-            log.error("IO error during trip planning request: {}", e.getMessage());
-            throw new TripPlanningException("Network error while planning trip", e);
-        } catch (InterruptedException e) {
-            Thread.currentThread().interrupt();
-            log.error("Trip planning request was interrupted");
-            throw new TripPlanningException("Trip planning request was interrupted", e);
-        }
-
-        if (response.statusCode() != 200) {
-            log.error("GraphQL API returned status {}: {}", response.statusCode(), response.body());
-            throw new TripPlanningException(
-                String.format("Trip planning API returned status %d", response.statusCode()));
-        }
+        HttpResponse<String> response = sendOtpGraphQlRequest(reqJSON);
 
         // Parse the response
         Map<String, Object> result;
@@ -202,6 +161,49 @@ public class OtpSearchService {
 
         log.info("Successfully planned trip from '{}' to '{}'", fromLocation.getPlace(), toLocation.getPlace());
         return data;
+    }
+
+    public HttpResponse<String> sendOtpGraphQlRequest(String reqJSON) {
+
+        HttpRequest request = HttpRequest.newBuilder()
+                .uri(URI.create(otpURL))
+                .header("Content-Type", "application/json")
+                .header("ET-Client-Name", etClientName)
+                .POST(HttpRequest.BodyPublishers.ofString(reqJSON))
+                .build();
+
+        HttpResponse<String> response;
+        try {
+            response = client.send(request, HttpResponse.BodyHandlers.ofString());
+        } catch (IOException e) {
+            log.error("IO error during trip planning request: {}", e.getMessage());
+            throw new TripPlanningException("Network error while planning trip", e);
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+            log.error("Trip planning request was interrupted");
+            throw new TripPlanningException("Trip planning request was interrupted", e);
+        }
+
+        if (response.statusCode() != 200) {
+            log.error("GraphQL API returned status {}: {}", response.statusCode(), response.body());
+            throw new TripPlanningException(
+                String.format("Trip planning API returned status %d", response.statusCode()));
+        }
+        return response;
+    }
+
+    private Location getLocation(String locationName) {
+        Location location;
+        try {
+            location = geocoderService.geocodeIfNeeded(locationName);
+            if (location == null) {
+                throw new TripPlanningException("Error geocoding location: received null result");
+            }
+        } catch (Exception e) {
+            log.error("Failed to geocode location '{}': {}", locationName, e.getMessage());
+            throw new TripPlanningException("Failed to geocode location: " + locationName, e);
+        }
+        return location;
     }
 
     private String getTransitLegFields() {

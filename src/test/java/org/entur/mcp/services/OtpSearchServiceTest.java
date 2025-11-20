@@ -82,7 +82,7 @@ class OtpSearchServiceTest {
 
     @Test
     @DisplayName("Should successfully plan trip with valid inputs")
-    void handleTripRequest_withValidInputs_shouldReturnTripData() throws Exception {
+    void handleTripRequest_withValidInputs_shouldReturnTripData() {
         // Arrange
         when(geocoderService.geocodeIfNeeded("Oslo S"))
             .thenReturn(TestFixtures.createOsloLocation());
@@ -174,7 +174,7 @@ class OtpSearchServiceTest {
 
     @Test
     @DisplayName("Should throw TripPlanningException when geocoding 'from' fails")
-    void handleTripRequest_withGeocodingFromFailure_shouldThrowTripPlanningException() throws Exception {
+    void handleTripRequest_withGeocodingFromFailure_shouldThrowTripPlanningException() {
         // Arrange
         when(geocoderService.geocodeIfNeeded("Oslo"))
             .thenThrow(new RuntimeException("Geocoding failed"));
@@ -183,12 +183,12 @@ class OtpSearchServiceTest {
         assertThatThrownBy(() ->
             otpSearchService.handleTripRequest("Oslo", "Asker", null, null, 3))
             .isInstanceOf(TripPlanningException.class)
-            .hasMessageContaining("Failed to geocode 'from' location");
+            .hasMessageContaining("Failed to geocode location");
     }
 
     @Test
     @DisplayName("Should throw TripPlanningException when geocoding 'to' fails")
-    void handleTripRequest_withGeocodingToFailure_shouldThrowTripPlanningException() throws Exception {
+    void handleTripRequest_withGeocodingToFailure_shouldThrowTripPlanningException() {
         // Arrange
         when(geocoderService.geocodeIfNeeded("Oslo"))
             .thenReturn(TestFixtures.createOsloLocation());
@@ -199,12 +199,12 @@ class OtpSearchServiceTest {
         assertThatThrownBy(() ->
             otpSearchService.handleTripRequest("Oslo", "Asker", null, null, 3))
             .isInstanceOf(TripPlanningException.class)
-            .hasMessageContaining("Failed to geocode 'to' location");
+            .hasMessageContaining("Failed to geocode location");
     }
 
     @Test
     @DisplayName("Should throw TripPlanningException on 500 response")
-    void handleTripRequest_with500Response_shouldThrowTripPlanningException() throws Exception {
+    void handleTripRequest_with500Response_shouldThrowTripPlanningException() {
         // Arrange
         when(geocoderService.geocodeIfNeeded(anyString()))
             .thenReturn(TestFixtures.createOsloLocation());
@@ -222,7 +222,7 @@ class OtpSearchServiceTest {
 
     @Test
     @DisplayName("Should throw TripPlanningException when GraphQL returns errors")
-    void handleTripRequest_withGraphQLErrors_shouldThrowTripPlanningException() throws Exception {
+    void handleTripRequest_withGraphQLErrors_shouldThrowTripPlanningException() {
         // Arrange
         when(geocoderService.geocodeIfNeeded(anyString()))
             .thenReturn(TestFixtures.createOsloLocation());
@@ -240,7 +240,7 @@ class OtpSearchServiceTest {
 
     @Test
     @DisplayName("Should throw TripPlanningException when response has no data")
-    void handleTripRequest_withNoData_shouldThrowTripPlanningException() throws Exception {
+    void handleTripRequest_withNoData_shouldThrowTripPlanningException() {
         // Arrange
         when(geocoderService.geocodeIfNeeded(anyString()))
             .thenReturn(TestFixtures.createOsloLocation());
@@ -258,7 +258,7 @@ class OtpSearchServiceTest {
 
     @Test
     @DisplayName("Should throw TripPlanningException on invalid JSON response")
-    void handleTripRequest_withInvalidJSON_shouldThrowTripPlanningException() throws Exception {
+    void handleTripRequest_withInvalidJSON_shouldThrowTripPlanningException() {
         // Arrange
         when(geocoderService.geocodeIfNeeded(anyString()))
             .thenReturn(TestFixtures.createOsloLocation());
