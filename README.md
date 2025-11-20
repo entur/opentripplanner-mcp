@@ -1,6 +1,6 @@
 # OpenTripPlanner MCP Server
 
-This is a Model Context Protocol (MCP) server for OpenTripPlanner's transmodel GraphQL API, implemented in Java using Spring Boot and [Spring AI's MCP framework](https://docs.spring.io/spring-ai/reference/api/mcp/mcp.html). It allows AI agents to use the OpenTripPlanner service as a tool for trip planning in Norwegian/Nordic public transport.
+This is a Model Context Protocol (MCP) server for OpenTripPlanner's transmodel GraphQL API, implemented in Java using Spring Boot and [Spring AI's MCP framework](https://docs.spring.io/spring-ai/reference/api/mcp/mcp-overview.html#_spring_ai_mcp_integration). It allows AI agents to use the OpenTripPlanner service as a tool for trip planning in Norwegian/Nordic public transport.
 
 ## What is MCP?
 
