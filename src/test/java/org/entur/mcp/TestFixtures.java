@@ -1,0 +1,105 @@
+package org.entur.mcp;
+
+import org.entur.mcp.model.Location;
+
+/**
+ * Test fixtures and utility methods for creating test data
+ */
+public class TestFixtures {
+
+    public static Location createOsloLocation() {
+        return new Location("Oslo", 59.911076, 10.748128);
+    }
+
+    public static Location createAskerLocation() {
+        return new Location("Asker", 59.832217, 10.433827);
+    }
+
+    public static String createGeocoderResponse(String name, double lat, double lng) {
+        return String.format("""
+            {
+                "type": "FeatureCollection",
+                "features": [{
+                    "type": "Feature",
+                    "geometry": {
+                        "type": "Point",
+                        "coordinates": [%.6f, %.6f]
+                    },
+                    "properties": {
+                        "name": "%s",
+                        "label": "%s"
+                    }
+                }]
+            }
+            """, lng, lat, name, name);
+    }
+
+    public static String createGeocoderResponseMultiple(int count) {
+        StringBuilder json = new StringBuilder("""
+            {
+                "type": "FeatureCollection",
+                "features": [
+            """);
+
+        for (int i = 0; i < count; i++) {
+            if (i > 0) json.append(",");
+            json.append(String.format("""
+                {
+                    "type": "Feature",
+                    "geometry": {
+                        "type": "Point",
+                        "coordinates": [10.%d, 59.%d]
+                    },
+                    "properties": {
+                        "name": "Location %d"
+                    }
+                }
+                """, i, i, i));
+        }
+
+        json.append("]}");
+        return json.toString();
+    }
+
+    public static String createOtpTripResponse() {
+        return """
+            {
+                "data": {
+                    "trip": {
+                        "tripPatterns": [{
+                            "duration": 1873,
+                            "startTime": "2025-11-19T13:41:17+01:00",
+                            "endTime": "2025-11-19T14:12:30+01:00",
+                            "legs": [{
+                                "mode": "foot",
+                                "distance": 506.45,
+                                "duration": 463,
+                                "fromPlace": {"name": "Origin"},
+                                "toPlace": {"name": "Oslo S"}
+                            }]
+                        }]
+                    }
+                }
+            }
+            """;
+    }
+
+    public static String createOtpErrorResponse(String errorMessage) {
+        return String.format("""
+            {
+                "errors": [{
+                    "message": "%s"
+                }]
+            }
+            """, errorMessage);
+    }
+
+    public static String createEmptyGeocoderResponse() {
+        return """
+            {
+                "type": "FeatureCollection",
+                "features": []
+            }
+            """;
+    }
+}

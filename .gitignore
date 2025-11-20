@@ -1,1 +1,3 @@
-opentripplanner-mcp
+/.idea/
+/target/
+**/.terraform/*
