@@ -44,3 +44,23 @@ jobs:
   docker-push:
     needs: [docker-build]
     uses: entur/gha-docker/.github/workflows/push.yml@v1
+
+  docker-scan:
+    needs: [ docker-build ]
+    uses: entur/gha-security/.github/workflows/docker-scan.yml@v2
+    with:
+      image_artifact: ${{ needs.docker-build.outputs.image_artifact }}
+
+    helm-lint:
+      uses: entur/gha-helm/.github/workflows/lint.yml@v1
+      with:
+        environment: dev
+
+    helm-deploy-dev:
+      needs: [ helm-lint, docker-push ]
+      uses: entur/gha-helm/.github/workflows/deploy.yml@v1
+      with:
+        environment: dev
+        image: ${{ needs.docker-push.outputs.image_name }}:${{ needs.docker-push.outputs.image_tag}}
+        chart: helm/otp-mcp-server
+        namespace: opentripplanner-mcp
