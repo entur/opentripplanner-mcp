@@ -1,0 +1,4 @@
+common:
+  env: tst
+  ingress:
+    host: otp-mcp-server.staging.entur.io

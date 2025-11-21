@@ -1,0 +1,10 @@
+apiVersion: v2
+name: otp-mcp-server
+description: A Helm chart for basic Entur deployments
+type: application
+version: 0.0.1
+appVersion: "0.0.1"
+dependencies:
+  - name: common
+    version: 1.20.0
+    repository: "https://entur.github.io/helm-charts"
