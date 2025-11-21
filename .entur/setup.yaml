@@ -1,0 +1,10 @@
+apiVersion: orchestrator.entur.io/apps/v1
+kind: GoogleCloudApplication
+metadata:
+  id: otpmcp
+  displayName: JourneyPlanning MCP server
+  name: ror-otpmcp
+  owner: team-ror
+spec:
+  environments:
+    - dev
