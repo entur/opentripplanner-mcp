@@ -11,6 +11,7 @@ common:
     prometheus:
       enabled: true
       path: "/actuator/prometheus"
+      port: 9090
   container:
     image: <+artifacts.primary.image>
     cpu: 0.3
