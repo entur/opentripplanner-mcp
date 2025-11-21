@@ -16,5 +16,10 @@ common:
     image: <+artifacts.primary.image>
     cpu: 0.3
     memory: 512
+    probes:
+      readiness:
+        path: "/readiness"
+      liveness:
+        path: "/liveness"
   postgres:
     enabled: false
