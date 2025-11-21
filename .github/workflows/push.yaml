@@ -18,7 +18,7 @@ jobs:
       - uses: actions/setup-java@v4
         with:
           java-version: 24-jre-alpine
-          distribution: eclipse-temurin
+          distribution: temurin
       - name: Cache Maven dependencies
         uses: actions/cache@v4
         with:
