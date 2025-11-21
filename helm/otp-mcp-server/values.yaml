@@ -1,0 +1,20 @@
+common:
+  app: otp-mcp-server
+  shortname: otpmcp
+  team: team-ror
+  ingress:
+    enabled: true
+    trafficType: api
+  service:
+    internalPort: 8080
+  deployment:
+    prometheus:
+      enabled: true
+      path: "/actuator/prometheus"
+      port: 9090
+  container:
+    image: <+artifacts.primary.image>
+    cpu: 0.3
+    memory: 512
+  postgres:
+    enabled: false
