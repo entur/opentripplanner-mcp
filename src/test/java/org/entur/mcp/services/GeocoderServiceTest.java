@@ -227,4 +227,69 @@ class GeocoderServiceTest {
         assertThat(location.getLatitude()).isEqualTo(59.911, within(0.001));
         assertThat(location.getLongitude()).isEqualTo(10.748, within(0.001));
     }
+
+    // ==================== resolveStopId Tests ====================
+
+    @Test
+    @DisplayName("resolveStopId should return NSR:StopPlace ID directly if already provided")
+    void resolveStopId_withNsrStopPlaceId_shouldReturnDirectly() {
+        String nsrId = "NSR:StopPlace:337";
+        String result = geocoderService.resolveStopId(nsrId);
+        assertThat(result).isEqualTo(nsrId);
+    }
+
+    @Test
+    @DisplayName("resolveStopId should return NSR:Quay ID directly if already provided")
+    void resolveStopId_withNsrQuayId_shouldReturnDirectly() {
+        String nsrId = "NSR:Quay:566";
+        String result = geocoderService.resolveStopId(nsrId);
+        assertThat(result).isEqualTo(nsrId);
+    }
+
+    @Test
+    @DisplayName("resolveStopId should geocode stop name and return ID")
+    void resolveStopId_withStopName_shouldGeocodeAndReturnId() throws Exception {
+        // Arrange
+        String mockResponse = TestFixtures.createGeocoderResponseWithId("Oslo S", "NSR:StopPlace:337", 59.911, 10.748);
+        mockWebServer.enqueue(new MockResponse.Builder()
+            .code(200)
+            .body(mockResponse).build());
+
+        // Act
+        String result = geocoderService.resolveStopId("Oslo S");
+
+        // Assert
+        assertThat(result).isEqualTo("NSR:StopPlace:337");
+    }
+
+    @Test
+    @DisplayName("resolveStopId should throw ValidationException for null input")
+    void resolveStopId_withNullInput_shouldThrowValidationException() {
+        assertThatThrownBy(() -> geocoderService.resolveStopId(null))
+            .isInstanceOf(ValidationException.class)
+            .hasMessageContaining("stop cannot be null or empty");
+    }
+
+    @Test
+    @DisplayName("resolveStopId should throw ValidationException for empty input")
+    void resolveStopId_withEmptyInput_shouldThrowValidationException() {
+        assertThatThrownBy(() -> geocoderService.resolveStopId(""))
+            .isInstanceOf(ValidationException.class)
+            .hasMessageContaining("stop cannot be null or empty");
+    }
+
+    @Test
+    @DisplayName("resolveStopId should throw GeocodingException when no ID found")
+    void resolveStopId_withNoIdInResponse_shouldThrowGeocodingException() {
+        // Arrange - response without id property
+        String mockResponse = TestFixtures.createGeocoderResponse("Oslo S", 59.911, 10.748);
+        mockWebServer.enqueue(new MockResponse.Builder()
+            .code(200)
+            .body(mockResponse).build());
+
+        // Act & Assert
+        assertThatThrownBy(() -> geocoderService.resolveStopId("Oslo S"))
+            .isInstanceOf(GeocodingException.class)
+            .hasMessageContaining("No stop ID found");
+    }
 }

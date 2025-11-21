@@ -102,4 +102,70 @@ class OtpSearchServiceIntegrationTest {
 
         assertThat(tripPatterns).hasSizeLessThanOrEqualTo(1);
     }
+
+    // ==================== Departure Board Integration Tests ====================
+
+    @Test
+    @DisplayName("handleDepartureBoardRequest should return departures for valid stop")
+    public void handleDepartureBoardRequest_withValidStop_shouldReturnDepartures() throws Exception {
+        // Act
+        Map<String, Object> result = otpSearchService.handleDepartureBoardRequest(
+                "NSR:StopPlace:337", // Oslo S
+                5,
+                null,
+                60,
+                null
+        );
+
+        // Assert
+        assertThat(result).isNotNull();
+        assertThat(result).containsKey("stopPlace");
+
+        @SuppressWarnings("unchecked")
+        Map<String, Object> stopPlace = (Map<String, Object>) result.get("stopPlace");
+        assertThat(stopPlace).containsKey("estimatedCalls");
+        assertThat(stopPlace).containsKey("id");
+        assertThat(stopPlace).containsKey("name");
+    }
+
+    @Test
+    @DisplayName("handleDepartureBoardRequest should return departures with mode filter")
+    public void handleDepartureBoardRequest_withModeFilter_shouldReturnFilteredDepartures() throws Exception {
+        // Act
+        Map<String, Object> result = otpSearchService.handleDepartureBoardRequest(
+                "NSR:StopPlace:337", // Oslo S
+                10,
+                null,
+                120,
+                java.util.List.of("rail")
+        );
+
+        // Assert
+        assertThat(result).isNotNull();
+        assertThat(result).containsKey("stopPlace");
+    }
+
+    @Test
+    @DisplayName("handleDepartureBoardRequest should respect numberOfDepartures limit")
+    public void handleDepartureBoardRequest_shouldRespectNumberOfDepartures() throws Exception {
+        // Act
+        Map<String, Object> result = otpSearchService.handleDepartureBoardRequest(
+                "NSR:StopPlace:337",
+                2,
+                null,
+                120,
+                null
+        );
+
+        // Assert
+        assertThat(result).isNotNull();
+
+        @SuppressWarnings("unchecked")
+        Map<String, Object> stopPlace = (Map<String, Object>) result.get("stopPlace");
+        @SuppressWarnings("unchecked")
+        java.util.List<Object> estimatedCalls = (java.util.List<Object>) stopPlace.get("estimatedCalls");
+
+        // Should have at most 2 departures
+        assertThat(estimatedCalls).hasSizeLessThanOrEqualTo(2);
+    }
 }

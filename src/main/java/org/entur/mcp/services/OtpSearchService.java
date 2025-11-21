@@ -20,6 +20,7 @@ import java.net.http.HttpResponse;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.stream.Collectors;
 
 @Service
 @Timed(value = "mcp.trip.service", description = "Trip request towards the OTP-service")
@@ -80,7 +81,50 @@ public class OtpSearchService {
                             }
                         }
                     }
-                }""";;
+                }""";
+
+    private static final String departureBoardQuery = """
+                {
+                    stopPlace(id: "%s") {
+                        id
+                        name
+                        estimatedCalls(
+                            numberOfDepartures: %d
+                            %s
+                            timeRange: %d
+                        ) {
+                            aimedDepartureTime
+                            expectedDepartureTime
+                            actualDepartureTime
+                            cancellation
+                            realtime
+                            realtimeState
+                            quay {
+                                id
+                                publicCode
+                                name
+                            }
+                            destinationDisplay {
+                                frontText
+                            }
+                            serviceJourney {
+                                id
+                                line {
+                                    id
+                                    publicCode
+                                    name
+                                    transportMode
+                                }
+                            }
+                            situations {
+                                summary {
+                                    value
+                                }
+                            }
+                        }
+                    }
+                }
+                """;
 
     public OtpSearchService(
             @Value("${org.entur.otp.url}") String otpURL,
@@ -213,5 +257,86 @@ public class OtpSearchService {
             throw new TripPlanningException("Failed to geocode location: " + locationName, e);
         }
         return location;
+    }
+
+    public Map<String, Object> handleDepartureBoardRequest(String stopId, Integer numberOfDepartures,
+                                                            String startTime, Integer timeRangeMinutes,
+                                                            List<String> transportModes) {
+        // Validate inputs
+        InputValidator.validateLocation(stopId, "stopId");
+        int validatedNumDepartures = InputValidator.validateAndNormalizeMaxResults(numberOfDepartures, 10);
+        int validatedTimeRange = InputValidator.validateTimeRange(timeRangeMinutes, 60);
+
+        log.info("Fetching departures for stop '{}' (numDepartures: {}, timeRange: {} min)",
+            stopId, validatedNumDepartures, validatedTimeRange);
+
+        // Build optional parameters
+        StringBuilder optionalParams = new StringBuilder();
+        if (startTime != null && !startTime.isEmpty()) {
+            InputValidator.validateDateTime(startTime, "startTime");
+            optionalParams.append(String.format("startTime: \"%s\"\n", startTime));
+        }
+        if (transportModes != null && !transportModes.isEmpty()) {
+            String modesStr = transportModes.stream()
+                .map(m -> m.toLowerCase())
+                .collect(Collectors.joining(", ", "[", "]"));
+            optionalParams.append(String.format("whiteListedModes: %s\n", modesStr));
+        }
+
+        // Convert timeRange from minutes to seconds
+        int timeRangeSeconds = validatedTimeRange * 60;
+
+        String query = String.format(
+                departureBoardQuery,
+                stopId,
+                validatedNumDepartures,
+                optionalParams.toString(),
+                timeRangeSeconds
+        );
+
+        log.debug("Executing departure board query for stop '{}'", stopId);
+
+        // Make the GraphQL request
+        Map<String, String> reqBody = new HashMap<>();
+        reqBody.put("query", query);
+
+        ObjectMapper objectMapper = new ObjectMapper();
+        String reqJSON;
+        try {
+            reqJSON = objectMapper.writeValueAsString(reqBody);
+        } catch (Exception e) {
+            log.error("Failed to serialize GraphQL request: {}", e.getMessage());
+            throw new TripPlanningException("Failed to create departure board request", e);
+        }
+
+        // Send the request
+        HttpResponse<String> response = sendOtpGraphQlRequest(reqJSON);
+
+        // Parse the response
+        Map<String, Object> result;
+        try {
+            result = objectMapper.readValue(response.body(), new TypeReference<>() {});
+        } catch (Exception e) {
+            log.error("Failed to parse departure board response: {}", e.getMessage());
+            throw new TripPlanningException("Invalid response format from departure board API", e);
+        }
+
+        // Check for GraphQL errors
+        if (result.containsKey("errors")) {
+            List<?> errors = (List<?>) result.get("errors");
+            if (errors != null && !errors.isEmpty()) {
+                log.error("GraphQL query returned errors: {}", errors);
+                throw new TripPlanningException(String.format("Departure board query failed: %s", errors));
+            }
+        }
+
+        Map<String, Object> data = (Map<String, Object>) result.get("data");
+        if (data == null) {
+            log.error("GraphQL response contained no data");
+            throw new TripPlanningException("No departure data returned from API");
+        }
+
+        log.info("Successfully fetched departures for stop '{}'", stopId);
+        return data;
     }
 }

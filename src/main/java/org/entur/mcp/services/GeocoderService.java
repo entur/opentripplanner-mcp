@@ -199,6 +199,38 @@ public class GeocoderService {
         return new Location(name, lat, lng);
     }
 
+    /**
+     * Resolves a stop identifier to an NSR:StopPlace ID.
+     * If input is already an NSR ID, returns it directly.
+     * Otherwise, geocodes the input and extracts the ID from the first result.
+     */
+    public String resolveStopId(String input) {
+        InputValidator.validateLocation(input, "stop");
+
+        // If already an NSR ID, return as-is
+        if (input.startsWith("NSR:StopPlace:") || input.startsWith("NSR:Quay:")) {
+            log.debug("Input is already an NSR ID: {}", input);
+            return input;
+        }
+
+        // Geocode and extract ID from first result
+        log.debug("Resolving stop name to ID: {}", input);
+        Map<String, Object> feature = getFeature(input);
+
+        // Extract properties.id
+        @SuppressWarnings("unchecked")
+        Map<String, Object> properties = (Map<String, Object>) feature.get("properties");
+        Object idObj = properties.get("id");
+
+        if (idObj == null || !(idObj instanceof String)) {
+            throw new GeocodingException(input, "No stop ID found for location");
+        }
+
+        String stopId = (String) idObj;
+        log.info("Resolved '{}' to stop ID: {}", input, stopId);
+        return stopId;
+    }
+
     private Map<String, Object> getFeature(String location) {
 
         Map<String, Object> result = handleGeocodeRequest(location, 1);
