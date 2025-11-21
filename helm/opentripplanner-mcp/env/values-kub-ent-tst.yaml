@@ -1,4 +1,4 @@
 common:
   env: tst
   ingress:
-    host: otp-mcp-server.staging.entur.io
+    host: opentripplanner-mcp.staging.entur.io

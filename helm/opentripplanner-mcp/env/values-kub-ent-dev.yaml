@@ -1,4 +1,4 @@
 common:
   env: dev
   ingress:
-    host: otp-mcp-server.dev.entur.io
+    host: opentripplanner-mcp.dev.entur.io

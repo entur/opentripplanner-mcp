@@ -1,4 +1,4 @@
 common:
   env: prd
   ingress:
-    host: otp-mcp-server.entur.io
+    host: opentripplanner-mcp.entur.io
