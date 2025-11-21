@@ -15,11 +15,11 @@ import org.springaicommunity.mcp.annotation.McpToolParam;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
 
+import java.util.List;
 import java.util.Map;
 
 @Component
 public class TripSearchTool {
-
     private static final Logger log = LoggerFactory.getLogger(TripSearchTool.class);
     private static final ObjectMapper objectMapper = new ObjectMapper();
 
@@ -95,6 +95,67 @@ public class TripSearchTool {
 
         } catch (Exception e) {
             log.error("Unexpected error in geocode tool: {}", e.getMessage(), e);
+            return toErrorJson(ErrorResponse.genericError(
+                "An unexpected error occurred: " + e.getMessage()));
+        }
+    }
+
+    @McpTool(
+        name = "departures",
+        description = "Get real-time departures from a stop or station in Norway. " +
+                      "Returns upcoming departures with line info, destinations, and real-time updates."
+    )
+    public String departures(
+        @McpToolParam(
+            description = "Stop place name (e.g., 'Oslo S', 'Bergen stasjon') or NSR ID (e.g., NSR:StopPlace:337)",
+            required = true
+        ) String stop,
+
+        @McpToolParam(
+            description = "Number of departures to return (default: 10, max: 50)",
+            required = false
+        ) Integer numberOfDepartures,
+
+        @McpToolParam(
+            description = "Start time in ISO format (default: now)",
+            required = false
+        ) String startTime,
+
+        @McpToolParam(
+            description = "Time range in minutes to search (default: 60, max: 1440)",
+            required = false
+        ) Integer timeRangeMinutes,
+
+        @McpToolParam(
+            description = "Filter by transport modes (e.g., 'rail', 'bus', 'tram', 'metro', 'water', 'air')",
+            required = false
+        ) List<String> transportModes
+    ) {
+        try {
+            log.debug("Departures tool called with stop='{}', numberOfDepartures={}, startTime='{}', timeRangeMinutes={}, transportModes={}",
+                stop, numberOfDepartures, startTime, timeRangeMinutes, transportModes);
+
+            // Resolve stop name to NSR ID if needed
+            String stopId = geocoderService.resolveStopId(stop);
+
+            Map<String, Object> response = otpSearchService.handleDepartureBoardRequest(
+                stopId, numberOfDepartures, startTime, timeRangeMinutes, transportModes);
+            return objectMapper.writeValueAsString(response);
+
+        } catch (ValidationException e) {
+            log.warn("Validation error in departures tool: {} - {}", e.getField(), e.getMessage());
+            return toErrorJson(ErrorResponse.validationError(e.getField(), e.getMessage()));
+
+        } catch (GeocodingException e) {
+            log.warn("Geocoding error in departures tool: {} - {}", e.getLocation(), e.getMessage());
+            return toErrorJson(ErrorResponse.geocodingError(e.getLocation(), e.getMessage()));
+
+        } catch (TripPlanningException e) {
+            log.error("Departure board error: {}", e.getMessage());
+            return toErrorJson(ErrorResponse.tripPlanningError(e.getMessage()));
+
+        } catch (Exception e) {
+            log.error("Unexpected error in departures tool: {}", e.getMessage(), e);
             return toErrorJson(ErrorResponse.genericError(
                 "An unexpected error occurred: " + e.getMessage()));
         }

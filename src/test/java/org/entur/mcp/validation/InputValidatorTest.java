@@ -218,4 +218,54 @@ class InputValidatorTest {
             InputValidator.validateConflictingParameters("", ""))
             .doesNotThrowAnyException();
     }
+
+    // ==================== TimeRange Validation Tests ====================
+
+    @Test
+    @DisplayName("validateTimeRange should return default when null")
+    void validateTimeRange_withNull_shouldReturnDefault() {
+        assertThat(InputValidator.validateTimeRange(null, 60)).isEqualTo(60);
+    }
+
+    @Test
+    @DisplayName("validateTimeRange should reject zero")
+    void validateTimeRange_withZero_shouldThrow() {
+        assertThatThrownBy(() -> InputValidator.validateTimeRange(0, 60))
+            .isInstanceOf(ValidationException.class)
+            .hasMessageContaining("timeRangeMinutes must be at least 1");
+    }
+
+    @Test
+    @DisplayName("validateTimeRange should reject negative values")
+    void validateTimeRange_withNegative_shouldThrow() {
+        assertThatThrownBy(() -> InputValidator.validateTimeRange(-10, 60))
+            .isInstanceOf(ValidationException.class)
+            .hasMessageContaining("timeRangeMinutes must be at least 1");
+    }
+
+    @Test
+    @DisplayName("validateTimeRange should reject values over 1440")
+    void validateTimeRange_withTooLarge_shouldThrow() {
+        assertThatThrownBy(() -> InputValidator.validateTimeRange(1441, 60))
+            .isInstanceOf(ValidationException.class)
+            .hasMessageContaining("timeRangeMinutes cannot exceed 1440");
+    }
+
+    @Test
+    @DisplayName("validateTimeRange should accept valid values")
+    void validateTimeRange_withValidValue_shouldReturn() {
+        assertThat(InputValidator.validateTimeRange(120, 60)).isEqualTo(120);
+    }
+
+    @Test
+    @DisplayName("validateTimeRange should accept minimum valid value")
+    void validateTimeRange_withMinimum_shouldReturn() {
+        assertThat(InputValidator.validateTimeRange(1, 60)).isEqualTo(1);
+    }
+
+    @Test
+    @DisplayName("validateTimeRange should accept maximum valid value")
+    void validateTimeRange_withMaximum_shouldReturn() {
+        assertThat(InputValidator.validateTimeRange(1440, 60)).isEqualTo(1440);
+    }
 }

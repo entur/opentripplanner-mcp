@@ -21,6 +21,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatCode;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyInt;
+import static org.mockito.ArgumentMatchers.anyList;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.Mockito.reset;
 import static org.mockito.Mockito.when;
@@ -265,5 +266,146 @@ class TripSearchToolUnitTest {
         assertThatCode(() -> objectMapper.readValue(tripResult, Map.class))
             .doesNotThrowAnyException();
         assertThat(tripResult).contains("TRIP_PLANNING_ERROR");
+    }
+
+    // ==================== Departures Tool Success Tests ====================
+
+    @Test
+    @DisplayName("Departures tool should return valid JSON on success")
+    void departures_withValidInputs_shouldReturnJSON() throws Exception {
+        // Arrange
+        when(geocoderService.resolveStopId(anyString()))
+            .thenReturn("NSR:StopPlace:337");
+
+        Map<String, Object> mockResponse = new HashMap<>();
+        mockResponse.put("stopPlace", Map.of(
+            "id", "NSR:StopPlace:337",
+            "name", "Oslo S",
+            "estimatedCalls", List.of()
+        ));
+
+        when(otpSearchService.handleDepartureBoardRequest(anyString(), any(), any(), any(), any()))
+            .thenReturn(mockResponse);
+
+        // Act
+        String result = tripSearchTool.departures("Oslo S", 10, null, null, null);
+
+        // Assert
+        assertThat(result).isNotNull();
+        assertThat(result).contains("stopPlace");
+        assertThat(result).doesNotContain("error");
+
+        // Verify it's valid JSON
+        assertThatCode(() -> objectMapper.readTree(result))
+            .doesNotThrowAnyException();
+    }
+
+    @Test
+    @DisplayName("Departures tool should work with NSR ID directly")
+    void departures_withNsrId_shouldReturnJSON() throws Exception {
+        // Arrange
+        when(geocoderService.resolveStopId("NSR:StopPlace:337"))
+            .thenReturn("NSR:StopPlace:337");
+
+        Map<String, Object> mockResponse = new HashMap<>();
+        mockResponse.put("stopPlace", Map.of(
+            "id", "NSR:StopPlace:337",
+            "name", "Oslo S",
+            "estimatedCalls", List.of()
+        ));
+
+        when(otpSearchService.handleDepartureBoardRequest(anyString(), any(), any(), any(), any()))
+            .thenReturn(mockResponse);
+
+        // Act
+        String result = tripSearchTool.departures("NSR:StopPlace:337", 10, null, null, null);
+
+        // Assert
+        assertThat(result).isNotNull();
+        assertThat(result).contains("stopPlace");
+        assertThat(result).doesNotContain("error");
+    }
+
+    // ==================== Departures Tool Error Handling Tests ====================
+
+    @Test
+    @DisplayName("Departures tool should return error on geocoding failure")
+    void departures_withGeocodingError_shouldReturnErrorResponse() throws Exception {
+        // Arrange
+        when(geocoderService.resolveStopId(anyString()))
+            .thenThrow(new GeocodingException("Unknown Stop", "Location not found"));
+
+        // Act
+        String result = tripSearchTool.departures("Unknown Stop", 10, null, null, null);
+
+        // Assert
+        assertThat(result).contains("GEOCODING_ERROR");
+        assertThat(result).contains("Unknown Stop");
+        assertThat(result).contains("Location not found");
+
+        Map<String, Object> errorMap = objectMapper.readValue(result, Map.class);
+        assertThat(errorMap).containsEntry("error", "GEOCODING_ERROR");
+        assertThat(errorMap).containsEntry("type", "GeocodingException");
+    }
+
+    @Test
+    @DisplayName("Departures tool should return error on validation failure")
+    void departures_withValidationError_shouldReturnErrorResponse() throws Exception {
+        // Arrange
+        when(geocoderService.resolveStopId(anyString()))
+            .thenThrow(new ValidationException("stop", "stop cannot be null or empty"));
+
+        // Act
+        String result = tripSearchTool.departures("", 10, null, null, null);
+
+        // Assert
+        assertThat(result).contains("VALIDATION_ERROR");
+        assertThat(result).contains("stop");
+
+        Map<String, Object> errorMap = objectMapper.readValue(result, Map.class);
+        assertThat(errorMap).containsEntry("error", "VALIDATION_ERROR");
+        assertThat(errorMap).containsEntry("type", "ValidationException");
+    }
+
+    @Test
+    @DisplayName("Departures tool should return error on trip planning exception")
+    void departures_withTripPlanningException_shouldReturnErrorResponse() throws Exception {
+        // Arrange
+        when(geocoderService.resolveStopId(anyString()))
+            .thenReturn("NSR:StopPlace:337");
+
+        when(otpSearchService.handleDepartureBoardRequest(anyString(), any(), any(), any(), any()))
+            .thenThrow(new TripPlanningException("API unavailable"));
+
+        // Act
+        String result = tripSearchTool.departures("Oslo S", 10, null, null, null);
+
+        // Assert
+        assertThat(result).contains("TRIP_PLANNING_ERROR");
+        assertThat(result).contains("API unavailable");
+
+        Map<String, Object> errorMap = objectMapper.readValue(result, Map.class);
+        assertThat(errorMap).containsEntry("error", "TRIP_PLANNING_ERROR");
+        assertThat(errorMap).containsEntry("type", "TripPlanningException");
+    }
+
+    @Test
+    @DisplayName("Departures tool should return generic error on unexpected exception")
+    void departures_withUnexpectedException_shouldReturnGenericError() throws Exception {
+        // Arrange
+        when(geocoderService.resolveStopId(anyString()))
+            .thenThrow(new RuntimeException("Unexpected error"));
+
+        // Act
+        String result = tripSearchTool.departures("Oslo S", 10, null, null, null);
+
+        // Assert
+        assertThat(result).contains("ERROR");
+        assertThat(result).contains("An unexpected error occurred");
+        assertThat(result).contains("Unexpected error");
+
+        Map<String, Object> errorMap = objectMapper.readValue(result, Map.class);
+        assertThat(errorMap).containsEntry("error", "ERROR");
+        assertThat(errorMap).containsEntry("type", "Exception");
     }
 }

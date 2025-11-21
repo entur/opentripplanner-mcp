@@ -102,4 +102,63 @@ public class TestFixtures {
             }
             """;
     }
+
+    public static String createDepartureBoardResponse() {
+        return """
+            {
+                "data": {
+                    "stopPlace": {
+                        "id": "NSR:StopPlace:337",
+                        "name": "Oslo S",
+                        "estimatedCalls": [{
+                            "aimedDepartureTime": "2025-01-21T14:30:00+01:00",
+                            "expectedDepartureTime": "2025-01-21T14:32:00+01:00",
+                            "actualDepartureTime": null,
+                            "cancellation": false,
+                            "realtime": true,
+                            "realtimeState": "UPDATED",
+                            "quay": {
+                                "id": "NSR:Quay:566",
+                                "publicCode": "19",
+                                "name": "Oslo S"
+                            },
+                            "destinationDisplay": {
+                                "frontText": "Lillehammer"
+                            },
+                            "serviceJourney": {
+                                "id": "VYG:ServiceJourney:123",
+                                "line": {
+                                    "id": "VYG:Line:R10",
+                                    "publicCode": "R10",
+                                    "name": "Drammen - Lillehammer",
+                                    "transportMode": "rail"
+                                }
+                            },
+                            "situations": []
+                        }]
+                    }
+                }
+            }
+            """;
+    }
+
+    public static String createGeocoderResponseWithId(String name, String nsrId, double lat, double lng) {
+        return String.format("""
+            {
+                "type": "FeatureCollection",
+                "features": [{
+                    "type": "Feature",
+                    "geometry": {
+                        "type": "Point",
+                        "coordinates": [%.6f, %.6f]
+                    },
+                    "properties": {
+                        "id": "%s",
+                        "name": "%s",
+                        "label": "%s"
+                    }
+                }]
+            }
+            """, lng, lat, nsrId, name, name);
+    }
 }

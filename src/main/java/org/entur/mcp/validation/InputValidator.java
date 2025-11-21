@@ -10,6 +10,8 @@ public class InputValidator {
     private static final DateTimeFormatter ISO_DATE_TIME_FORMATTER = DateTimeFormatter.ISO_DATE_TIME;
     private static final int MAX_RESULTS_LIMIT = 50;
     private static final int MIN_RESULTS = 1;
+    private static final int MAX_TIME_RANGE_MINUTES = 1440; // 24 hours
+    private static final int MIN_TIME_RANGE_MINUTES = 1;
 
 
     public static void validateLocation(String location, String fieldName) {
@@ -62,5 +64,23 @@ public class InputValidator {
             throw new ValidationException("dateTime",
                 "Cannot specify both departureTime and arrivalTime. Please provide only one.");
         }
+    }
+
+    public static int validateTimeRange(Integer timeRangeMinutes, int defaultValue) {
+        if (timeRangeMinutes == null) {
+            return defaultValue;
+        }
+
+        if (timeRangeMinutes < MIN_TIME_RANGE_MINUTES) {
+            throw new ValidationException("timeRangeMinutes",
+                String.format("timeRangeMinutes must be at least %d", MIN_TIME_RANGE_MINUTES));
+        }
+
+        if (timeRangeMinutes > MAX_TIME_RANGE_MINUTES) {
+            throw new ValidationException("timeRangeMinutes",
+                String.format("timeRangeMinutes cannot exceed %d (24 hours)", MAX_TIME_RANGE_MINUTES));
+        }
+
+        return timeRangeMinutes;
     }
 }
