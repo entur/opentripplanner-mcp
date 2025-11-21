@@ -62,5 +62,5 @@ jobs:
     with:
       environment: dev
       image: ${{ needs.docker-push.outputs.image_name }}:${{ needs.docker-push.outputs.image_tag}}
-      chart: helm/otp-mcp-server
+      chart: helm/opentripplanner-mcp
       namespace: opentripplanner-mcp
