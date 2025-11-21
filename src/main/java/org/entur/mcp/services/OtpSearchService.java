@@ -35,6 +35,53 @@ public class OtpSearchService {
 
     private final HttpClient client;
 
+    private static final String baseQuery = """
+                {
+                    trip(
+                        from: {
+                            place: "%s"
+                            coordinates: {
+                                latitude: %f
+                                longitude: %f
+                            }
+                        }
+                        to: {
+                            place: "%s"
+                            coordinates: {
+                                latitude: %f
+                                longitude: %f
+                            }
+                        }
+                        %s
+                        numTripPatterns: %d
+                    ) {
+                        tripPatterns {
+                            duration
+                            expectedStartTime
+                            expectedEndTime
+                            legs {
+                                mode
+                                distance
+                                duration
+                                fromPlace {
+                                    name
+                                }
+                                toPlace {
+                                    name
+                                }
+                                line {
+                                    publicCode
+                                    name
+                                }
+                                aimedStartTime
+                                expectedStartTime
+                                aimedEndTime
+                                expectedEndTime
+                            }
+                        }
+                    }
+                }""";;
+
     public OtpSearchService(
             @Value("${org.entur.otp.url}") String otpURL,
             @Value("${org.entur.mcp.client_name:entur-mcp}") String etClientName,
@@ -72,48 +119,10 @@ public class OtpSearchService {
         }
 
         String query = String.format(
-                """
-                        {
-                            trip(
-                                from: {
-                                    place: "%s"
-                                    coordinates: {
-                                        latitude: %f
-                                        longitude: %f
-                                    }
-                                }
-                                to: {
-                                    place: "%s"
-                                    coordinates: {
-                                        latitude: %f
-                                        longitude: %f
-                                    }
-                                }
-                                %s
-                                numTripPatterns: %d
-                            ) {
-                                tripPatterns {
-                                    duration
-                                    startTime
-                                    endTime
-                                    legs {
-                                        mode
-                                        distance
-                                        duration
-                                        fromPlace {
-                                            name
-                                        }
-                                        toPlace {
-                                            name
-                                        }
-                                        %s
-                                    }
-                                }
-                            }
-                        }""",
+                baseQuery,
                 fromLocation.getPlace(), fromLocation.getLatitude(), fromLocation.getLongitude(),
                 toLocation.getPlace(), toLocation.getLatitude(), toLocation.getLongitude(),
-                dateTimeParam, validatedMaxResults, getTransitLegFields()
+                dateTimeParam, validatedMaxResults
         );
 
         log.debug("Executing GraphQL query for trip from '{}' to '{}'", fromLocation.getPlace(), toLocation.getPlace());
@@ -204,18 +213,5 @@ public class OtpSearchService {
             throw new TripPlanningException("Failed to geocode location: " + locationName, e);
         }
         return location;
-    }
-
-    private String getTransitLegFields() {
-        // getTransitLegFields returns the GraphQL fields for transit legs
-            return "line { " +
-                      "publicCode " +
-                      "name " +
-                    "} " +
-                    "aimedStartTime " +
-                    "expectedStartTime " +
-                    "aimedEndTime " +
-                    "expectedEndTime";
-
     }
 }
