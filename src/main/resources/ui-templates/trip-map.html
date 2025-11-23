@@ -33,11 +33,46 @@
         .trip-option.selected { border-color: #007AFF; background: #f0f7ff; }
         .trip-option .time { font-weight: 600; }
         .trip-option .details { font-size: 12px; color: #666; margin-top: 2px; }
+        .search-container { display: flex; gap: 12px; margin: 12px 0; align-items: flex-end; flex-wrap: wrap; }
+        .search-field { flex: 1; min-width: 150px; position: relative; }
+        .search-field label { display: block; font-size: 12px; color: #666; margin-bottom: 4px; }
+        .search-field input { width: 100%; padding: 8px 12px; border: 1px solid #ddd; border-radius: 6px;
+                              font-size: 14px; outline: none; }
+        .search-field input:focus { border-color: #007AFF; box-shadow: 0 0 0 2px rgba(0,122,255,0.2); }
+        .autocomplete-dropdown { position: absolute; top: 100%; left: 0; right: 0; background: white;
+                                 border: 1px solid #ddd; border-radius: 6px; box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+                                 max-height: 200px; overflow-y: auto; z-index: 1000; display: none; }
+        .autocomplete-dropdown.visible { display: block; }
+        .autocomplete-item { padding: 10px 12px; cursor: pointer; border-bottom: 1px solid #f0f0f0; }
+        .autocomplete-item:last-child { border-bottom: none; }
+        .autocomplete-item:hover { background: #f5f5f5; }
+        .autocomplete-item .name { font-weight: 500; font-size: 14px; }
+        .autocomplete-item .category { font-size: 12px; color: #666; margin-top: 2px; }
+        .search-button { padding: 8px 20px; background: #007AFF; color: white; border: none;
+                         border-radius: 6px; font-size: 14px; cursor: pointer; white-space: nowrap; }
+        .search-button:hover { background: #0056b3; }
+        .search-button:disabled { background: #ccc; cursor: not-allowed; }
+        .search-button.loading { background: #999; }
+        .search-button.loading::after { content: '...'; }
+        .leaflet-interactive.alternative-route:hover { stroke-opacity: 0.7 !important; stroke-width: 4 !important; }
     </style>
 </head>
 <body>
     <div class="journey-header">
         <h2 id="route-title">Journey Route</h2>
+        <div class="search-container">
+            <div class="search-field">
+                <label for="from-input">From</label>
+                <input type="text" id="from-input" placeholder="Enter starting location" autocomplete="off">
+                <div class="autocomplete-dropdown" id="from-dropdown"></div>
+            </div>
+            <div class="search-field">
+                <label for="to-input">To</label>
+                <input type="text" id="to-input" placeholder="Enter destination" autocomplete="off">
+                <div class="autocomplete-dropdown" id="to-dropdown"></div>
+            </div>
+            <button id="search-btn" class="search-button">Search</button>
+        </div>
         <div class="duration" id="route-duration"></div>
     </div>
     <div id="map"></div>
@@ -66,9 +101,160 @@
             'air': '#9C27B0'
         };
 
+        // Search state
+        let fromLocation = null;  // { name, lat, lng }
+        let toLocation = null;
+
+        // Debounce utility
+        function debounce(func, delay) {
+            let timeout = null;
+            return (...args) => {
+                if (timeout) clearTimeout(timeout);
+                timeout = setTimeout(() => func(...args), delay);
+            };
+        }
+
+        // Fetch autocomplete suggestions
+        async function fetchSuggestions(query) {
+            if (query.length < 3) return [];
+            // Use injected API base URL, fall back to current origin
+            const baseUrl = (tripData && tripData.apiBaseUrl) || window.location.origin;
+            try {
+                const response = await fetch(
+                    `${baseUrl}/api/geocode?text=${encodeURIComponent(query)}&maxResults=5`
+                );
+                if (!response.ok) {
+                    console.error('Autocomplete response not ok:', response.status);
+                    return [];
+                }
+                const data = await response.json();
+                return data.features || [];
+            } catch (e) {
+                console.error('Autocomplete error:', e);
+                return [];
+            }
+        }
+
+        // Render dropdown suggestions
+        function renderSuggestions(features, dropdown, onSelect) {
+            dropdown.innerHTML = '';
+            if (features.length === 0) {
+                dropdown.classList.remove('visible');
+                return;
+            }
+
+            features.forEach(feature => {
+                const props = feature.properties;
+                const coords = feature.geometry.coordinates;
+                const name = props.name || props.label || 'Unknown';
+                const category = props.category ? props.category.join(', ') : (props.layer || '');
+
+                const item = document.createElement('div');
+                item.className = 'autocomplete-item';
+                item.innerHTML = `
+                    <div class="name">${name}</div>
+                    <div class="category">${category}</div>
+                `;
+                item.onclick = () => {
+                    onSelect({
+                        name: name,
+                        lat: coords[1],
+                        lng: coords[0]
+                    });
+                    dropdown.classList.remove('visible');
+                };
+                dropdown.appendChild(item);
+            });
+            dropdown.classList.add('visible');
+        }
+
+        // Setup autocomplete for an input field
+        function setupAutocomplete(inputId, dropdownId, setLocation) {
+            const input = document.getElementById(inputId);
+            const dropdown = document.getElementById(dropdownId);
+
+            const handleInput = debounce(async () => {
+                const query = input.value.trim();
+                const features = await fetchSuggestions(query);
+                renderSuggestions(features, dropdown, (location) => {
+                    input.value = location.name;
+                    setLocation(location);
+                });
+            }, 250);
+
+            input.addEventListener('input', handleInput);
+
+            // Hide dropdown on blur (with delay for click to register)
+            input.addEventListener('blur', () => {
+                setTimeout(() => dropdown.classList.remove('visible'), 200);
+            });
+
+            // Show dropdown on focus if there's text
+            input.addEventListener('focus', () => {
+                if (input.value.trim().length >= 3) {
+                    handleInput();
+                }
+            });
+        }
+
+
+        // Handle search submission
+        async function handleSearch() {
+            const fromInput = document.getElementById('from-input').value.trim();
+            const toInput = document.getElementById('to-input').value.trim();
+            const searchBtn = document.getElementById('search-btn');
+
+            if (!fromInput || !toInput) {
+                alert('Please enter both From and To locations');
+                return;
+            }
+
+            // Use stored coordinates if available, otherwise use text
+            const fromValue = fromLocation ? `${fromLocation.lat},${fromLocation.lng}` : fromInput;
+            const toValue = toLocation ? `${toLocation.lat},${toLocation.lng}` : toInput;
+
+            // Show loading state
+            searchBtn.disabled = true;
+            searchBtn.classList.add('loading');
+            searchBtn.textContent = 'Searching';
+
+            // Call the REST endpoint directly
+            const baseUrl = (tripData && tripData.apiBaseUrl) || window.location.origin;
+            const params = new URLSearchParams({
+                from: fromValue,
+                to: toValue,
+                fromName: fromInput,
+                toName: toInput
+            });
+
+            try {
+                const response = await fetch(`${baseUrl}/api/trip?${params}`);
+                const data = await response.json();
+
+                if (!response.ok) {
+                    const errorMsg = data.message || 'Failed to plan trip';
+                    alert(`Error: ${errorMsg}`);
+                    return;
+                }
+
+                data.apiBaseUrl = baseUrl;
+                loadTripData(data);
+
+            } catch (e) {
+                console.error('Search error:', e);
+                alert('Failed to search. Please check your connection and try again.');
+            } finally {
+                searchBtn.disabled = false;
+                searchBtn.classList.remove('loading');
+                searchBtn.textContent = 'Search';
+            }
+        }
+
         let map = null;
         let routeGroup = null;
+        let alternativeGroup = null;  // For alternative routes
         let tripData = null;
+        let selectedRouteIndex = 0;   // Track currently selected route
 
         function initMap() {
             map = L.map('map').setView([59.91, 10.75], 12);
@@ -76,7 +262,8 @@
                 maxZoom: 19,
                 attribution: '&copy; OpenStreetMap contributors'
             }).addTo(map);
-            routeGroup = L.featureGroup().addTo(map);
+            alternativeGroup = L.featureGroup().addTo(map);  // Add alternatives first (below)
+            routeGroup = L.featureGroup().addTo(map);         // Selected route on top
         }
 
         function decodePolyline(encoded) {
@@ -108,59 +295,114 @@
 
         function displayRoute(tripPattern, index) {
             routeGroup.clearLayers();
+            selectedRouteIndex = index;
 
             // Update header
             const duration = Math.round(tripPattern.duration / 60);
             document.getElementById('route-duration').textContent =
-                `${duration} min - Option ${index + 1}`;
+                `${duration} min - Option ${index + 1} of ${tripData.trip.tripPatterns.length}`;
+
+            // Draw the selected route
+            drawRoutePolylines(tripPattern, routeGroup, true, index);
+
+            // Fit bounds to selected route
+            if (routeGroup.getLayers().length > 0) {
+                map.fitBounds(routeGroup.getBounds(), { padding: [20, 20] });
+            }
+        }
+
+        function drawRoutePolylines(tripPattern, layerGroup, isSelected, routeIndex) {
+            const opacity = isSelected ? 0.9 : 0.4;
+            const weightMultiplier = isSelected ? 1 : 0.7;
 
             tripPattern.legs.forEach(leg => {
                 const mode = leg.mode.toLowerCase();
-                const color = MODE_COLORS[mode] || '#333333';
+                const color = isSelected ? (MODE_COLORS[mode] || '#333333') : '#999999';
+                const baseWeight = mode === 'foot' || mode === 'walk' ? 3 : 5;
 
                 if (leg.pointsOnLink && leg.pointsOnLink.points) {
                     const coords = decodePolyline(leg.pointsOnLink.points);
                     const polyline = L.polyline(coords, {
                         color: color,
-                        weight: mode === 'foot' || mode === 'walk' ? 3 : 5,
-                        opacity: 0.8,
+                        weight: baseWeight * weightMultiplier,
+                        opacity: opacity,
                         dashArray: mode === 'foot' || mode === 'walk' ? '5, 10' : null
                     });
 
-                    const popupContent = `
-                        <div class="leg-popup">
-                            <div class="mode">${leg.mode}</div>
-                            ${leg.line ? `<div class="line">${leg.line.publicCode || ''} ${leg.line.name || ''}</div>` : ''}
-                            <div class="times">
-                                ${leg.fromPlace.name} - ${leg.toPlace.name}
+                    // Add click handler for route selection (alternatives only)
+                    if (!isSelected) {
+                        polyline.on('click', () => selectRoute(routeIndex));
+                        polyline.setStyle({ cursor: 'pointer' });
+                    }
+
+                    // Popup for selected route only
+                    if (isSelected) {
+                        const popupContent = `
+                            <div class="leg-popup">
+                                <div class="mode">${leg.mode}</div>
+                                ${leg.line ? `<div class="line">${leg.line.publicCode || ''} ${leg.line.name || ''}</div>` : ''}
+                                <div class="times">
+                                    ${leg.fromPlace.name} → ${leg.toPlace.name}
+                                </div>
                             </div>
-                        </div>
-                    `;
-                    polyline.bindPopup(popupContent);
-                    routeGroup.addLayer(polyline);
+                        `;
+                        polyline.bindPopup(popupContent);
+                    }
+
+                    layerGroup.addLayer(polyline);
                 }
 
-                // Add markers for stops
-                if (leg.fromPlace) {
+                // Add markers for selected route only
+                if (isSelected && leg.fromPlace) {
                     const marker = L.circleMarker(
                         [leg.fromPlace.latitude, leg.fromPlace.longitude],
-                        { radius: 6, color: color, fillColor: 'white', fillOpacity: 1, weight: 2 }
+                        { radius: 6, color: MODE_COLORS[mode] || '#333', fillColor: 'white', fillOpacity: 1, weight: 2 }
                     ).bindPopup(leg.fromPlace.name);
-                    routeGroup.addLayer(marker);
+                    layerGroup.addLayer(marker);
                 }
             });
 
-            // Add destination marker
-            const lastLeg = tripPattern.legs[tripPattern.legs.length - 1];
-            if (lastLeg && lastLeg.toPlace) {
-                const destMarker = L.circleMarker(
-                    [lastLeg.toPlace.latitude, lastLeg.toPlace.longitude],
-                    { radius: 8, color: '#E60000', fillColor: '#E60000', fillOpacity: 1, weight: 2 }
-                ).bindPopup(`<b>Destination:</b> ${lastLeg.toPlace.name}`);
-                routeGroup.addLayer(destMarker);
+            // Add destination marker for selected route
+            if (isSelected) {
+                const lastLeg = tripPattern.legs[tripPattern.legs.length - 1];
+                if (lastLeg && lastLeg.toPlace) {
+                    const destMarker = L.circleMarker(
+                        [lastLeg.toPlace.latitude, lastLeg.toPlace.longitude],
+                        { radius: 8, color: '#E60000', fillColor: '#E60000', fillOpacity: 1, weight: 2 }
+                    ).bindPopup(`<b>Destination:</b> ${lastLeg.toPlace.name}`);
+                    layerGroup.addLayer(destMarker);
+                }
             }
+        }
 
-            map.fitBounds(routeGroup.getBounds(), { padding: [20, 20] });
+        function displayAlternatives() {
+            alternativeGroup.clearLayers();
+
+            if (!tripData || !tripData.trip || !tripData.trip.tripPatterns) return;
+
+            const patterns = tripData.trip.tripPatterns;
+
+            // Show up to 2 alternatives (not the selected one)
+            let alternativesShown = 0;
+            patterns.forEach((pattern, index) => {
+                if (index !== selectedRouteIndex && alternativesShown < 2) {
+                    drawRoutePolylines(pattern, alternativeGroup, false, index);
+                    alternativesShown++;
+                }
+            });
+        }
+
+        function selectRoute(index) {
+            selectedRouteIndex = index;
+
+            // Update trip option cards
+            document.querySelectorAll('.trip-option').forEach((el, i) => {
+                el.classList.toggle('selected', i === index);
+            });
+
+            // Redraw routes
+            displayRoute(tripData.trip.tripPatterns[index], index);
+            displayAlternatives();
         }
 
         function renderTripOptions(tripPatterns) {
@@ -182,26 +424,58 @@
                     <div class="time">${startTime} - ${endTime} (${duration} min)</div>
                     <div class="details">${modes}</div>
                 `;
-                option.onclick = () => {
-                    document.querySelectorAll('.trip-option').forEach(el => el.classList.remove('selected'));
-                    option.classList.add('selected');
-                    displayRoute(pattern, index);
-                };
+                option.onclick = () => selectRoute(index);
                 container.appendChild(option);
             });
         }
 
         function loadTripData(data) {
+            const searchBtn = document.getElementById('search-btn');
+            if (searchBtn) {
+                searchBtn.disabled = false;
+                searchBtn.classList.remove('loading');
+                searchBtn.textContent = 'Search';
+            }
+
             tripData = data;
+            fromLocation = null;
+            toLocation = null;
+
             if (data.trip && data.trip.tripPatterns && data.trip.tripPatterns.length > 0) {
                 document.getElementById('route-title').textContent =
-                    `${data.from.place} - ${data.to.place}`;
+                    `${data.from.place} → ${data.to.place}`;
+                document.getElementById('from-input').value = data.from?.place || '';
+                document.getElementById('to-input').value = data.to?.place || '';
+
                 renderTripOptions(data.trip.tripPatterns);
+                selectedRouteIndex = 0;
                 displayRoute(data.trip.tripPatterns[0], 0);
+                displayAlternatives();
             }
         }
 
+        // Initialize search - called once on page load
+        function initSearchOnce() {
+            if (window.searchInitialized) return;
+            window.searchInitialized = true;
+
+            setupAutocomplete('from-input', 'from-dropdown', (loc) => { fromLocation = loc; });
+            setupAutocomplete('to-input', 'to-dropdown', (loc) => { toLocation = loc; });
+
+            // Search button handler
+            document.getElementById('search-btn').addEventListener('click', handleSearch);
+
+            // Allow Enter key to trigger search
+            document.getElementById('from-input').addEventListener('keypress', (e) => {
+                if (e.key === 'Enter') document.getElementById('to-input').focus();
+            });
+            document.getElementById('to-input').addEventListener('keypress', (e) => {
+                if (e.key === 'Enter') handleSearch();
+            });
+        }
+
         initMap();
+        initSearchOnce();
 
         // Listen for data from MCP host via postMessage
         window.addEventListener('message', (event) => {

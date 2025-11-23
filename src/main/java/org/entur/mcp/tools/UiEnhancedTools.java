@@ -35,15 +35,18 @@ public class UiEnhancedTools {
     private final OtpSearchService otpSearchService;
     private final GeocoderService geocoderService;
     private final MapUiResources mapUiResources;
+    private final String apiBaseUrl;
 
     public UiEnhancedTools(
             @Autowired OtpSearchService otpSearchService,
             @Autowired GeocoderService geocoderService,
-            @Autowired MapUiResources mapUiResources
+            @Autowired MapUiResources mapUiResources,
+            @org.springframework.beans.factory.annotation.Value("${org.entur.mcp.api_base_url:http://localhost:8080}") String apiBaseUrl
     ) {
         this.otpSearchService = otpSearchService;
         this.geocoderService = geocoderService;
         this.mapUiResources = mapUiResources;
+        this.apiBaseUrl = apiBaseUrl;
     }
 
     @McpTool(
@@ -70,6 +73,7 @@ public class UiEnhancedTools {
             response.putAll(tripResponse);
             response.put("from", Map.of("place", from));
             response.put("to", Map.of("place", to));
+            response.put("apiBaseUrl", apiBaseUrl);
 
             String jsonData = objectMapper.writeValueAsString(response);
 

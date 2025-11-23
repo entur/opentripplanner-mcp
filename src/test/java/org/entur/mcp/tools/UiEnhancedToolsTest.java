@@ -48,7 +48,7 @@ class UiEnhancedToolsTest {
 
         MapUiResources mapUiResources = new MapUiResources();
 
-        uiEnhancedTools = new UiEnhancedTools(otpSearchService, geocoderService, mapUiResources);
+        uiEnhancedTools = new UiEnhancedTools(otpSearchService, geocoderService, mapUiResources, "http://localhost:8080");
         objectMapper = new ObjectMapper();
     }
 
