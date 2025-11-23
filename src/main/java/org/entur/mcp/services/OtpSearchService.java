@@ -66,9 +66,16 @@ public class OtpSearchService {
                                 duration
                                 fromPlace {
                                     name
+                                    latitude
+                                    longitude
                                 }
                                 toPlace {
                                     name
+                                    latitude
+                                    longitude
+                                }
+                                pointsOnLink {
+                                    points
                                 }
                                 line {
                                     publicCode

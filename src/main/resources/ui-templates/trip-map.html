@@ -1,0 +1,217 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Journey Map</title>
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"
+          integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY="
+          crossorigin=""/>
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"
+            integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo="
+            crossorigin=""></script>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; }
+        #map { height: 400px; width: 100%; border-radius: 8px; }
+        .journey-header { padding: 12px; background: #f5f5f5; border-radius: 8px 8px 0 0; }
+        .journey-header h2 { font-size: 16px; color: #333; margin-bottom: 4px; }
+        .journey-header .duration { font-size: 14px; color: #666; }
+        .leg-popup { font-size: 13px; }
+        .leg-popup .mode { font-weight: 600; text-transform: capitalize; }
+        .leg-popup .line { color: #666; }
+        .leg-popup .times { margin-top: 4px; font-size: 12px; color: #888; }
+        .legend { position: absolute; bottom: 20px; right: 10px; background: white;
+                  padding: 10px; border-radius: 6px; box-shadow: 0 2px 6px rgba(0,0,0,0.2);
+                  z-index: 1000; font-size: 12px; }
+        .legend-item { display: flex; align-items: center; margin: 4px 0; }
+        .legend-color { width: 20px; height: 4px; margin-right: 8px; border-radius: 2px; }
+        .trip-options { padding: 12px; max-height: 200px; overflow-y: auto; }
+        .trip-option { padding: 8px; margin: 4px 0; background: #f9f9f9; border-radius: 6px;
+                       cursor: pointer; border: 2px solid transparent; }
+        .trip-option:hover { background: #f0f0f0; }
+        .trip-option.selected { border-color: #007AFF; background: #f0f7ff; }
+        .trip-option .time { font-weight: 600; }
+        .trip-option .details { font-size: 12px; color: #666; margin-top: 2px; }
+    </style>
+</head>
+<body>
+    <div class="journey-header">
+        <h2 id="route-title">Journey Route</h2>
+        <div class="duration" id="route-duration"></div>
+    </div>
+    <div id="map"></div>
+    <div class="legend">
+        <div class="legend-item"><div class="legend-color" style="background:#4CAF50"></div>Walk</div>
+        <div class="legend-item"><div class="legend-color" style="background:#FF6B00"></div>Bus</div>
+        <div class="legend-item"><div class="legend-color" style="background:#00A3E0"></div>Tram</div>
+        <div class="legend-item"><div class="legend-color" style="background:#E60000"></div>Metro</div>
+        <div class="legend-item"><div class="legend-color" style="background:#808080"></div>Rail</div>
+        <div class="legend-item"><div class="legend-color" style="background:#0066CC"></div>Ferry</div>
+    </div>
+    <div class="trip-options" id="trip-options"></div>
+
+    <script>
+        const MODE_COLORS = {
+            'foot': '#4CAF50',
+            'walk': '#4CAF50',
+            'bicycle': '#8BC34A',
+            'bus': '#FF6B00',
+            'coach': '#FF6B00',
+            'tram': '#00A3E0',
+            'metro': '#E60000',
+            'rail': '#808080',
+            'water': '#0066CC',
+            'ferry': '#0066CC',
+            'air': '#9C27B0'
+        };
+
+        let map = null;
+        let routeGroup = null;
+        let tripData = null;
+
+        function initMap() {
+            map = L.map('map').setView([59.91, 10.75], 12);
+            L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', {
+                maxZoom: 19,
+                attribution: '&copy; OpenStreetMap contributors'
+            }).addTo(map);
+            routeGroup = L.featureGroup().addTo(map);
+        }
+
+        function decodePolyline(encoded) {
+            // Google polyline decoding algorithm
+            let points = [];
+            let lat = 0, lng = 0;
+            let index = 0;
+            while (index < encoded.length) {
+                let shift = 0, result = 0, byte;
+                do {
+                    byte = encoded.charCodeAt(index++) - 63;
+                    result |= (byte & 0x1f) << shift;
+                    shift += 5;
+                } while (byte >= 0x20);
+                lat += (result & 1) ? ~(result >> 1) : (result >> 1);
+
+                shift = 0; result = 0;
+                do {
+                    byte = encoded.charCodeAt(index++) - 63;
+                    result |= (byte & 0x1f) << shift;
+                    shift += 5;
+                } while (byte >= 0x20);
+                lng += (result & 1) ? ~(result >> 1) : (result >> 1);
+
+                points.push([lat / 1e5, lng / 1e5]);
+            }
+            return points;
+        }
+
+        function displayRoute(tripPattern, index) {
+            routeGroup.clearLayers();
+
+            // Update header
+            const duration = Math.round(tripPattern.duration / 60);
+            document.getElementById('route-duration').textContent =
+                `${duration} min - Option ${index + 1}`;
+
+            tripPattern.legs.forEach(leg => {
+                const mode = leg.mode.toLowerCase();
+                const color = MODE_COLORS[mode] || '#333333';
+
+                if (leg.pointsOnLink && leg.pointsOnLink.points) {
+                    const coords = decodePolyline(leg.pointsOnLink.points);
+                    const polyline = L.polyline(coords, {
+                        color: color,
+                        weight: mode === 'foot' || mode === 'walk' ? 3 : 5,
+                        opacity: 0.8,
+                        dashArray: mode === 'foot' || mode === 'walk' ? '5, 10' : null
+                    });
+
+                    const popupContent = `
+                        <div class="leg-popup">
+                            <div class="mode">${leg.mode}</div>
+                            ${leg.line ? `<div class="line">${leg.line.publicCode || ''} ${leg.line.name || ''}</div>` : ''}
+                            <div class="times">
+                                ${leg.fromPlace.name} - ${leg.toPlace.name}
+                            </div>
+                        </div>
+                    `;
+                    polyline.bindPopup(popupContent);
+                    routeGroup.addLayer(polyline);
+                }
+
+                // Add markers for stops
+                if (leg.fromPlace) {
+                    const marker = L.circleMarker(
+                        [leg.fromPlace.latitude, leg.fromPlace.longitude],
+                        { radius: 6, color: color, fillColor: 'white', fillOpacity: 1, weight: 2 }
+                    ).bindPopup(leg.fromPlace.name);
+                    routeGroup.addLayer(marker);
+                }
+            });
+
+            // Add destination marker
+            const lastLeg = tripPattern.legs[tripPattern.legs.length - 1];
+            if (lastLeg && lastLeg.toPlace) {
+                const destMarker = L.circleMarker(
+                    [lastLeg.toPlace.latitude, lastLeg.toPlace.longitude],
+                    { radius: 8, color: '#E60000', fillColor: '#E60000', fillOpacity: 1, weight: 2 }
+                ).bindPopup(`<b>Destination:</b> ${lastLeg.toPlace.name}`);
+                routeGroup.addLayer(destMarker);
+            }
+
+            map.fitBounds(routeGroup.getBounds(), { padding: [20, 20] });
+        }
+
+        function renderTripOptions(tripPatterns) {
+            const container = document.getElementById('trip-options');
+            container.innerHTML = '';
+
+            tripPatterns.forEach((pattern, index) => {
+                const duration = Math.round(pattern.duration / 60);
+                const startTime = pattern.expectedStartTime ?
+                    new Date(pattern.expectedStartTime).toLocaleTimeString('no-NO', {hour: '2-digit', minute: '2-digit'}) : '';
+                const endTime = pattern.expectedEndTime ?
+                    new Date(pattern.expectedEndTime).toLocaleTimeString('no-NO', {hour: '2-digit', minute: '2-digit'}) : '';
+
+                const modes = [...new Set(pattern.legs.map(l => l.mode))].join(' - ');
+
+                const option = document.createElement('div');
+                option.className = 'trip-option' + (index === 0 ? ' selected' : '');
+                option.innerHTML = `
+                    <div class="time">${startTime} - ${endTime} (${duration} min)</div>
+                    <div class="details">${modes}</div>
+                `;
+                option.onclick = () => {
+                    document.querySelectorAll('.trip-option').forEach(el => el.classList.remove('selected'));
+                    option.classList.add('selected');
+                    displayRoute(pattern, index);
+                };
+                container.appendChild(option);
+            });
+        }
+
+        function loadTripData(data) {
+            tripData = data;
+            if (data.trip && data.trip.tripPatterns && data.trip.tripPatterns.length > 0) {
+                document.getElementById('route-title').textContent =
+                    `${data.from.place} - ${data.to.place}`;
+                renderTripOptions(data.trip.tripPatterns);
+                displayRoute(data.trip.tripPatterns[0], 0);
+            }
+        }
+
+        initMap();
+
+        // Listen for data from MCP host via postMessage
+        window.addEventListener('message', (event) => {
+            if (event.data && event.data.type === 'mcp-ui-data') {
+                loadTripData(event.data.payload);
+            }
+        });
+
+        // Signal ready to receive data
+        window.parent.postMessage({ type: 'mcp-ui-ready', uri: 'ui://otp-mcp/trip-map' }, '*');
+    </script>
+</body>
+</html>

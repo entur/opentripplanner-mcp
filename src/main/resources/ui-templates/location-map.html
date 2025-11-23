@@ -1,0 +1,117 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Location Map</title>
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"
+          integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY="
+          crossorigin=""/>
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"
+            integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo="
+            crossorigin=""></script>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; }
+        #map { height: 350px; width: 100%; border-radius: 8px; }
+        .header { padding: 12px; background: #f5f5f5; border-radius: 8px 8px 0 0; }
+        .header h2 { font-size: 16px; color: #333; }
+        .results { padding: 12px; max-height: 200px; overflow-y: auto; }
+        .result-item { padding: 10px; margin: 4px 0; background: #f9f9f9;
+                       border-radius: 6px; cursor: pointer; border: 2px solid transparent; }
+        .result-item:hover { background: #f0f0f0; }
+        .result-item.selected { border-color: #007AFF; background: #f0f7ff; }
+        .result-item .name { font-weight: 600; font-size: 14px; }
+        .result-item .category { font-size: 12px; color: #666; margin-top: 2px; }
+        .result-item .coords { font-size: 11px; color: #999; margin-top: 2px; }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <h2 id="search-query">Location Results</h2>
+    </div>
+    <div id="map"></div>
+    <div class="results" id="results"></div>
+
+    <script>
+        let map = null;
+        let markersGroup = null;
+
+        function initMap() {
+            map = L.map('map').setView([59.91, 10.75], 10);
+            L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', {
+                maxZoom: 19,
+                attribution: '&copy; OpenStreetMap contributors'
+            }).addTo(map);
+            markersGroup = L.featureGroup().addTo(map);
+        }
+
+        function getCategoryIcon(categories) {
+            if (!categories || categories.length === 0) return '📍';
+            const cat = categories[0].toLowerCase();
+            if (cat.includes('stop') || cat.includes('station')) return '🚏';
+            if (cat.includes('address') || cat.includes('street')) return '🏠';
+            if (cat.includes('poi')) return '⭐';
+            return '📍';
+        }
+
+        function displayLocations(features, query) {
+            markersGroup.clearLayers();
+            document.getElementById('search-query').textContent = `Results for "${query}"`;
+
+            const resultsContainer = document.getElementById('results');
+            resultsContainer.innerHTML = '';
+
+            features.forEach((feature, index) => {
+                const coords = feature.geometry.coordinates;
+                const props = feature.properties;
+                const name = props.name || props.label || 'Unknown';
+                const category = props.category || (props.layer ? props.layer.join(', ') : '');
+
+                // Add marker
+                const marker = L.marker([coords[1], coords[0]])
+                    .bindPopup(`<b>${name}</b><br>${category}`);
+                markersGroup.addLayer(marker);
+
+                // Add result item
+                const item = document.createElement('div');
+                item.className = 'result-item' + (index === 0 ? ' selected' : '');
+                item.innerHTML = `
+                    <div class="name">${getCategoryIcon(props.category)} ${name}</div>
+                    <div class="category">${category}</div>
+                    <div class="coords">${coords[1].toFixed(5)}, ${coords[0].toFixed(5)}</div>
+                `;
+                item.onclick = () => {
+                    document.querySelectorAll('.result-item').forEach(el => el.classList.remove('selected'));
+                    item.classList.add('selected');
+                    map.setView([coords[1], coords[0]], 15);
+                    marker.openPopup();
+                };
+                resultsContainer.appendChild(item);
+            });
+
+            if (features.length > 0) {
+                map.fitBounds(markersGroup.getBounds(), { padding: [30, 30] });
+            }
+        }
+
+        function loadGeocodeData(data) {
+            if (data.features && data.features.length > 0) {
+                displayLocations(data.features, data.query || 'Search');
+            }
+        }
+
+        // Initialize
+        initMap();
+
+        // Listen for data from MCP host
+        window.addEventListener('message', (event) => {
+            if (event.data && event.data.type === 'mcp-ui-data') {
+                loadGeocodeData(event.data.payload);
+            }
+        });
+
+        window.parent.postMessage({ type: 'mcp-ui-ready', uri: 'ui://otp-mcp/location-map' }, '*');
+    </script>
+</body>
+</html>

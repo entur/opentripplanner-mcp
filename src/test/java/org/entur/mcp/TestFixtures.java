@@ -68,14 +68,25 @@ public class TestFixtures {
                     "trip": {
                         "tripPatterns": [{
                             "duration": 1873,
-                            "startTime": "2025-11-19T13:41:17+01:00",
-                            "endTime": "2025-11-19T14:12:30+01:00",
+                            "expectedStartTime": "2025-11-19T13:41:17+01:00",
+                            "expectedEndTime": "2025-11-19T14:12:30+01:00",
                             "legs": [{
                                 "mode": "foot",
                                 "distance": 506.45,
                                 "duration": 463,
-                                "fromPlace": {"name": "Origin"},
-                                "toPlace": {"name": "Oslo S"}
+                                "fromPlace": {
+                                    "name": "Origin",
+                                    "latitude": 59.911076,
+                                    "longitude": 10.748128
+                                },
+                                "toPlace": {
+                                    "name": "Oslo S",
+                                    "latitude": 59.910911,
+                                    "longitude": 10.750491
+                                },
+                                "pointsOnLink": {
+                                    "points": "o~slJauzb@Bb@FXHPJJLDHBD@D?H?HAF?@AFCBADCBQPs@n@wAfAe@^u@h@]Xa@\\\\g@`@WRYRg@^g@^_@Xg@`@g@`@i@b@a@ZYVw@j@"
+                                }
                             }]
                         }]
                     }

@@ -1,0 +1,139 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Departures Board</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+               background: #1a1a2e; color: #fff; }
+        .board { max-width: 600px; margin: 0 auto; }
+        .header { padding: 16px; background: #16213e; border-radius: 8px 8px 0 0; }
+        .header h2 { font-size: 18px; margin-bottom: 4px; }
+        .header .subtitle { font-size: 13px; color: #aaa; }
+        .departures { background: #0f0f23; }
+        .departure { display: flex; align-items: center; padding: 12px 16px;
+                     border-bottom: 1px solid #2a2a4a; }
+        .departure:last-child { border-bottom: none; }
+        .departure .time { font-size: 20px; font-weight: 700; min-width: 60px;
+                           font-variant-numeric: tabular-nums; }
+        .departure .time.delayed { color: #ff6b6b; text-decoration: line-through;
+                                   font-size: 14px; }
+        .departure .time.realtime { color: #4ecdc4; }
+        .departure .line { display: inline-flex; align-items: center; justify-content: center;
+                          min-width: 50px; padding: 4px 8px; border-radius: 4px;
+                          font-weight: 600; font-size: 14px; margin: 0 12px; }
+        .departure .destination { flex: 1; font-size: 15px; }
+        .departure .platform { font-size: 13px; color: #888; min-width: 60px; text-align: right; }
+        .mode-bus { background: #FF6B00; }
+        .mode-tram { background: #00A3E0; }
+        .mode-metro { background: #E60000; }
+        .mode-rail { background: #808080; }
+        .mode-water { background: #0066CC; }
+        .mode-air { background: #9C27B0; }
+        .alert { background: #ff6b6b22; padding: 8px 16px; font-size: 13px; color: #ff6b6b; }
+        .no-departures { padding: 40px; text-align: center; color: #666; }
+    </style>
+</head>
+<body>
+    <div class="board">
+        <div class="header">
+            <h2 id="stop-name">Departures</h2>
+            <div class="subtitle" id="stop-info"></div>
+        </div>
+        <div class="departures" id="departures-list"></div>
+    </div>
+
+    <script>
+        function formatTime(isoString) {
+            if (!isoString) return '--:--';
+            const date = new Date(isoString);
+            return date.toLocaleTimeString('no-NO', { hour: '2-digit', minute: '2-digit' });
+        }
+
+        function getModeClass(mode) {
+            const m = (mode || '').toLowerCase();
+            if (m.includes('bus') || m.includes('coach')) return 'mode-bus';
+            if (m.includes('tram')) return 'mode-tram';
+            if (m.includes('metro')) return 'mode-metro';
+            if (m.includes('rail') || m.includes('train')) return 'mode-rail';
+            if (m.includes('water') || m.includes('ferry')) return 'mode-water';
+            if (m.includes('air')) return 'mode-air';
+            return 'mode-bus';
+        }
+
+        function loadDeparturesData(data) {
+            const stopPlace = data.stopPlace;
+            if (!stopPlace) {
+                document.getElementById('departures-list').innerHTML =
+                    '<div class="no-departures">No departure data available</div>';
+                return;
+            }
+
+            document.getElementById('stop-name').textContent = stopPlace.name || 'Departures';
+            document.getElementById('stop-info').textContent =
+                stopPlace.id ? `ID: ${stopPlace.id}` : '';
+
+            const container = document.getElementById('departures-list');
+            container.innerHTML = '';
+
+            // Get all estimated calls
+            const allCalls = stopPlace.estimatedCalls || [];
+
+            // Sort by departure time
+            allCalls.sort((a, b) => {
+                const timeA = a.expectedDepartureTime || a.aimedDepartureTime;
+                const timeB = b.expectedDepartureTime || b.aimedDepartureTime;
+                return new Date(timeA) - new Date(timeB);
+            });
+
+            if (allCalls.length === 0) {
+                container.innerHTML = '<div class="no-departures">No upcoming departures</div>';
+                return;
+            }
+
+            allCalls.slice(0, 15).forEach(call => {
+                const aimed = call.aimedDepartureTime;
+                const expected = call.expectedDepartureTime;
+                const isDelayed = expected && aimed && new Date(expected) > new Date(aimed);
+                const isRealtime = call.realtime;
+
+                const line = call.serviceJourney?.line || {};
+                const dest = call.destinationDisplay?.frontText || 'Unknown';
+                const platform = call.quay?.publicCode || '';
+
+                const div = document.createElement('div');
+                div.className = 'departure';
+                div.innerHTML = `
+                    ${isDelayed ? `<span class="time delayed">${formatTime(aimed)}</span>` : ''}
+                    <span class="time ${isRealtime ? 'realtime' : ''}">${formatTime(expected || aimed)}</span>
+                    <span class="line ${getModeClass(line.transportMode)}">${line.publicCode || '?'}</span>
+                    <span class="destination">${dest}</span>
+                    <span class="platform">${platform ? 'Pl. ' + platform : ''}</span>
+                `;
+                container.appendChild(div);
+
+                // Show alerts if any
+                if (call.situations && call.situations.length > 0) {
+                    call.situations.forEach(situation => {
+                        const alert = document.createElement('div');
+                        alert.className = 'alert';
+                        alert.textContent = situation.summary?.[0]?.value || 'Service alert';
+                        container.appendChild(alert);
+                    });
+                }
+            });
+        }
+
+        // Listen for data from MCP host
+        window.addEventListener('message', (event) => {
+            if (event.data && event.data.type === 'mcp-ui-data') {
+                loadDeparturesData(event.data.payload);
+            }
+        });
+
+        window.parent.postMessage({ type: 'mcp-ui-ready', uri: 'ui://otp-mcp/departures-board' }, '*');
+    </script>
+</body>
+</html>
