@@ -36,7 +36,10 @@ public class TripSearchTool {
 
     @McpTool(
         name = "trip",
-        description = "Plan and explore public-transport journeys across Norway and the Nordic region."
+        description = """
+                Plan multi-leg public transport routes between two locations across Norway and the Nordic region. 
+                Use when the user needs journey options with departure/arrival times, transfers, and trip duration. 
+                For real-time departures from a specific stop, use the departures tool instead."""
     )
     public String trip(
         @McpToolParam(description = "Starting location (address, place name, or coordinates)", required = true) String from,
@@ -102,8 +105,12 @@ public class TripSearchTool {
 
     @McpTool(
         name = "departures",
-        description = "Get real-time departures from a stop or station in Norway. " +
-                      "Returns upcoming departures with line info, destinations, and real-time updates."
+        description = """
+                        Get real-time departures from a single stop or station in Norway. Use when the user 
+                        wants to see what's leaving soon from a specific location. Shows upcoming vehicles with 
+                        line numbers, destinations, platforms, and live delay information. For planning routes 
+                        between two locations, use the trip tool instead.
+                        """
     )
     public String departures(
         @McpToolParam(
