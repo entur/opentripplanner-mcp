@@ -1,12 +1,21 @@
 package org.entur.mcp.model;
 
+import io.swagger.v3.oas.annotations.media.Schema;
+
 import java.util.HashMap;
 import java.util.Map;
 
 public class ErrorResponse {
+    @Schema(description = "Error code", example = "VALIDATION_ERROR")
     private final String error;
+
+    @Schema(description = "Human-readable error message", example = "from location is required")
     private final String message;
+
+    @Schema(description = "Exception type", example = "ValidationException")
     private final String type;
+
+    @Schema(description = "Additional error context")
     private final Map<String, String> details;
 
     private ErrorResponse(String error, String message, String type, Map<String, String> details) {
