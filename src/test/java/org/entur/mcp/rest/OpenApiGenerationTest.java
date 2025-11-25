@@ -67,4 +67,12 @@ class OpenApiGenerationTest {
         mockMvc.perform(get("/swagger-ui.html"))
             .andExpect(status().is3xxRedirection());
     }
+
+    @Test
+    void openApiSpec_shouldNotIncludeHealthEndpoints() throws Exception {
+        mockMvc.perform(get("/api/v1/openapi"))
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$.paths['/readiness']").doesNotExist())
+            .andExpect(jsonPath("$.paths['/liveness']").doesNotExist());
+    }
 }
