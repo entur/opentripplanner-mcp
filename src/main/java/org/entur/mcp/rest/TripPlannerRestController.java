@@ -24,7 +24,7 @@ import org.springframework.web.bind.annotation.RestController;
 import java.util.Map;
 
 @RestController
-@RequestMapping("/api/v1")
+@RequestMapping("/api")
 @Tag(name = "Trip Planning",
      description = "Journey planning, geocoding, and departure board APIs for Norwegian public transport")
 public class TripPlannerRestController {

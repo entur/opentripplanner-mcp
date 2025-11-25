@@ -41,7 +41,7 @@ class TripPlannerRestControllerTest {
         when(otpSearchService.handleTripRequest(any(), any(), any(), any(), any()))
             .thenReturn(mockResponse);
 
-        mockMvc.perform(get("/api/v1/trips")
+        mockMvc.perform(get("/api/trips")
                 .param("from", "Oslo S")
                 .param("to", "Bergen stasjon"))
             .andExpect(status().isOk())
@@ -50,7 +50,7 @@ class TripPlannerRestControllerTest {
 
     @Test
     void planTrip_withMissingFrom_shouldReturn400() throws Exception {
-        mockMvc.perform(get("/api/v1/trips")
+        mockMvc.perform(get("/api/trips")
                 .param("to", "Bergen stasjon"))
             .andExpect(status().isBadRequest())
             .andExpect(jsonPath("$.error").value("VALIDATION_ERROR"));
@@ -58,7 +58,7 @@ class TripPlannerRestControllerTest {
 
     @Test
     void planTrip_withMissingTo_shouldReturn400() throws Exception {
-        mockMvc.perform(get("/api/v1/trips")
+        mockMvc.perform(get("/api/trips")
                 .param("from", "Oslo S"))
             .andExpect(status().isBadRequest())
             .andExpect(jsonPath("$.error").value("VALIDATION_ERROR"));
@@ -69,7 +69,7 @@ class TripPlannerRestControllerTest {
         when(otpSearchService.handleTripRequest(any(), any(), any(), any(), any()))
             .thenThrow(new ValidationException("from", "Invalid location"));
 
-        mockMvc.perform(get("/api/v1/trips")
+        mockMvc.perform(get("/api/trips")
                 .param("from", "")
                 .param("to", "Bergen"))
             .andExpect(status().isBadRequest())
@@ -82,7 +82,7 @@ class TripPlannerRestControllerTest {
         when(otpSearchService.handleTripRequest(any(), any(), any(), any(), any()))
             .thenThrow(new GeocodingException("Unknown location", "Oslo S"));
 
-        mockMvc.perform(get("/api/v1/trips")
+        mockMvc.perform(get("/api/trips")
                 .param("from", "Oslo S")
                 .param("to", "Bergen"))
             .andExpect(status().isBadRequest())
@@ -94,7 +94,7 @@ class TripPlannerRestControllerTest {
         when(otpSearchService.handleTripRequest(any(), any(), any(), any(), any()))
             .thenThrow(new TripPlanningException("Service unavailable"));
 
-        mockMvc.perform(get("/api/v1/trips")
+        mockMvc.perform(get("/api/trips")
                 .param("from", "Oslo S")
                 .param("to", "Bergen"))
             .andExpect(status().isInternalServerError())
@@ -113,7 +113,7 @@ class TripPlannerRestControllerTest {
         when(geocoderService.handleGeocodeRequest(any(), anyInt()))
             .thenReturn(mockResponse);
 
-        mockMvc.perform(get("/api/v1/geocode")
+        mockMvc.perform(get("/api/geocode")
                 .param("text", "Oslo rådhus"))
             .andExpect(status().isOk())
             .andExpect(jsonPath("$.features").exists());
@@ -121,7 +121,7 @@ class TripPlannerRestControllerTest {
 
     @Test
     void geocode_withMissingText_shouldReturn400() throws Exception {
-        mockMvc.perform(get("/api/v1/geocode"))
+        mockMvc.perform(get("/api/geocode"))
             .andExpect(status().isBadRequest())
             .andExpect(jsonPath("$.error").value("VALIDATION_ERROR"));
     }
@@ -132,7 +132,7 @@ class TripPlannerRestControllerTest {
         when(geocoderService.handleGeocodeRequest("Oslo", 5))
             .thenReturn(mockResponse);
 
-        mockMvc.perform(get("/api/v1/geocode")
+        mockMvc.perform(get("/api/geocode")
                 .param("text", "Oslo")
                 .param("maxResults", "5"))
             .andExpect(status().isOk());
@@ -143,7 +143,7 @@ class TripPlannerRestControllerTest {
         when(geocoderService.handleGeocodeRequest(any(), anyInt()))
             .thenThrow(new GeocodingException("No results found", "Unknown place"));
 
-        mockMvc.perform(get("/api/v1/geocode")
+        mockMvc.perform(get("/api/geocode")
                 .param("text", "Unknown place"))
             .andExpect(status().isBadRequest())
             .andExpect(jsonPath("$.error").value("GEOCODING_ERROR"));
@@ -165,7 +165,7 @@ class TripPlannerRestControllerTest {
         when(otpSearchService.handleDepartureBoardRequest(any(), any(), any(), any(), any()))
             .thenReturn(mockResponse);
 
-        mockMvc.perform(get("/api/v1/departures")
+        mockMvc.perform(get("/api/departures")
                 .param("stop", "Oslo S"))
             .andExpect(status().isOk())
             .andExpect(jsonPath("$.stopPlace").exists());
@@ -173,7 +173,7 @@ class TripPlannerRestControllerTest {
 
     @Test
     void getDepartures_withMissingStop_shouldReturn400() throws Exception {
-        mockMvc.perform(get("/api/v1/departures"))
+        mockMvc.perform(get("/api/departures"))
             .andExpect(status().isBadRequest())
             .andExpect(jsonPath("$.error").value("VALIDATION_ERROR"));
     }
@@ -192,7 +192,7 @@ class TripPlannerRestControllerTest {
                 eq(List.of("rail", "bus"))))
             .thenReturn(mockResponse);
 
-        mockMvc.perform(get("/api/v1/departures")
+        mockMvc.perform(get("/api/departures")
                 .param("stop", "Oslo S")
                 .param("numberOfDepartures", "20")
                 .param("startTime", "2023-05-26T12:00:00")
@@ -206,7 +206,7 @@ class TripPlannerRestControllerTest {
         when(geocoderService.resolveStopId(any()))
             .thenThrow(new GeocodingException("Stop not found", "Unknown stop"));
 
-        mockMvc.perform(get("/api/v1/departures")
+        mockMvc.perform(get("/api/departures")
                 .param("stop", "Unknown stop"))
             .andExpect(status().isBadRequest())
             .andExpect(jsonPath("$.error").value("GEOCODING_ERROR"));

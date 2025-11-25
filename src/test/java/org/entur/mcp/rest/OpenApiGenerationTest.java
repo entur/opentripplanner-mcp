@@ -18,7 +18,7 @@ class OpenApiGenerationTest {
 
     @Test
     void openApiSpec_shouldBeGenerated() throws Exception {
-        mockMvc.perform(get("/api/v1/openapi"))
+        mockMvc.perform(get("/api/openapi"))
             .andExpect(status().isOk())
             .andExpect(jsonPath("$.openapi").exists())
             .andExpect(jsonPath("$.info.title").value("Entur OpenTripPlanner API"))
@@ -28,34 +28,34 @@ class OpenApiGenerationTest {
 
     @Test
     void openApiSpec_shouldContainTripEndpoint() throws Exception {
-        mockMvc.perform(get("/api/v1/openapi"))
+        mockMvc.perform(get("/api/openapi"))
             .andExpect(status().isOk())
-            .andExpect(jsonPath("$.paths['/api/v1/trips']").exists())
-            .andExpect(jsonPath("$.paths['/api/v1/trips'].get").exists())
-            .andExpect(jsonPath("$.paths['/api/v1/trips'].get.summary").value("Plan a multi-modal journey"));
+            .andExpect(jsonPath("$.paths['/api/trips']").exists())
+            .andExpect(jsonPath("$.paths['/api/trips'].get").exists())
+            .andExpect(jsonPath("$.paths['/api/trips'].get.summary").value("Plan a multi-modal journey"));
     }
 
     @Test
     void openApiSpec_shouldContainGeocodeEndpoint() throws Exception {
-        mockMvc.perform(get("/api/v1/openapi"))
+        mockMvc.perform(get("/api/openapi"))
             .andExpect(status().isOk())
-            .andExpect(jsonPath("$.paths['/api/v1/geocode']").exists())
-            .andExpect(jsonPath("$.paths['/api/v1/geocode'].get").exists())
-            .andExpect(jsonPath("$.paths['/api/v1/geocode'].get.summary").value("Geocode a location"));
+            .andExpect(jsonPath("$.paths['/api/geocode']").exists())
+            .andExpect(jsonPath("$.paths['/api/geocode'].get").exists())
+            .andExpect(jsonPath("$.paths['/api/geocode'].get.summary").value("Geocode a location"));
     }
 
     @Test
     void openApiSpec_shouldContainDeparturesEndpoint() throws Exception {
-        mockMvc.perform(get("/api/v1/openapi"))
+        mockMvc.perform(get("/api/openapi"))
             .andExpect(status().isOk())
-            .andExpect(jsonPath("$.paths['/api/v1/departures']").exists())
-            .andExpect(jsonPath("$.paths['/api/v1/departures'].get").exists())
-            .andExpect(jsonPath("$.paths['/api/v1/departures'].get.summary").value("Get real-time departures"));
+            .andExpect(jsonPath("$.paths['/api/departures']").exists())
+            .andExpect(jsonPath("$.paths['/api/departures'].get").exists())
+            .andExpect(jsonPath("$.paths['/api/departures'].get.summary").value("Get real-time departures"));
     }
 
     @Test
     void openApiSpec_shouldContainErrorResponseSchema() throws Exception {
-        mockMvc.perform(get("/api/v1/openapi"))
+        mockMvc.perform(get("/api/openapi"))
             .andExpect(status().isOk())
             .andExpect(jsonPath("$.components.schemas.ErrorResponse").exists())
             .andExpect(jsonPath("$.components.schemas.ErrorResponse.properties.error").exists())
@@ -70,7 +70,7 @@ class OpenApiGenerationTest {
 
     @Test
     void openApiSpec_shouldNotIncludeHealthEndpoints() throws Exception {
-        mockMvc.perform(get("/api/v1/openapi"))
+        mockMvc.perform(get("/api/openapi"))
             .andExpect(status().isOk())
             .andExpect(jsonPath("$.paths['/readiness']").doesNotExist())
             .andExpect(jsonPath("$.paths['/liveness']").doesNotExist());
