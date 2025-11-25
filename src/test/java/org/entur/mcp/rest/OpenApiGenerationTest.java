@@ -75,4 +75,17 @@ class OpenApiGenerationTest {
             .andExpect(jsonPath("$.paths['/readiness']").doesNotExist())
             .andExpect(jsonPath("$.paths['/liveness']").doesNotExist());
     }
+
+    @Test
+    void openApiSpec_shouldIncludeServerUrls() throws Exception {
+        mockMvc.perform(get("/api/openapi"))
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$.servers").isArray())
+            .andExpect(jsonPath("$.servers[0].url").value("https://api.entur.io/journey-planner-mcp/v1"))
+            .andExpect(jsonPath("$.servers[0].description").value("Production"))
+            .andExpect(jsonPath("$.servers[1].url").value("https://api.dev.entur.io/journey-planner-mcp/v1"))
+            .andExpect(jsonPath("$.servers[1].description").value("Development"))
+            .andExpect(jsonPath("$.servers[2].url").value("http://localhost:8080"))
+            .andExpect(jsonPath("$.servers[2].description").value("Local"));
+    }
 }
