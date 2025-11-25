@@ -83,9 +83,11 @@ class OpenApiGenerationTest {
             .andExpect(jsonPath("$.servers").isArray())
             .andExpect(jsonPath("$.servers[0].url").value("https://api.entur.io/journey-planner-mcp/v1"))
             .andExpect(jsonPath("$.servers[0].description").value("Production"))
-            .andExpect(jsonPath("$.servers[1].url").value("https://api.dev.entur.io/journey-planner-mcp/v1"))
-            .andExpect(jsonPath("$.servers[1].description").value("Development"))
-            .andExpect(jsonPath("$.servers[2].url").value("http://localhost:8080"))
-            .andExpect(jsonPath("$.servers[2].description").value("Local"));
+            .andExpect(jsonPath("$.servers[1].url").value("https://api.staging.entur.io/journey-planner-mcp/v1"))
+            .andExpect(jsonPath("$.servers[1].description").value("Staging"))
+            .andExpect(jsonPath("$.servers[2].url").value("https://api.dev.entur.io/journey-planner-mcp/v1"))
+            .andExpect(jsonPath("$.servers[2].description").value("Development"))
+            .andExpect(jsonPath("$.servers[3].url").value("http://localhost:8080"))
+            .andExpect(jsonPath("$.servers[3].description").value("Local"));
     }
 }
