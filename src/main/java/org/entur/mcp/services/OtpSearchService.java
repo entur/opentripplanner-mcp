@@ -4,6 +4,7 @@ import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import io.micrometer.core.annotation.Timed;
 import org.entur.mcp.exception.TripPlanningException;
+import org.entur.mcp.metrics.MetricsUtils;
 import org.entur.mcp.model.Location;
 import org.entur.mcp.validation.InputValidator;
 import org.slf4j.Logger;
@@ -221,7 +222,7 @@ public class OtpSearchService {
         HttpRequest request = HttpRequest.newBuilder()
                 .uri(URI.create(otpURL))
                 .header("Content-Type", "application/json")
-                .header("ET-Client-Name", etClientName)
+                .header(MetricsUtils.ET_CLIENT_NAME_HEADER, etClientName)
                 .POST(HttpRequest.BodyPublishers.ofString(reqJSON))
                 .build();
 

@@ -63,19 +63,19 @@ public class MetricsWebMvcConfigurer implements WebMvcConfigurer {
                                 Object handler) {
 
             // Store header values as request attributes
-            String clientName = request.getHeader("ET-Client-Name");
+            String clientName = request.getHeader(MetricsUtils.ET_CLIENT_NAME_HEADER);
             if (clientName != null && !clientName.isBlank()) {
-                request.setAttribute("metrics.client_name", sanitize(clientName));
+                request.setAttribute("metrics.client_name", MetricsUtils.sanitize(clientName));
             } else {
                 request.setAttribute("metrics.client_name", "unknown");
             }
 
-            String clientType = detectClientType(request.getHeader("User-Agent"));
+            String clientType = MetricsUtils.detectClientType(request.getHeader(MetricsUtils.USER_AGENT_HEADER));
             request.setAttribute("metrics.client_type", clientType);
 
             String apiVersion = request.getHeader("API-Version");
             if (apiVersion != null && !apiVersion.isBlank()) {
-                request.setAttribute("metrics.api_version", sanitize(apiVersion));
+                request.setAttribute("metrics.api_version", MetricsUtils.sanitize(apiVersion));
             } else {
                 request.setAttribute("metrics.api_version", "v1");
             }
@@ -92,7 +92,7 @@ public class MetricsWebMvcConfigurer implements WebMvcConfigurer {
             // Record custom metrics with tags from request attributes
             String clientName = (String) request.getAttribute("metrics.client_name");
             String clientType = (String) request.getAttribute("metrics.client_type");
-            String endpoint = extractEndpoint(request.getRequestURI());
+            String endpoint = MetricsUtils.extractEndpoint(request.getRequestURI());
 
             meterRegistry.counter("http.requests.by.client",
                     "client_name", clientName != null ? clientName : "unknown",
@@ -101,49 +101,6 @@ public class MetricsWebMvcConfigurer implements WebMvcConfigurer {
                     "status", String.valueOf(response.getStatus()),
                     "method", request.getMethod())
                 .increment();
-        }
-
-        private String detectClientType(String userAgent) {
-            if (userAgent == null || userAgent.isBlank()) {
-                return "unknown";
-            }
-
-            String lower = userAgent.toLowerCase();
-            if (lower.contains("chatgpt")) return "chatgpt";
-            if (lower.contains("claude")) return "claude";
-            if (lower.contains("mcp")) return "mcp";
-            if (lower.contains("curl")) return "curl";
-            if (lower.contains("postman")) return "postman";
-            if (lower.contains("insomnia")) return "insomnia";
-            if (lower.contains("mozilla") || lower.contains("chrome") || lower.contains("safari")) {
-                return "browser";
-            }
-            if (lower.contains("java")) return "java-client";
-            if (lower.contains("python")) return "python-client";
-            if (lower.contains("okhttp")) return "okhttp";
-
-            return "other";
-        }
-
-        private String extractEndpoint(String uri) {
-            if (uri == null) return "unknown";
-
-            // REST API endpoints
-            if (uri.contains("/api/trips")) return "trips";
-            if (uri.contains("/api/geocode")) return "geocode";
-            if (uri.contains("/api/departures")) return "departures";
-            if (uri.contains("/api/openapi")) return "openapi";
-
-            // MCP endpoint
-            if (uri.contains("/mcp")) return "mcp";
-
-            return "other";
-        }
-
-        private String sanitize(String value) {
-            if (value == null) return "unknown";
-            String sanitized = value.length() > 50 ? value.substring(0, 50) : value;
-            return sanitized.replaceAll("[^a-zA-Z0-9-_.]", "_").toLowerCase();
         }
     }
 }

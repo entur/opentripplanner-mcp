@@ -34,10 +34,6 @@ public class RequestContextFilter implements Filter {
 
     private static final Logger log = LoggerFactory.getLogger(RequestContextFilter.class);
 
-    private static final String ET_CLIENT_NAME_HEADER = "ET-Client-Name";
-    private static final String USER_AGENT_HEADER = "User-Agent";
-    private static final String X_REQUEST_ID_HEADER = "X-Request-ID";
-
     @Override
     public void doFilter(ServletRequest request, ServletResponse response, FilterChain chain)
             throws IOException, ServletException {
@@ -82,7 +78,7 @@ public class RequestContextFilter implements Filter {
         MDC.put("endpoint", endpoint);
 
         // Request ID for correlation (use existing or generate)
-        String requestId = request.getHeader(X_REQUEST_ID_HEADER);
+        String requestId = request.getHeader(MetricsUtils.X_REQUEST_ID_HEADER);
         if (requestId == null || requestId.isBlank()) {
             requestId = java.util.UUID.randomUUID().toString();
         }
@@ -94,43 +90,16 @@ public class RequestContextFilter implements Filter {
     }
 
     private String extractClientName(HttpServletRequest request) {
-        String clientName = request.getHeader(ET_CLIENT_NAME_HEADER);
+        String clientName = request.getHeader(MetricsUtils.ET_CLIENT_NAME_HEADER);
         return (clientName != null && !clientName.isBlank()) ? clientName : "unknown";
     }
 
     private String detectClientType(HttpServletRequest request) {
-        String userAgent = request.getHeader(USER_AGENT_HEADER);
-
-        if (userAgent == null || userAgent.isBlank()) {
-            return "unknown";
-        }
-
-        String lowerUserAgent = userAgent.toLowerCase();
-
-        if (lowerUserAgent.contains("chatgpt")) return "chatgpt";
-        if (lowerUserAgent.contains("claude")) return "claude";
-        if (lowerUserAgent.contains("mcp")) return "mcp";
-        if (lowerUserAgent.contains("curl")) return "curl";
-        if (lowerUserAgent.contains("postman")) return "postman";
-        if (lowerUserAgent.contains("mozilla") || lowerUserAgent.contains("chrome") ||
-            lowerUserAgent.contains("safari")) return "browser";
-
-        return "other";
+        String userAgent = request.getHeader(MetricsUtils.USER_AGENT_HEADER);
+        return MetricsUtils.detectClientType(userAgent);
     }
 
     private String extractEndpoint(HttpServletRequest request) {
-        String path = request.getRequestURI();
-
-        if (path == null) return "unknown";
-
-        if (path.contains("/api/trips")) return "trips";
-        if (path.contains("/api/geocode")) return "geocode";
-        if (path.contains("/api/departures")) return "departures";
-        if (path.contains("/api/openapi")) return "openapi";
-        if (path.contains("/readiness")) return "readiness";
-        if (path.contains("/liveness")) return "liveness";
-        if (path.contains("/actuator")) return "actuator";
-
-        return "other";
+        return MetricsUtils.extractEndpoint(request.getRequestURI());
     }
 }
