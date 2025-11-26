@@ -66,40 +66,23 @@ public class RequestContextFilter implements Filter {
      */
     private void populateMDC(HttpServletRequest request) {
         // Client identification
-        String clientName = extractClientName(request);
-        MDC.put("client_name", clientName);
+        String clientName = request.getHeader(MetricsUtils.ET_CLIENT_NAME_HEADER);
+        MDC.put("client_name", MetricsUtils.getOrDefault(clientName, "unknown"));
 
         // Client type detection
-        String clientType = detectClientType(request);
-        MDC.put("client_type", clientType);
+        MDC.put("client_type", MetricsUtils.detectClientType(request.getHeader(MetricsUtils.USER_AGENT_HEADER)));
 
         // Endpoint
-        String endpoint = extractEndpoint(request);
-        MDC.put("endpoint", endpoint);
+        MDC.put("endpoint", MetricsUtils.extractEndpoint(request.getRequestURI()));
 
         // Request ID for correlation (use existing or generate)
         String requestId = request.getHeader(MetricsUtils.X_REQUEST_ID_HEADER);
-        if (requestId == null || requestId.isBlank()) {
-            requestId = java.util.UUID.randomUUID().toString();
-        }
-        MDC.put("request_id", requestId);
+        MDC.put("request_id", MetricsUtils.isNullOrBlank(requestId)
+            ? java.util.UUID.randomUUID().toString()
+            : requestId);
 
         // HTTP method and URI
         MDC.put("http_method", request.getMethod());
         MDC.put("http_uri", request.getRequestURI());
-    }
-
-    private String extractClientName(HttpServletRequest request) {
-        String clientName = request.getHeader(MetricsUtils.ET_CLIENT_NAME_HEADER);
-        return (clientName != null && !clientName.isBlank()) ? clientName : "unknown";
-    }
-
-    private String detectClientType(HttpServletRequest request) {
-        String userAgent = request.getHeader(MetricsUtils.USER_AGENT_HEADER);
-        return MetricsUtils.detectClientType(userAgent);
-    }
-
-    private String extractEndpoint(HttpServletRequest request) {
-        return MetricsUtils.extractEndpoint(request.getRequestURI());
     }
 }

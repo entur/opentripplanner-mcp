@@ -22,6 +22,7 @@ import java.net.http.HttpResponse;
 import java.nio.charset.StandardCharsets;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 
 @Service
 @Timed(value = "mcp.geocoder.service", description = "Requests towards the Geocoder-service")
@@ -114,79 +115,25 @@ public class GeocoderService {
         // Validate input
         InputValidator.validateLocation(location, "location");
 
-        // Check if the location is already in coordinate format (e.g., "59.909,10.746")
-        String[] coords = location.split(",");
-        if (coords.length == 2) {
-            // Try to parse as coordinates
-            try {
-                double lat = Double.parseDouble(coords[0].trim());
-                double lng = Double.parseDouble(coords[1].trim());
-
-                log.debug("Using provided coordinates: lat={}, lng={}", lat, lng);
-                return new Location("coordinate", lat, lng);
-            } catch (NumberFormatException e) {
-                log.debug("Failed to parse as coordinates, will geocode: {}", location);
-                // Not valid coordinates, continue to geocoding
-            }
+        // Try to parse as coordinates first
+        Optional<Location> coordinateLocation = parseAsCoordinates(location);
+        if (coordinateLocation.isPresent()) {
+            return coordinateLocation.get();
         }
 
         // Otherwise, geocode the location
         log.debug("Geocoding location to get coordinates: {}", location);
         Map<String, Object> feature = getFeature(location);
 
-        // Extract geometry
-        if (!feature.containsKey("geometry")) {
-            throw new GeocodingException(location, "Missing geometry in feature");
-        }
+        // Extract geometry and coordinates using type-safe helpers
+        Map<String, Object> geometry = extractMap(feature, "geometry", location, "feature");
+        List<Object> coordinates = extractList(geometry, "coordinates", location, "geometry");
+        double[] latLng = extractLatLng(coordinates, location);
+        double lat = latLng[0];
+        double lng = latLng[1];
 
-        Object geometryObj = feature.get("geometry");
-        if (!(geometryObj instanceof Map)) {
-            throw new GeocodingException(location, "Geometry is not a map");
-        }
-
-        Map<String, Object> geometry = (Map<String, Object>) geometryObj;
-
-        if (!geometry.containsKey("coordinates")) {
-            throw new GeocodingException(location, "Missing coordinates in geometry");
-        }
-
-        Object coordinatesObj = geometry.get("coordinates");
-        if (!(coordinatesObj instanceof List)) {
-            throw new GeocodingException(location, "Coordinates is not a list");
-        }
-
-        List<Object> coordinates = (List<Object>) coordinatesObj;
-
-        if (coordinates.size() < 2) {
-            throw new GeocodingException(location, "Invalid coordinates in feature");
-        }
-
-        // Extract longitude and latitude (GeoJSON format: [lng, lat])
-        double lng;
-        double lat;
-
-        try {
-            // Handle both Double and Integer types
-            Object lngObj = coordinates.get(0);
-            Object latObj = coordinates.get(1);
-
-            lng = (lngObj instanceof Number) ? ((Number) lngObj).doubleValue() : 0.0;
-            lat = (latObj instanceof Number) ? ((Number) latObj).doubleValue() : 0.0;
-        } catch (Exception e) {
-            throw new GeocodingException(location, "Coordinates are not numbers", e);
-        }
-
-        // Extract properties
-        if (!feature.containsKey("properties")) {
-            throw new GeocodingException(location, "Missing properties in feature");
-        }
-
-        Object propertiesObj = feature.get("properties");
-        if (!(propertiesObj instanceof Map)) {
-            throw new GeocodingException(location, "Properties is not a map");
-        }
-
-        Map<String, Object> properties = (Map<String, Object>) propertiesObj;
+        // Extract properties using type-safe helper
+        Map<String, Object> properties = extractMap(feature, "properties", location, "feature");
 
         String name = "location";
         if (properties.containsKey("name")) {
@@ -219,15 +166,13 @@ public class GeocoderService {
         Map<String, Object> feature = getFeature(input);
 
         // Extract properties.id
-        @SuppressWarnings("unchecked")
         Map<String, Object> properties = (Map<String, Object>) feature.get("properties");
         Object idObj = properties.get("id");
 
-        if (idObj == null || !(idObj instanceof String)) {
+        if (!(idObj instanceof String stopId)) {
             throw new GeocodingException(input, "No stop ID found for location");
         }
 
-        String stopId = (String) idObj;
         log.info("Resolved '{}' to stop ID: {}", input, stopId);
         return stopId;
     }
@@ -240,27 +185,116 @@ public class GeocoderService {
             throw new GeocodingException(location, "Geocode request returned null");
         }
 
-        if (!result.containsKey("features")) {
-            throw new GeocodingException(location, "No features in geocode result");
-        }
-
-        Object featuresObj = result.get("features");
-        if (!(featuresObj instanceof List)) {
-            throw new GeocodingException(location, "Features is not a list");
-        }
-
-        List<Object> features = (List<Object>) featuresObj;
+        // Extract features list using type-safe helper
+        List<Object> features = extractList(result, "features", location, "geocode result");
 
         if (features.isEmpty()) {
             throw new GeocodingException(location,
                 String.format("No locations found for: %s. Please check spelling or try a different search term.", location));
         }
 
+        // Validate first feature is a Map
         Object featureObj = features.getFirst();
         if (!(featureObj instanceof Map)) {
             throw new GeocodingException(location, "Unexpected feature format");
         }
 
         return (Map<String, Object>) featureObj;
+    }
+
+    /**
+     * Attempts to parse a location string as coordinates in "lat,lng" format.
+     *
+     * @param location the location string to parse
+     * @return Optional containing Location if parsing succeeds, empty otherwise
+     */
+    private Optional<Location> parseAsCoordinates(String location) {
+        String[] coords = location.split(",");
+        if (coords.length != 2) {
+            return Optional.empty();
+        }
+
+        try {
+            double lat = Double.parseDouble(coords[0].trim());
+            double lng = Double.parseDouble(coords[1].trim());
+            log.debug("Using provided coordinates: lat={}, lng={}", lat, lng);
+            return Optional.of(new Location("coordinate", lat, lng));
+        } catch (NumberFormatException e) {
+            log.debug("Failed to parse as coordinates, will geocode: {}", location);
+            return Optional.empty();
+        }
+    }
+
+    /**
+     * Extracts latitude and longitude from a GeoJSON coordinates list.
+     * GeoJSON format is [lng, lat], which we convert to [lat, lng] in the return value.
+     *
+     * @param coordinates the GeoJSON coordinates list
+     * @param location the location being processed (for error messages)
+     * @return double array with [lat, lng]
+     * @throws GeocodingException if coordinates are invalid
+     */
+    private double[] extractLatLng(List<Object> coordinates, String location) {
+        if (coordinates.size() < 2) {
+            throw new GeocodingException(location, "Invalid coordinates in feature");
+        }
+
+        try {
+            Object lngObj = coordinates.get(0);
+            Object latObj = coordinates.get(1);
+
+            double lng = (lngObj instanceof Number) ? ((Number) lngObj).doubleValue() : 0.0;
+            double lat = (latObj instanceof Number) ? ((Number) latObj).doubleValue() : 0.0;
+
+            return new double[]{lat, lng};
+        } catch (Exception e) {
+            throw new GeocodingException(location, "Coordinates are not numbers", e);
+        }
+    }
+
+    /**
+     * Type-safe helper to extract a Map from a parent map with validation.
+     *
+     * @param map the parent map
+     * @param key the key to extract
+     * @param location the location being processed (for error messages)
+     * @param fieldName the name of the field (for error messages)
+     * @return the extracted Map
+     * @throws GeocodingException if key is missing or value is not a Map
+     */
+    private Map<String, Object> extractMap(Map<String, Object> map, String key, String location, String fieldName) {
+        if (!map.containsKey(key)) {
+            throw new GeocodingException(location, String.format("Missing %s in %s", key, fieldName));
+        }
+
+        Object value = map.get(key);
+        if (!(value instanceof Map)) {
+            throw new GeocodingException(location, String.format("%s is not a map", fieldName));
+        }
+
+        return (Map<String, Object>) value;
+    }
+
+    /**
+     * Type-safe helper to extract a List from a parent map with validation.
+     *
+     * @param map the parent map
+     * @param key the key to extract
+     * @param location the location being processed (for error messages)
+     * @param fieldName the name of the field (for error messages)
+     * @return the extracted List
+     * @throws GeocodingException if key is missing or value is not a List
+     */
+    private List<Object> extractList(Map<String, Object> map, String key, String location, String fieldName) {
+        if (!map.containsKey(key)) {
+            throw new GeocodingException(location, String.format("Missing %s in %s", key, fieldName));
+        }
+
+        Object value = map.get(key);
+        if (!(value instanceof List)) {
+            throw new GeocodingException(location, String.format("%s is not a list", fieldName));
+        }
+
+        return (List<Object>) value;
     }
 }

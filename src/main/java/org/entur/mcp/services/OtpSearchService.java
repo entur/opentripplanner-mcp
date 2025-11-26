@@ -279,7 +279,7 @@ public class OtpSearchService {
         }
         if (transportModes != null && !transportModes.isEmpty()) {
             String modesStr = transportModes.stream()
-                .map(m -> m.toLowerCase())
+                .map(String::toLowerCase)
                 .collect(Collectors.joining(", ", "[", "]"));
             optionalParams.append(String.format("whiteListedModes: %s\n", modesStr));
         }
@@ -291,7 +291,7 @@ public class OtpSearchService {
                 departureBoardQuery,
                 stopId,
                 validatedNumDepartures,
-                optionalParams.toString(),
+                optionalParams,
                 timeRangeSeconds
         );
 

@@ -1,5 +1,8 @@
 package org.entur.mcp.metrics;
 
+import java.util.LinkedHashMap;
+import java.util.Map;
+
 /**
  * Utility class for metrics-related operations including client type detection,
  * endpoint extraction, and value sanitization.
@@ -21,8 +24,77 @@ public final class MetricsUtils {
      */
     public static final String X_REQUEST_ID_HEADER = "X-Request-ID";
 
+    /**
+     * HTTP header name for API version.
+     */
+    public static final String API_VERSION_HEADER = "API-Version";
+
+    /**
+     * Map of User-Agent patterns to client type names.
+     * Order matters - first match wins, so more specific patterns should come first.
+     */
+    private static final Map<String, String> CLIENT_TYPE_PATTERNS = new LinkedHashMap<>();
+
+    /**
+     * Map of URI patterns to endpoint names.
+     * Order matters - first match wins, so more specific patterns should come first.
+     */
+    private static final Map<String, String> ENDPOINT_PATTERNS = new LinkedHashMap<>();
+
+    static {
+        // AI/MCP clients
+        CLIENT_TYPE_PATTERNS.put("chatgpt", "chatgpt");
+        CLIENT_TYPE_PATTERNS.put("claude", "claude");
+        CLIENT_TYPE_PATTERNS.put("mcp", "mcp");
+
+        // API testing tools
+        CLIENT_TYPE_PATTERNS.put("curl", "curl");
+        CLIENT_TYPE_PATTERNS.put("postman", "postman");
+        CLIENT_TYPE_PATTERNS.put("insomnia", "insomnia");
+
+        // HTTP clients
+        CLIENT_TYPE_PATTERNS.put("okhttp", "okhttp");
+        CLIENT_TYPE_PATTERNS.put("java", "java-client");
+        CLIENT_TYPE_PATTERNS.put("python", "python-client");
+
+        // REST API endpoints (more specific patterns first)
+        ENDPOINT_PATTERNS.put("/api/trips", "trips");
+        ENDPOINT_PATTERNS.put("/api/geocode", "geocode");
+        ENDPOINT_PATTERNS.put("/api/departures", "departures");
+        ENDPOINT_PATTERNS.put("/api/openapi", "openapi");
+
+        // MCP endpoint
+        ENDPOINT_PATTERNS.put("/mcp", "mcp");
+
+        // Health/actuator endpoints
+        ENDPOINT_PATTERNS.put("/readiness", "readiness");
+        ENDPOINT_PATTERNS.put("/liveness", "liveness");
+        ENDPOINT_PATTERNS.put("/actuator", "actuator");
+    }
+
     private MetricsUtils() {
         // Utility class - prevent instantiation
+    }
+
+    /**
+     * Checks if a string is null or blank (empty or only whitespace).
+     *
+     * @param value the string to check
+     * @return true if the string is null or blank, false otherwise
+     */
+    public static boolean isNullOrBlank(String value) {
+        return value == null || value.isBlank();
+    }
+
+    /**
+     * Returns the provided value if it's not null or blank, otherwise returns the default value.
+     *
+     * @param value the value to check
+     * @param defaultValue the default value to return if value is null or blank
+     * @return the value or defaultValue
+     */
+    public static String getOrDefault(String value, String defaultValue) {
+        return isNullOrBlank(value) ? defaultValue : value;
     }
 
     /**
@@ -32,24 +104,23 @@ public final class MetricsUtils {
      * @return the detected client type (chatgpt, claude, mcp, curl, postman, browser, etc.)
      */
     public static String detectClientType(String userAgent) {
-        if (userAgent == null || userAgent.isBlank()) {
+        if (isNullOrBlank(userAgent)) {
             return "unknown";
         }
 
         String lower = userAgent.toLowerCase();
 
-        if (lower.contains("chatgpt")) return "chatgpt";
-        if (lower.contains("claude")) return "claude";
-        if (lower.contains("mcp")) return "mcp";
-        if (lower.contains("curl")) return "curl";
-        if (lower.contains("postman")) return "postman";
-        if (lower.contains("insomnia")) return "insomnia";
+        // Check against known patterns
+        for (Map.Entry<String, String> entry : CLIENT_TYPE_PATTERNS.entrySet()) {
+            if (lower.contains(entry.getKey())) {
+                return entry.getValue();
+            }
+        }
+
+        // Check for browser signatures (multiple patterns)
         if (lower.contains("mozilla") || lower.contains("chrome") || lower.contains("safari")) {
             return "browser";
         }
-        if (lower.contains("java")) return "java-client";
-        if (lower.contains("python")) return "python-client";
-        if (lower.contains("okhttp")) return "okhttp";
 
         return "other";
     }
@@ -61,21 +132,16 @@ public final class MetricsUtils {
      * @return the simplified endpoint name (trips, geocode, departures, mcp, etc.)
      */
     public static String extractEndpoint(String uri) {
-        if (uri == null) return "unknown";
+        if (uri == null) {
+            return "unknown";
+        }
 
-        // REST API endpoints
-        if (uri.contains("/api/trips")) return "trips";
-        if (uri.contains("/api/geocode")) return "geocode";
-        if (uri.contains("/api/departures")) return "departures";
-        if (uri.contains("/api/openapi")) return "openapi";
-
-        // MCP endpoint
-        if (uri.contains("/mcp")) return "mcp";
-
-        // Health/actuator endpoints
-        if (uri.contains("/readiness")) return "readiness";
-        if (uri.contains("/liveness")) return "liveness";
-        if (uri.contains("/actuator")) return "actuator";
+        // Check against known endpoint patterns
+        for (Map.Entry<String, String> entry : ENDPOINT_PATTERNS.entrySet()) {
+            if (uri.contains(entry.getKey())) {
+                return entry.getValue();
+            }
+        }
 
         return "other";
     }

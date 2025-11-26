@@ -40,22 +40,37 @@ public class InputValidator {
         }
     }
 
-    public static int validateAndNormalizeMaxResults(Integer maxResults, int defaultValue) {
-        if (maxResults == null) {
+    /**
+     * Validates that an integer value is within a specified range.
+     *
+     * @param value the value to validate (can be null)
+     * @param fieldName the name of the field being validated
+     * @param min the minimum allowed value (inclusive)
+     * @param max the maximum allowed value (inclusive)
+     * @param defaultValue the default value to return if value is null
+     * @return the validated value or the default value if null
+     * @throws ValidationException if the value is outside the allowed range
+     */
+    private static int validateRange(Integer value, String fieldName, int min, int max, int defaultValue) {
+        if (value == null) {
             return defaultValue;
         }
 
-        if (maxResults < MIN_RESULTS) {
-            throw new ValidationException("maxResults",
-                String.format("maxResults must be at least %d", MIN_RESULTS));
+        if (value < min) {
+            throw new ValidationException(fieldName,
+                String.format("%s must be at least %d", fieldName, min));
         }
 
-        if (maxResults > MAX_RESULTS_LIMIT) {
-            throw new ValidationException("maxResults",
-                String.format("maxResults cannot exceed %d", MAX_RESULTS_LIMIT));
+        if (value > max) {
+            throw new ValidationException(fieldName,
+                String.format("%s cannot exceed %d", fieldName, max));
         }
 
-        return maxResults;
+        return value;
+    }
+
+    public static int validateAndNormalizeMaxResults(Integer maxResults, int defaultValue) {
+        return validateRange(maxResults, "maxResults", MIN_RESULTS, MAX_RESULTS_LIMIT, defaultValue);
     }
 
     public static void validateConflictingParameters(String departureTime, String arrivalTime) {
@@ -67,20 +82,7 @@ public class InputValidator {
     }
 
     public static int validateTimeRange(Integer timeRangeMinutes, int defaultValue) {
-        if (timeRangeMinutes == null) {
-            return defaultValue;
-        }
-
-        if (timeRangeMinutes < MIN_TIME_RANGE_MINUTES) {
-            throw new ValidationException("timeRangeMinutes",
-                String.format("timeRangeMinutes must be at least %d", MIN_TIME_RANGE_MINUTES));
-        }
-
-        if (timeRangeMinutes > MAX_TIME_RANGE_MINUTES) {
-            throw new ValidationException("timeRangeMinutes",
-                String.format("timeRangeMinutes cannot exceed %d (24 hours)", MAX_TIME_RANGE_MINUTES));
-        }
-
-        return timeRangeMinutes;
+        return validateRange(timeRangeMinutes, "timeRangeMinutes",
+            MIN_TIME_RANGE_MINUTES, MAX_TIME_RANGE_MINUTES, defaultValue);
     }
 }

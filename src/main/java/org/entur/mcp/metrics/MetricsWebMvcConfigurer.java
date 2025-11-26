@@ -63,24 +63,28 @@ public class MetricsWebMvcConfigurer implements WebMvcConfigurer {
                                 Object handler) {
 
             // Store header values as request attributes
-            String clientName = request.getHeader(MetricsUtils.ET_CLIENT_NAME_HEADER);
-            if (clientName != null && !clientName.isBlank()) {
-                request.setAttribute("metrics.client_name", MetricsUtils.sanitize(clientName));
-            } else {
-                request.setAttribute("metrics.client_name", "unknown");
-            }
-
-            String clientType = MetricsUtils.detectClientType(request.getHeader(MetricsUtils.USER_AGENT_HEADER));
-            request.setAttribute("metrics.client_type", clientType);
-
-            String apiVersion = request.getHeader("API-Version");
-            if (apiVersion != null && !apiVersion.isBlank()) {
-                request.setAttribute("metrics.api_version", MetricsUtils.sanitize(apiVersion));
-            } else {
-                request.setAttribute("metrics.api_version", "v1");
-            }
+            setHeaderAttribute(request, MetricsUtils.ET_CLIENT_NAME_HEADER, "metrics.client_name", "unknown");
+            request.setAttribute("metrics.client_type",
+                MetricsUtils.detectClientType(request.getHeader(MetricsUtils.USER_AGENT_HEADER)));
+            setHeaderAttribute(request, MetricsUtils.API_VERSION_HEADER, "metrics.api_version", "v1");
 
             return true;
+        }
+
+        /**
+         * Helper method to extract a header value and set it as a request attribute.
+         * The value is sanitized for use in metrics tags.
+         *
+         * @param request the HTTP request
+         * @param headerName the name of the HTTP header to read
+         * @param attributeName the name of the request attribute to set
+         * @param defaultValue the default value if header is null or blank
+         */
+        private void setHeaderAttribute(HttpServletRequest request, String headerName,
+                                       String attributeName, String defaultValue) {
+            String value = request.getHeader(headerName);
+            String result = MetricsUtils.getOrDefault(value, defaultValue);
+            request.setAttribute(attributeName, MetricsUtils.sanitize(result));
         }
 
         @Override
