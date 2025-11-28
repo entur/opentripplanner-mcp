@@ -68,6 +68,9 @@ public class OtpSearchService {
                                 fromPlace {
                                     name
                                 }
+                                fromEstimatedCall {
+                                    occupancyStatus
+                                }
                                 toPlace {
                                     name
                                 }
@@ -79,6 +82,11 @@ public class OtpSearchService {
                                 expectedStartTime
                                 aimedEndTime
                                 expectedEndTime
+                                situations {
+                                    summary {
+                                        value
+                                    }
+                                }
                             }
                         }
                     }
@@ -100,6 +108,7 @@ public class OtpSearchService {
                             cancellation
                             realtime
                             realtimeState
+                            occupancyStatus
                             quay {
                                 id
                                 publicCode

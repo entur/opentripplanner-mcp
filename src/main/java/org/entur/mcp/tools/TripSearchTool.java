@@ -38,7 +38,7 @@ public class TripSearchTool {
         name = "trip",
         description = """
                 Plan multi-leg public transport routes between two locations across Norway and the Nordic region. 
-                Use when the user needs journey options with departure/arrival times, transfers, and trip duration. 
+                Use when the user needs journey options with departure/arrival times, transfers, occupancy, and trip duration. 
                 For real-time departures from a specific stop, use the departures tool instead."""
     )
     public String trip(
@@ -108,7 +108,7 @@ public class TripSearchTool {
         description = """
                         Get real-time departures from a single stop or station in Norway. Use when the user 
                         wants to see what's leaving soon from a specific location. Shows upcoming vehicles with 
-                        line numbers, destinations, platforms, and live delay information. For planning routes 
+                        line numbers, destinations, platforms, occupancy, and live delay information. For planning routes 
                         between two locations, use the trip tool instead.
                         """
     )
