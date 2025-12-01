@@ -27,8 +27,8 @@ common:
     enabled: true
     data:
       spring.application.name: "opentripplanner-mcp"
-      server.port: 8080
-      management.server.port: 9090
+      server.port: "8080"
+      management.server.port: "9090"
       management.endpoints.web.exposure.include: "info,health,prometheus,env,metrics,loggers"
       # MCP Server Configuration
       spring.ai.mcp.server.protocol: STATELESS
