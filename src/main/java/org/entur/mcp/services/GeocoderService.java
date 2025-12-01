@@ -42,6 +42,7 @@ public class GeocoderService {
         this.geocodeURL = geocodeURL;
         this.etClientName = etClientName;
         client = HttpClient.newHttpClient();
+        log.info("Initializing GeocoderService with geocodeURL='{}', etClientName='{}'", geocodeURL, etClientName);
     }
 
     public Map<String, Object> handleGeocodeRequest(String text, int maxResults) {

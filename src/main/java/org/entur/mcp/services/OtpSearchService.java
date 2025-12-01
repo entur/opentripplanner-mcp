@@ -144,6 +144,7 @@ public class OtpSearchService {
         this.etClientName = etClientName;
         this.geocoderService = geocoderService;
         client = HttpClient.newHttpClient();
+        log.info("Initializing OtpSearchService with otpURL='{}', etClientName='{}'", otpURL, etClientName);
     }
 
     public Map<String, Object> handleTripRequest(String from, String to, String departureTime,
