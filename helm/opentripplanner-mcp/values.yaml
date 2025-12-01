@@ -23,3 +23,23 @@ common:
         path: "/liveness"
   postgres:
     enabled: false
+  configmap:
+    enabled: true
+    data:
+      spring.application.name: "opentripplanner-mcp"
+      server.port: 8080
+      management.server.port: 9090
+      management.endpoints.web.exposure.include: "info,health,prometheus,env,metrics,loggers"
+      # MCP Server Configuration
+      spring.ai.mcp.server.protocol: STATELESS
+      spring.ai.mcp.server.capabilities.prompt: false
+      spring.ai.mcp.server.capabilities.completion: false
+      spring.ai.mcp.server.capabilities.resource: false
+      spring.ai.mcp.server.capabilities.tool: true
+
+      # OpenAPI / Swagger UI Configuration
+      springdoc.api-docs.path: "/api/openapi"
+      springdoc.show-actuator: false
+
+      # Metrics Configuration
+      management.metrics.tags.application: ${spring.application.name}
