@@ -64,3 +64,21 @@ jobs:
       image: ${{ needs.docker-push.outputs.image_name }}:${{ needs.docker-push.outputs.image_tag}}
       chart: helm/opentripplanner-mcp
       namespace: opentripplanner-mcp
+
+  helm-deploy-tst:
+    needs: [ helm-lint, docker-push ]
+    uses: entur/gha-helm/.github/workflows/deploy.yml@v1
+    with:
+      environment: tst
+      image: ${{ needs.docker-push.outputs.image_name }}:${{ needs.docker-push.outputs.image_tag}}
+      chart: helm/opentripplanner-mcp
+      namespace: opentripplanner-mcp
+
+  helm-deploy-prd:
+    needs: [ helm-lint, docker-push ]
+    uses: entur/gha-helm/.github/workflows/deploy.yml@v1
+    with:
+      environment: prd
+      image: ${{ needs.docker-push.outputs.image_name }}:${{ needs.docker-push.outputs.image_tag}}
+      chart: helm/opentripplanner-mcp
+      namespace: opentripplanner-mcp
