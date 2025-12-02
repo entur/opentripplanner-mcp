@@ -2,8 +2,8 @@ common:
   env: tst
   ingress:
     host: opentripplanner-mcp.staging.entur.io
-  configmap:
-    enabled: true
-    data:
-      org.entur.otp.url: https://api.staging.entur.io/journey-planner/v3/graphql
-      org.entur.geocoder.url: https://api.staging.entur.io/geocoder/v2/autocomplete
+
+configmap:
+  urls:
+    otp: https://api.staging.entur.io/journey-planner/v3/graphql
+    geocoder: https://api.staging.entur.io/geocoder/v2/autocomplete

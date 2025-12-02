@@ -2,8 +2,8 @@ common:
   env: dev
   ingress:
     host: opentripplanner-mcp.dev.entur.io
-  configmap:
-    enabled: true
-    data:
-      org.entur.otp.url: https://api.dev.entur.io/journey-planner/v3/graphql
-      org.entur.geocoder.url: https://api.dev.entur.io/geocoder/v2/autocomplete
+
+configmap:
+  urls:
+    otp: https://api.dev.entur.io/journey-planner/v3/graphql
+    geocoder: https://api.dev.entur.io/geocoder/v2/autocomplete
