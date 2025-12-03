@@ -30,5 +30,11 @@ common:
           defaultMode: 420
           name: opentripplanner-mcp
         name: application-config
+  configmap:
+    data:
+      JDK_JAVA_OPTIONS: -server -Dspring.config.location=/etc/application-config/application.properties
+        -Dfile.encoding=UTF-8 --add-opens java.base/java.lang=ALL-UNNAMED
+      TZ: Europe/Oslo
+    enabled: true
   postgres:
     enabled: false
