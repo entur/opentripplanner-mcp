@@ -36,5 +36,6 @@ common:
         -Dfile.encoding=UTF-8 --add-opens java.base/java.lang=ALL-UNNAMED
       TZ: Europe/Oslo
     enabled: true
+    toEnv: true
   postgres:
     enabled: false
