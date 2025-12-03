@@ -13,6 +13,9 @@ common:
       path: "/actuator/prometheus"
       port: 9090
   container:
+    env:
+      JDK_JAVA_OPTIONS: -server -Dspring.config.location=/etc/application-config/application.properties
+        -Dfile.encoding=UTF-8 --add-opens java.base/java.lang=ALL-UNNAMED
     image: <+artifacts.primary.image>
     cpu: 0.3
     memory: 512
@@ -30,12 +33,5 @@ common:
           defaultMode: 420
           name: opentripplanner-mcp
         name: application-config
-  configmap:
-    data:
-      JDK_JAVA_OPTIONS: -server -Dspring.config.location=/etc/application-config/application.properties
-        -Dfile.encoding=UTF-8 --add-opens java.base/java.lang=ALL-UNNAMED
-      TZ: Europe/Oslo
-    enabled: true
-    toEnv: true
   postgres:
     enabled: false
