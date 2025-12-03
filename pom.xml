@@ -5,16 +5,16 @@
 	<parent>
 		<groupId>org.springframework.boot</groupId>
 		<artifactId>spring-boot-starter-parent</artifactId>
-		<version>3.5.7</version>
+		<version>4.0.0</version>
 	</parent>
 	<groupId>org.entur.mcp</groupId>
 	<artifactId>opentripplanner-mcp</artifactId>
 	<version>0.0.1-SNAPSHOT</version>
 	<name>Entur MCP</name>
-	<description>MCP-server for trip-planning using Enturs services</description>
+	<description>MCP-server for trip-planning using Entur's services</description>
 	<properties>
 		<java.version>21</java.version>
-		<spring-boot.version>3.5.7</spring-boot.version>
+		<spring-boot.version>4.0.0</spring-boot.version>
 		<spring-ai.version>1.1.0</spring-ai.version>
 	</properties>
 
