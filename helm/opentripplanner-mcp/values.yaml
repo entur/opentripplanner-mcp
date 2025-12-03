@@ -21,5 +21,14 @@ common:
         path: "/readiness"
       liveness:
         path: "/liveness"
+    volumeMounts:
+      - mountPath: /etc/application-config
+        name: application-config
+        readOnly: true
+    volumes:
+      - configMap:
+          defaultMode: 420
+          name: opentripplanner-mcp
+        name: application-config
   postgres:
     enabled: false
