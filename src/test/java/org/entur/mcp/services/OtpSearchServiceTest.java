@@ -44,8 +44,8 @@ class OtpSearchServiceTest {
     }
 
     @AfterEach
-    void tearDown() throws IOException {
-        mockWebServer.shutdown();
+    void tearDown() {
+        mockWebServer.close();
     }
 
     // ==================== Validation Tests ====================
@@ -121,7 +121,8 @@ class OtpSearchServiceTest {
 
         // Assert
         RecordedRequest request = mockWebServer.takeRequest();
-        String requestBody = request.getBody().readUtf8();
+        assert request.getBody() != null;
+        String requestBody = request.getBody().utf8();
 
         assertThat(requestBody).contains("dateTime: \\\"2023-05-26T10:00:00\\\"");
         assertThat(requestBody).doesNotContain("arriveBy");
@@ -143,7 +144,8 @@ class OtpSearchServiceTest {
 
         // Assert
         RecordedRequest request = mockWebServer.takeRequest();
-        String requestBody = request.getBody().readUtf8();
+        assert request.getBody() != null;
+        String requestBody = request.getBody().utf8();
 
         assertThat(requestBody).contains("arriveBy: true");
         assertThat(requestBody).contains("dateTime: \\\"2023-05-26T14:00:00\\\"");
@@ -165,7 +167,8 @@ class OtpSearchServiceTest {
 
         // Assert
         RecordedRequest request = mockWebServer.takeRequest();
-        String requestBody = request.getBody().readUtf8();
+        assert request.getBody() != null;
+        String requestBody = request.getBody().utf8();
 
         assertThat(requestBody).contains("numTripPatterns: 3");
     }
@@ -313,7 +316,8 @@ class OtpSearchServiceTest {
 
         // Assert
         RecordedRequest request = mockWebServer.takeRequest();
-        String requestBody = request.getBody().readUtf8();
+        assert request.getBody() != null;
+        String requestBody = request.getBody().utf8();
 
         assertThat(requestBody).contains("latitude: " + oslo.getLatitude());
         assertThat(requestBody).contains("longitude: " + oslo.getLongitude());

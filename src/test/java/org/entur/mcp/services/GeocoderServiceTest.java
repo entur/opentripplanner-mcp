@@ -1,6 +1,5 @@
 package org.entur.mcp.services;
 
-import com.fasterxml.jackson.core.JsonProcessingException;
 import mockwebserver3.MockResponse;
 import mockwebserver3.MockWebServer;
 import org.entur.mcp.TestFixtures;
@@ -36,15 +35,15 @@ class GeocoderServiceTest {
     }
 
     @AfterEach
-    void tearDown() throws IOException {
-        mockWebServer.shutdown();
+    void tearDown() {
+        mockWebServer.close();
     }
 
     // ==================== handleGeocodeRequest Tests ====================
 
     @Test
     @DisplayName("Should successfully geocode valid location")
-    void handleGeocodeRequest_withValidResponse_shouldParseCorrectly() throws JsonProcessingException {
+    void handleGeocodeRequest_withValidResponse_shouldParseCorrectly() {
         // Arrange
         String mockResponse = TestFixtures.createGeocoderResponse("Oslo S", 59.911, 10.748);
         mockWebServer.enqueue(new MockResponse.Builder()
@@ -58,7 +57,6 @@ class GeocoderServiceTest {
         assertThat(result).isNotNull();
         assertThat(result).containsKey("features");
 
-        @SuppressWarnings("unchecked")
         List<Object> features = (List<Object>) result.get("features");
         assertThat(features).hasSize(1);
     }
@@ -109,7 +107,7 @@ class GeocoderServiceTest {
 
     @Test
     @DisplayName("Should limit results to maxResults")
-    void handleGeocodeRequest_shouldLimitResultsToMaxResults() throws JsonProcessingException {
+    void handleGeocodeRequest_shouldLimitResultsToMaxResults() {
         // Arrange
         String mockResponse = TestFixtures.createGeocoderResponseMultiple(10);
         mockWebServer.enqueue(new MockResponse.Builder()
@@ -120,7 +118,6 @@ class GeocoderServiceTest {
         Map<String, Object> result = geocoderService.handleGeocodeRequest("test", 3);
 
         // Assert
-        @SuppressWarnings("unchecked")
         List<Object> features = (List<Object>) result.get("features");
         assertThat(features).hasSize(3);
     }
@@ -138,7 +135,7 @@ class GeocoderServiceTest {
 
     @Test
     @DisplayName("Should parse coordinate string directly")
-    void geocodeIfNeeded_withCoordinateString_shouldReturnLocation() throws JsonProcessingException {
+    void geocodeIfNeeded_withCoordinateString_shouldReturnLocation() {
         // Act
         Location location = geocoderService.geocodeIfNeeded("59.911,10.748");
 
@@ -151,7 +148,7 @@ class GeocoderServiceTest {
 
     @Test
     @DisplayName("Should geocode when coordinate string is invalid")
-    void geocodeIfNeeded_withInvalidCoordinates_shouldGeocodeInstead() throws JsonProcessingException {
+    void geocodeIfNeeded_withInvalidCoordinates_shouldGeocodeInstead() {
         // Arrange
         String mockResponse = TestFixtures.createGeocoderResponse("Oslo S", 59.911, 10.748);
         mockWebServer.enqueue(new MockResponse.Builder()
@@ -183,7 +180,7 @@ class GeocoderServiceTest {
 
     @Test
     @DisplayName("Should extract coordinates from geocoder response")
-    void geocodeIfNeeded_withPlaceName_shouldExtractCoordinates() throws JsonProcessingException {
+    void geocodeIfNeeded_withPlaceName_shouldExtractCoordinates() {
         // Arrange
         String mockResponse = TestFixtures.createGeocoderResponse("Oslo S", 59.911076, 10.748128);
         mockWebServer.enqueue(new MockResponse.Builder()
@@ -218,7 +215,7 @@ class GeocoderServiceTest {
 
     @Test
     @DisplayName("Should handle coordinate string with spaces")
-    void geocodeIfNeeded_withCoordinateStringWithSpaces_shouldParse() throws JsonProcessingException {
+    void geocodeIfNeeded_withCoordinateStringWithSpaces_shouldParse() {
         // Act
         Location location = geocoderService.geocodeIfNeeded("59.911 , 10.748");
 
@@ -248,7 +245,7 @@ class GeocoderServiceTest {
 
     @Test
     @DisplayName("resolveStopId should geocode stop name and return ID")
-    void resolveStopId_withStopName_shouldGeocodeAndReturnId() throws Exception {
+    void resolveStopId_withStopName_shouldGeocodeAndReturnId() {
         // Arrange
         String mockResponse = TestFixtures.createGeocoderResponseWithId("Oslo S", "NSR:StopPlace:337", 59.911, 10.748);
         mockWebServer.enqueue(new MockResponse.Builder()
