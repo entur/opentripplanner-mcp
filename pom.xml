@@ -5,7 +5,7 @@
 	<parent>
 		<groupId>org.springframework.boot</groupId>
 		<artifactId>spring-boot-starter-parent</artifactId>
-		<version>4.0.0</version>
+		<version>4.0.2</version>
 	</parent>
 	<groupId>org.entur.mcp</groupId>
 	<artifactId>opentripplanner-mcp</artifactId>
@@ -14,8 +14,8 @@
 	<description>MCP-server for trip-planning using Entur's services</description>
 	<properties>
 		<java.version>21</java.version>
-		<spring-boot.version>4.0.0</spring-boot.version>
-		<spring-ai.version>1.1.1</spring-ai.version>
+		<spring-boot.version>4.0.2</spring-boot.version>
+		<spring-ai.version>1.1.2</spring-ai.version>
 	</properties>
 
     <dependencyManagement>
@@ -75,7 +75,7 @@
         <dependency>
             <groupId>org.springdoc</groupId>
             <artifactId>springdoc-openapi-starter-webmvc-ui</artifactId>
-            <version>3.0.0</version>
+            <version>3.0.1</version>
         </dependency>
 
         <!-- Bean Validation -->
