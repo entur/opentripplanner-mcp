@@ -1,6 +1,6 @@
 # OpenTripPlanner MCP Server
 
-This is a Model Context Protocol (MCP) server for OpenTripPlanner's transmodel GraphQL API, implemented in Java using Spring Boot and [Spring AI's MCP framework](https://docs.spring.io/spring-ai/reference/api/mcp/mcp-overview.html#_spring_ai_mcp_integration). It allows AI agents to use the OpenTripPlanner service as a tool for trip planning in Norwegian/Nordic public transport.
+This is a Model Context Protocol (MCP) server for OpenTripPlanner's transmodel GraphQL API, implemented in Java using Spring Boot and [Spring AI's MCP framework](https://docs.spring.io/spring-ai/reference/api/mcp/mcp-overview.html#_spring_ai_mcp_integration). It allows AI agents to use the OpenTripPlanner service as a tool for trip planning in Norwegian/Nordic public transport, with embedded interactive UIs for departure boards, trip maps, and nearby stop maps.
 
 ## What is MCP?
 
@@ -11,28 +11,65 @@ This server implements the MCP specification to provide a standardized interface
 ## Features
 
 - Trip planning between two points or coordinate pairs in Norwegian/Nordic public transport
+- Real-time departure boards with interactive UI
+- Nearby stop discovery with map UI
+- Service alerts and disruption information
 - Integration with Entur's geocoder for location search
+- Interactive MCP Apps UIs for departures, trips, and nearby stops
 - Implements MCP specification for AI agent integration using Spring AI annotations
-- HTTP-based MCP server (port 8080)
+- HTTP-based stateless MCP server (port 8080)
 - Comprehensive test suite with unit and integration tests
 - Docker-ready with included Dockerfile
 
 ## Tools Provided
 
-This MCP server exposes two main tools:
+This MCP server exposes five model-visible tools and two app-only tools:
 
-1. **trip** - Find trip options between two locations
+### Model-visible tools
+
+1. **trip** — Find trip options between two locations
    - Parameters:
      - `from`: Starting location (address, place name, or coordinates in "lat,lng" format)
      - `to`: Destination location (address, place name, or coordinates in "lat,lng" format)
-     - `departureTime`: Optional departure time in ISO format (e.g., "2023-05-26T12:00:00")
-     - `arrivalTime`: Optional arrival time in ISO format (e.g., "2023-05-26T14:00:00")
+     - `departureTime`: Optional departure time in ISO format
+     - `arrivalTime`: Optional arrival time in ISO format
      - `maxResults`: Maximum number of trip options to return (default: 3)
+     - `language`: UI language — `en`, `nb`, or `nn`
+   - Returns trip options with an interactive map UI
 
-2. **geocode** - Search for locations by name or address
+2. **departures** — Real-time departures from a stop or station
+   - Parameters:
+     - `stop`: Stop name (e.g. "Oslo S") or NSR ID (e.g. "NSR:StopPlace:337")
+     - `numberOfDepartures`: Number of departures to return (default: 10, max: 50)
+     - `startTime`: Optional start time in ISO format (default: now)
+     - `timeRangeMinutes`: Time window in minutes (default: 60, max: 1440)
+     - `transportModes`: Optional filter by mode (bus, rail, tram, metro, water, air)
+     - `language`: UI language — `en`, `nb`, or `nn`
+   - Returns departures with an interactive departure board UI
+
+3. **nearby-stops** — Find public transport stops near a location
+   - Parameters:
+     - `location`: Address, place name, or `lat,lng` coordinates
+     - `radius`: Search radius in metres (default: 500, max: 2000)
+     - `maximumResults`: Maximum stops to return (default: 10, max: 50)
+     - `transportModes`: Optional filter by mode
+     - `language`: UI language — `en`, `nb`, or `nn`
+   - Returns stops sorted by distance with next departures and a map UI
+
+4. **alerts** — Active service disruptions and cancellations
+   - Parameters:
+     - `severities`: Optional filter (noImpact, verySlight, slight, normal, severe, verySevere)
+   - Returns disruption descriptions in Norwegian and English
+
+5. **geocode** — Search for locations by name or address
    - Parameters:
      - `text`: Location text to search for
      - `maxResults`: Maximum number of results to return (default: 10)
+
+### App-only tools (called by the embedded UIs)
+
+- **poll-departures** — Refreshes departure data for the departure board UI
+- **poll-trip** — Re-plans a trip with updated parameters for the trip map UI
 
 ## API Endpoints
 
@@ -148,8 +185,10 @@ To use this MCP server with Claude Desktop, you need to run it as an HTTP server
 2. **Configure Claude Desktop** to connect to `http://localhost:8080/mcp` as an MCP server endpoint.
 
 3. **Use the tools** in your conversation:
-   - Ask Claude to plan a trip: "Plan a trip from Oslo to Bergen"
-   - Ask Claude to geocode a location: "Find the coordinates for Oslo Central Station"
+   - "Plan a trip from Oslo to Bergen"
+   - "When is the next train from Oslo S?"
+   - "What stops are near Grünerløkka?"
+   - "Are there any severe service alerts today?"
 
 ### Other MCP Clients
 
@@ -166,16 +205,19 @@ The application follows standard Spring Boot layered architecture:
 
 - **App.java**: Main Spring Boot application entry point
 - **tools/TripSearchTool.java**: MCP tool definitions using `@McpTool` annotations
+- **tools/LanguageUtil.java**: Language normalization helper
 - **services/**: Business logic layer
-  - `OtpSearchService.java`: Trip planning via GraphQL
+  - `OtpSearchService.java`: Trip planning, departures, nearby stops, and alerts via GraphQL
   - `GeocoderService.java`: Location geocoding via REST
 - **model/**: Domain models (Location, ErrorResponse)
 - **validation/**: Input validation logic
 - **exception/**: Custom exception classes
 
+UI apps are plain HTML files served as MCP resources (`@McpResource`) from `src/main/resources/app/`. They use `@modelcontextprotocol/ext-apps` to call back into the server via app-only tools for auto-refresh and re-planning.
+
 The server uses:
-- **Spring Boot 3.5.7** for the application framework
-- **Spring AI 1.1.0** for MCP server implementation
+- **Spring Boot 4.0.0** for the application framework
+- **Spring AI 2.0.0-M4** for MCP server implementation
 - **Jackson** for JSON processing
 - **Java HTTP Client** for external API calls
 - **JUnit 5 & AssertJ** for testing
@@ -191,12 +233,20 @@ src/
 │   ├── java/org/entur/mcp/
 │   │   ├── App.java                    # Main application
 │   │   ├── tools/                      # MCP tool definitions
+│   │   │   ├── TripSearchTool.java     # All tools + MetaProvider classes
+│   │   │   └── LanguageUtil.java       # Language normalization
 │   │   ├── services/                   # Business logic
+│   │   │   ├── OtpSearchService.java   # OTP GraphQL API
+│   │   │   └── GeocoderService.java    # Geocoder REST API
 │   │   ├── model/                      # Domain models
 │   │   ├── validation/                 # Input validation
 │   │   └── exception/                  # Custom exceptions
 │   └── resources/
-│       └── application.properties      # Configuration
+│       ├── application.properties      # Configuration
+│       └── app/                        # Embedded UI apps
+│           ├── departures-board.html   # Departure board UI
+│           ├── trip-map.html           # Trip options map UI
+│           └── nearby-stops-map.html   # Nearby stops map UI
 └── test/
     └── java/org/entur/mcp/            # Test classes
 ```

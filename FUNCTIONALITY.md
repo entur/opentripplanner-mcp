@@ -14,6 +14,7 @@ The service provides:
 - Walking directions to and from stops
 - Expected crowding levels on vehicles
 - Service alerts about delays or disruptions
+- An interactive map UI showing all route alternatives
 
 ### Check Departures
 
@@ -22,6 +23,28 @@ Find out when the next bus, train, or tram leaves from any stop or station. Get 
 - Platform or stop information
 - Delays and cancellations
 - Which lines are running and where they're heading
+- An interactive departure board UI with auto-refresh
+
+### Find Nearby Stops
+
+Discover public transport stops close to any location. Useful when you're in an unfamiliar area and want to know what's available nearby.
+
+The service provides:
+- Stops sorted by walking distance
+- Transport modes available at each stop (bus, train, tram, metro, ferry)
+- The next few departures from each stop
+- An interactive map UI showing stops around you
+- Configurable search radius (up to 2 km)
+
+### Check Service Alerts
+
+Get active service disruptions, cancellations, and alerts across the public transport network. Filter by severity to focus on what matters most.
+
+The service provides:
+- Descriptions of disruptions in Norwegian and English
+- Severity levels (from minor impact to very severe)
+- Which lines and stops are affected
+- Validity period for each alert
 
 ### Find Locations
 
@@ -46,6 +69,9 @@ Search for addresses, place names, or points of interest and get their exact loc
 
 **Checking for Disruptions**
 > "Are there any service alerts affecting trains from Drammen today?"
+
+**Exploring What's Nearby**
+> "What public transport stops are within walking distance of Grünerløkka?"
 
 ## Coverage
 
