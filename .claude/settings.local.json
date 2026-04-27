@@ -1,0 +1,18 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(javap:*)",
+      "Bash(jar tf:*)",
+      "Bash(mvn dependency:tree:*)",
+      "WebSearch",
+      "WebFetch(domain:github.com)",
+      "WebFetch(domain:spring.io)",
+      "WebFetch(domain:raw.githubusercontent.com)",
+      "WebFetch(domain:developer.entur.org)",
+      "Bash(curl -s -X POST https://api.dev.entur.io/journey-planner/v3/graphql -H 'Content-Type: application/json' -H 'ET-Client-Name: entur-mcp-test' -d '{\"query\":\"{ __type\\(name: \\\\\"Quay\\\\\"\\) { fields { name } } }\"}')",
+      "Bash(python3 -c \"import json,sys; d=json.load\\(sys.stdin\\); print\\(sorted\\([f['name'] for f in d['data']['__type']['fields']]\\)\\)\")",
+      "Bash(curl -s -X POST \"https://api.dev.entur.io/journey-planner/v3/graphql\" -H \"Content-Type: application/json\" -H \"ET-Client-Name: entur-mcp-test\" -d '{\"query\":\"{ __type\\(name: \\\\\"PointsOnLink\\\\\"\\) { fields { name } } }\"}')",
+      "Bash(python3 -c \"import json,sys; d=json.load\\(sys.stdin\\); t=d['data']['__type']; print\\(sorted\\([f['name'] for f in t['fields']]\\) if t else 'type not found'\\)\")"
+    ]
+  }
+}

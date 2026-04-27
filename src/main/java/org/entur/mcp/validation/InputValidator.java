@@ -4,14 +4,22 @@ import org.entur.mcp.exception.ValidationException;
 
 import java.time.format.DateTimeFormatter;
 import java.time.format.DateTimeParseException;
+import java.util.List;
+import java.util.Set;
+import java.util.stream.Collectors;
 
 public class InputValidator {
 
     private static final DateTimeFormatter ISO_DATE_TIME_FORMATTER = DateTimeFormatter.ISO_DATE_TIME;
     private static final int MAX_RESULTS_LIMIT = 50;
+    private static final Set<String> VALID_SEVERITIES = Set.of(
+        "noImpact", "verySlight", "slight", "normal", "severe", "verySevere"
+    );
     private static final int MIN_RESULTS = 1;
     private static final int MAX_TIME_RANGE_MINUTES = 1440; // 24 hours
     private static final int MIN_TIME_RANGE_MINUTES = 1;
+    private static final int MAX_RADIUS_METERS = 2000;
+    private static final int MIN_RADIUS_METERS = 1;
 
 
     public static void validateLocation(String location, String fieldName) {
@@ -84,5 +92,21 @@ public class InputValidator {
     public static int validateTimeRange(Integer timeRangeMinutes, int defaultValue) {
         return validateRange(timeRangeMinutes, "timeRangeMinutes",
             MIN_TIME_RANGE_MINUTES, MAX_TIME_RANGE_MINUTES, defaultValue);
+    }
+
+    public static int validateRadius(Integer radiusMeters, int defaultValue) {
+        return validateRange(radiusMeters, "radiusMeters", MIN_RADIUS_METERS, MAX_RADIUS_METERS, defaultValue);
+    }
+
+    public static List<String> validateSeverities(List<String> severities) {
+        if (severities == null || severities.isEmpty()) return severities;
+        List<String> invalid = severities.stream()
+            .filter(s -> !VALID_SEVERITIES.contains(s))
+            .collect(Collectors.toList());
+        if (!invalid.isEmpty()) {
+            throw new ValidationException("severities",
+                "Invalid severity values: " + invalid + ". Valid values: " + VALID_SEVERITIES);
+        }
+        return severities;
     }
 }

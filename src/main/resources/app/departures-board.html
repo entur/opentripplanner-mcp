@@ -1,0 +1,474 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Departures</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+               background: linear-gradient(160deg, #0f1117 0%, #1a1030 100%);
+               color: #e8e8e8; min-height: 100vh; }
+        #board { max-width: 640px; margin: 0 auto; }
+
+        #header { padding: 12px 14px; display: flex; justify-content: space-between; align-items: center; }
+        #header-left { display: flex; flex-direction: column; gap: 2px; }
+        #stop-name { font-size: 16px; font-weight: 800; }
+        #live-row { display: flex; align-items: center; gap: 5px; font-size: 10px; color: #a78bfa; }
+        #live-dot { width: 5px; height: 5px; border-radius: 50%; background: #a78bfa; flex-shrink: 0;
+                    animation: pulse 2s ease-in-out infinite; }
+        @keyframes pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.25; } }
+        #refresh-btn { font-size: 11px; padding: 5px 10px; border: 1px solid #3a3a5a;
+                       border-radius: 6px; background: #ffffff08; color: #aaa; cursor: pointer; flex-shrink: 0; }
+        #refresh-btn:hover { background: #ffffff15; color: #e8e8e8; }
+        #refresh-btn:disabled { opacity: 0.4; cursor: default; }
+
+        #refresh-bar { height: 2px; background: #1a1a2e; }
+        #refresh-bar-fill { height: 100%; background: #a78bfa; width: 0%;
+                            border-radius: 0 2px 2px 0; transition: width 1s linear; }
+
+        #departures-list, #arrivals-list { padding: 4px 0 8px; }
+
+        .dep-card { margin: 4px 8px; background: #ffffff08; border: 1px solid #ffffff0d;
+                    border-radius: 8px; padding: 9px 12px;
+                    display: grid; grid-template-columns: 56px auto 1fr auto;
+                    gap: 8px; align-items: center; }
+        .dep-card.next-departure { background: #a78bfa18; border-color: #a78bfa44;
+                                   box-shadow: 0 0 0 1px #a78bfa22; }
+        .dep-card.delayed .dep-time { color: #ff6b6b; }
+        .dep-card.cancelled { opacity: 0.45; }
+        .dep-card.cancelled .dep-time { text-decoration: line-through; }
+
+        .dep-time-col { display: flex; flex-direction: column; gap: 1px; }
+        .dep-time-aimed { font-size: 10px; color: #ff6b6b; text-decoration: line-through;
+                          font-variant-numeric: tabular-nums; }
+        .dep-time { font-size: 15px; font-weight: 800; font-variant-numeric: tabular-nums; }
+        .dep-countdown { font-size: 10px; }
+        .dep-countdown.soon { color: #4ecdc4; font-weight: 700; }
+        .dep-countdown.normal { color: #a78bfa; }
+        .dep-countdown.far { color: #666; }
+        .dep-countdown.late { color: #ff6b6b; }
+
+        .badge { display: inline-flex; align-items: center; gap: 4px;
+                 padding: 3px 8px 3px 6px; border-radius: 20px; font-weight: 700; font-size: 11px; }
+
+        .dep-dest { display: flex; flex-direction: column; gap: 2px; overflow: hidden; }
+        .dep-dest-name { font-size: 12px; font-weight: 500; white-space: nowrap;
+                         overflow: hidden; text-overflow: ellipsis; }
+        .dep-plat { font-size: 10px; color: #666; }
+
+        .dep-right { display: flex; flex-direction: column; align-items: flex-end; gap: 3px; }
+        .occ-widget { display: flex; align-items: center; gap: 4px; }
+        .occ-icon { font-size: 11px; opacity: 0.7; }
+        .occ-bar-track { width: 36px; height: 7px; border-radius: 4px; background: #2a2a4a; overflow: hidden; }
+        .occ-bar-fill { height: 100%; border-radius: 4px; transition: width 0.3s; }
+        .occ-bar-fill.teal  { background: #4ecdc4; }
+        .occ-bar-fill.amber { background: #ffaa6b; }
+        .occ-bar-fill.red   { background: #ff6b6b; }
+        .occ-label { font-size: 10px; font-weight: 500; }
+        .occ-label.teal  { color: #4ecdc4; }
+        .occ-label.amber { color: #ffaa6b; }
+        .occ-label.red   { color: #ff6b6b; }
+
+        .dep-alert { margin: 2px 8px; background: #ff6b2218; border: 1px solid #ff6b2233;
+                     border-radius: 6px; padding: 5px 10px; font-size: 10px; color: #ffaa6b; }
+
+        #tab-bar { display: flex; padding: 0 8px; border-bottom: 1px solid #ffffff0d; }
+        .tab { background: none; border: none; border-bottom: 2px solid transparent; color: #555;
+               font-family: inherit; font-size: 12px; font-weight: 600; padding: 8px 12px; cursor: pointer;
+               margin-bottom: -1px; transition: color 0.15s, border-color 0.15s; }
+        .tab.active { color: #a78bfa; border-bottom-color: #a78bfa; }
+        .tab:hover:not(.active) { color: #aaa; }
+
+        .status-msg { padding: 40px; text-align: center; color: #555; font-size: 15px; }
+        .delay-badge { font-size: 10px; color: #e67e22; background: #2a1a0a; border: 1px solid #5a3010; border-radius: 3px; padding: 1px 4px; white-space: nowrap; }
+        .delay-badge.delay-ok { color: #27ae60; background: #0a1f0a; border-color: #1a4a1a; }
+    </style>
+</head>
+<body>
+<div id="board">
+    <div id="header">
+        <div id="header-left">
+            <span id="stop-name">Loading…</span>
+            <span id="live-row" style="display:none">
+                <span id="live-dot"></span>
+                <span id="live-label"></span>
+            </span>
+        </div>
+        <button id="refresh-btn" disabled>↻ Refresh</button>
+    </div>
+    <div id="tab-bar">
+        <button class="tab active" data-tab="departures">Departures</button>
+        <button class="tab" data-tab="arrivals">Arrivals</button>
+    </div>
+    <div id="refresh-bar"><div id="refresh-bar-fill"></div></div>
+    <div id="departures-list"><div class="status-msg">Connecting…</div></div>
+    <div id="arrivals-list" style="display:none"></div>
+</div>
+<script type="module">
+    import { App } from "https://unpkg.com/@modelcontextprotocol/ext-apps@0.4.2/app-with-deps";
+
+    const app = new App({ name: "departures", version: "2.0.0" });
+    const i18n = {
+        en: {
+            refresh:            "↻ Refresh",
+            refreshing:         "Refreshing…",
+            tab_departures:     "Departures",
+            tab_arrivals:       "Arrivals",
+            live_refreshed:     "Live · refreshed {0}s ago",
+            no_departures:      "No upcoming departures.",
+            no_arrivals:        "No upcoming arrivals.",
+            no_data:            "No departure data received.",
+            parse_error:        "Could not parse departure data.",
+            platform:           "Platform {0}",
+            service_disruption: "Service disruption",
+            in_min:             "in {0} min",
+            now:                "now",
+            departed:           "departed",
+            cancelled:          "cancelled",
+            usually_on_time:    "Usually on time",
+            typically_late:     "Typically {0} min late",
+            up_to:              "up to {0} min",
+            occ_empty:          "empty",
+            occ_seats:          "few seats",
+            occ_busy:           "busy",
+            occ_full:           "full",
+        },
+        nb: {
+            refresh:            "↻ Oppdater",
+            refreshing:         "Oppdaterer…",
+            tab_departures:     "Avganger",
+            tab_arrivals:       "Ankomster",
+            live_refreshed:     "Direkte · oppdatert for {0}s siden",
+            no_departures:      "Ingen kommende avganger.",
+            no_arrivals:        "Ingen kommende ankomster.",
+            no_data:            "Ingen avgangdata mottatt.",
+            parse_error:        "Kunne ikke lese avgangdata.",
+            platform:           "Plattform {0}",
+            service_disruption: "Driftsforstyrrelse",
+            in_min:             "om {0} min",
+            now:                "nå",
+            departed:           "avgått",
+            cancelled:          "kansellert",
+            usually_on_time:    "Vanligvis i rute",
+            typically_late:     "Vanligvis {0} min forsinket",
+            up_to:              "opptil {0} min",
+            occ_empty:          "ledig",
+            occ_seats:          "få seter",
+            occ_busy:           "travelt",
+            occ_full:           "stappfullt",
+        },
+        nn: {
+            refresh:            "↻ Oppdater",
+            refreshing:         "Oppdaterer…",
+            tab_departures:     "Avganger",
+            tab_arrivals:       "Ankomstar",
+            live_refreshed:     "Direkte · oppdatert for {0}s sidan",
+            no_departures:      "Ingen komande avganger.",
+            no_arrivals:        "Ingen komande ankomstar.",
+            no_data:            "Ingen avgangdata motteke.",
+            parse_error:        "Kunne ikkje lese avgangdata.",
+            platform:           "Plattform {0}",
+            service_disruption: "Driftsforstyrring",
+            in_min:             "om {0} min",
+            now:                "no",
+            departed:           "avgjenge",
+            cancelled:          "kansellert",
+            usually_on_time:    "Vanlegvis i rute",
+            typically_late:     "Vanlegvis {0} min forseinka",
+            up_to:              "opptil {0} min",
+            occ_empty:          "ledig",
+            occ_seats:          "få seter",
+            occ_busy:           "travelt",
+            occ_full:           "stappfullt",
+        },
+    };
+    let lang = 'en';
+    function t(key, ...args) {
+        let s = (i18n[lang] || i18n.en)[key] || key;
+        args.forEach((v, i) => s = s.replace(`{${i}}`, v));
+        return s;
+    }
+    let currentParams = {};
+    let autoRefreshTimer = null;
+    let ageTimer = null;
+    let barTimer = null;
+    let ageSecs = 0;
+    let barProgress = 0;
+    const REFRESH_INTERVAL = 30_000;
+
+    const MODE_COLORS = {
+        bus: "#d45200", coach: "#d45200",
+        tram: "#0077aa",
+        metro: "#b00", subway: "#b00",
+        rail: "#555", train: "#555",
+        water: "#005599", ferry: "#005599",
+        air: "#7b2fbe",
+    };
+
+    const MODE_ICONS = {
+        tram: `<path fill-rule="evenodd" clip-rule="evenodd" fill="currentColor" d="M14.0619507,5.2719116 c-0.0360718-0.1594849-0.1778564-0.2727661-0.3414307-0.2727661H8.5660925L9.8547363,4.109314 c0.1005249-0.0756836,0.1490479-0.1333008,0.1490479-0.2557373c0-0.1252441-0.0609131-0.2161255-0.1420288-0.2755737 L8.368042,2.3991089H7.4037476l1.7016602,1.4334717l-1.699707,1.1665649H2.27948 c-0.1635742,0-0.3053589,0.1132812-0.3414307,0.2727661l-0.928833,4.1077271 C0.9841309,9.501709,1.0106812,9.6287231,1.0825195,9.7305908l0.8125,1.1231689 c0.0657959,0.0910034,0.1712036,0.1448364,0.2834473,0.1448975l4.2353516,0.0003662v0.0001221l0.6726074-0.000061 l0.4901733,0.000061v-0.000061l6.244873-0.0004272c0.1123047-0.000061,0.2177124-0.053894,0.2835083-0.1448975l0.812439-1.1231689 c0.0718994-0.1018677,0.0984497-0.2288818,0.0733643-0.3509521L14.0619507,5.2719116z M3.75,8.1812744 c0,0.1942749-0.1566772,0.3509521-0.3500977,0.3509521H2.3496094c-0.105896,0-0.206543-0.0481567-0.2730713-0.1312866 C2.0100098,8.3186646,1.9855347,8.210144,2.0083008,8.1060181l0.30896-1.4003906 c0.0349731-0.1610718,0.1776733-0.2748413,0.3413086-0.2748413h0.7413330C3.5933228,6.4307861,3.75,6.5874634,3.75,6.7808838V8.1812744z M7.2496338,8.1812744c0,0.1934204-0.1575317,0.3500977-0.3500977,0.3500977H4.7990112 c-0.1934204,0-0.3500977-0.1566772-0.3500977-0.3500977V6.7808838c0-0.1934204,0.1566772-0.3500977,0.3500977-0.3500977h2.1005249 c0.1925659,0,0.3500977,0.1566772,0.3500977,0.3500977V8.1812744z M10.7602539,8.1812744 c0,0.1934204-0.1575317,0.3500977-0.3500977,0.3500977H8.3096313c-0.1934204,0-0.3500977-0.1566772-0.3500977-0.3500977 V6.7808838c0-0.1934204,0.1566772-0.3500977,0.3500977-0.3500977h2.1005249c0.1925659,0,0.3500977,0.1566772,0.3500977,0.3500977 V8.1812744z M13.8328247,8.4009399c-0.0665283,0.0831299-0.1671753,0.1312866-0.2722168,0.1312866h-1.7504883 c-0.1942749,0-0.3509521-0.1566772-0.3509521-0.3500977V6.7808838c0-0.1934204,0.1566772-0.3500977,0.3509521-0.3500977 h1.3906860c0.1654053,0,0.3063354,0.1137695,0.3421631,0.2748413l0.30896,1.4003906 C13.9246826,8.210144,13.9002075,8.3186646,13.8328247,8.4009399z"/>
+<rect x="2" y="11.9991455" fill-rule="evenodd" clip-rule="evenodd" fill="currentColor" width="12" height="1"/>`,
+        bus: `<g><path fill-rule="evenodd" clip-rule="evenodd" fill="currentColor" d="M10.5,11.7995834c0-0.5506039,0.4483328-0.9995832,1-0.9995832s1,0.4489794,1,0.9995832c0,0.5522699-0.4483328,1.0004168-1,1.0004168S10.5,12.3518534,10.5,11.7995834z"/>
+<path fill-rule="evenodd" clip-rule="evenodd" fill="currentColor" d="M14.9956055,9.5947266l-0.6999512-4.2958984C14.2667236,5.1270142,14.1223755,5,13.9500122,5h-12.25C1.3491211,5,1,5.3579102,1,5.7167358v3.8535767v0.2433472v0.8283691c0,0.1781006,0.1277466,0.3579102,0.3001099,0.3579102h1.5473022c0.2359009-0.7186279,0.9055786-1.1999388,1.703064-1.1999388S6.0175781,10.281311,6.253479,10.999939h3.5435181C10.0328979,10.281311,10.7025146,9.8000002,11.5,9.8000002s1.4671021,0.4813108,1.7030029,1.1999388h1.4470215C14.8425293,10.999939,15,10.8389282,15,10.6420288V9.8136597V9.6537476C15,9.6340942,14.99823,9.6143799,14.9956055,9.5947266z M12.1564331,6.7895508c0-0.1977539,0.1574707-0.3579102,0.3499756-0.3579102h1.086792c0.1766968,0,0.324585,0.1333008,0.3464966,0.3114014l0.1854858,1.4316406c0.0131226,0.1029053-0.0175171,0.204895-0.0848999,0.2827759c-0.0656128,0.0778198-0.1618652,0.1216431-0.2625122,0.1216431h-1.2713623c-0.1925049,0-0.3499756-0.1601562-0.3499756-0.3579102V6.7895508z M7.9564209,6.7895508c0-0.1977539,0.1566162-0.3579102,0.3499756-0.3579102h2.8000488c0.1925049,0,0.3499756,0.1601562,0.3499756,0.3579102v1.4316406c0,0.1977539-0.1574707,0.3579102-0.3499756,0.3579102H8.3063965c-0.1933594,0-0.3499756-0.1601562-0.3499756-0.3579102V6.7895508z M3.7564087,6.7895508c0-0.1977539,0.1566162-0.3579102,0.3500366-0.3579102h2.7999878c0.1933594,0,0.3508911,0.1601562,0.3508911,0.3579102v1.4316406c0,0.1977539-0.1575317,0.3579102-0.3508911,0.3579102H4.1064453c-0.1934204,0-0.3500366-0.1601562-0.3500366-0.3579102V6.7895508z M1.6564331,6.7895508c0-0.1977539,0.1574707-0.3579102,0.3499756-0.3579102h0.7008667c0.1925049,0,0.3482666,0.1601562,0.3482666,0.3579102v1.4316406c0,0.1977539-0.1557617,0.3579102-0.3482666,0.3579102H2.0064087c-0.1925049,0-0.3499756-0.1601562-0.3499756-0.3579102V6.7895508z"/>
+<path fill-rule="evenodd" clip-rule="evenodd" fill="currentColor" d="M3.5504456,11.7995834c0-0.5506039,0.448333-0.9995832,1-0.9995832s1,0.4489794,1,0.9995832c0,0.5522699-0.4483333,1.0004168-1,1.0004168S3.5504456,12.3518534,3.5504456,11.7995834z"/></g>`,
+        metro: `<polygon fill-rule="evenodd" clip-rule="evenodd" fill="currentColor" points="5.0040736,5 5.0040736,6.1663184 7.4164491,6.1663184 7.4164491,12 8.5835505,12 8.5835505,6.1663184 10.9991369,6.1663184 10.9991369,5 "/>
+<path fill="currentColor" d="M7.9994302,2C11.3081598,2,14,4.6915898,14,8s-2.6918402,6-6.0005698,6C4.69133,14,2,11.3084097,2,8 S4.69133,2,7.9994302,2 M7.9994302,1C4.1398902,1,1,4.14078,1,8s3.1398902,7,6.9994302,7C11.8601103,15,15,11.8592196,15,8 S11.8601103,1,7.9994302,1L7.9994302,1z"/>`,
+        train: `<rect x="1" y="11.9995728" fill-rule="evenodd" clip-rule="evenodd" fill="currentColor" width="13" height="1"/>
+<path fill="currentColor" d="M14.7497559,8.0994263c-0.0209961-0.0348511-0.0516357-0.0687866-0.0910034-0.1088867 c-0.0113525-0.012146-0.0227661-0.0252075-0.0349731-0.0365601c-0.0271606-0.0269775-0.0568848-0.0574951-0.0927734-0.0949097 c-0.3150024-0.3143921-2.3393555-1.8048096-3.43573-2.5276489c-0.3587646-0.2360229-0.7594604-0.3318481-0.9992065-0.3318481 H6.555603l0.0012817-0.0004272L7.8509521,4.109314C7.9514771,4.0336304,8,3.9760132,8,3.8535767 c0-0.1252441-0.0609131-0.2161255-0.1420288-0.2755737l-1.4937134-1.178894H5.4000244l1.7015991,1.4334717l-1.699707,1.1665649 l0.0012817,0.0004272H1v6h12.6115723c0.1968384,0,0.3807983-0.098999,0.4881592-0.2639771 C14.5907593,9.980835,15,9.326416,15,8.8336182C15,8.5566406,14.9046021,8.3049927,14.7497559,8.0994263z M12.2128906,7.5923462 c-0.0455322,0.1356201-0.1732788,0.1715088-0.3167725,0.1715088h-0.6658936c-0.0717163,0-0.1854858,0.010498-0.2843628-0.0630493 L9.9956055,7.0297241C9.8809814,6.9439697,9.8345947,6.7943115,9.880127,6.6586914 c0.0454712-0.1356201,0.1723633-0.227478,0.3158569-0.227478h0.6658936c0.0717163,0,0.1417236,0.0236206,0.2003784,0.0673828 l1.0342407,0.7787476C12.2111206,7.3630981,12.2583618,7.4567261,12.2128906,7.5923462z"/>`,
+        ferry: `<path fill="currentColor" d="M8.7366228,13c-0.8232427,0-1.2529302-0.2255859-1.6318364-0.4248047 c-0.3300781-0.1728516-0.5908203-0.3095703-1.1679688-0.3095703s-0.8378906,0.1367188-1.1679688,0.3095703 C4.3889661,12.7744141,3.9592786,13,3.1360364,13c-1.0517578,0-1.96875-0.5878906-2.0068359-0.6132812l-0.1288743-0.0710449 l0.4462763-0.8937683l0.1962699,0.1083679C1.6799817,11.5527344,2.3860364,12,3.1360364,12 c0.5771484,0,0.8378906-0.1367188,1.1679688-0.3095703c0.3798828-0.1992188,0.8095703-0.4248047,1.6328125-0.4248047 s1.2539062,0.2255859,1.6328125,0.4248047C7.8997083,11.8632812,8.1604509,12,8.7366228,12s0.8369141-0.1367188,1.1669922-0.3095703 c0.3789062-0.1992188,0.8095703-0.4248047,1.6328125-0.4248047c0.642683,0,1.0455141,0.1374817,1.3715782,0.2921104 l-0.4786806,0.8804379c-0.2299261-0.1028214-0.4807262-0.1725464-0.8928976-0.1725464 c-0.5771484,0-0.8378906,0.1367188-1.1679688,0.3095703C9.9895525,12.7744141,9.559865,13,8.7366228,13z"/>
+<path fill="currentColor" d="M14.7496338,7.4558105h-0.6616211h-0.2305908h-0.5390625 c-0.0228271,0-0.0430298-0.0145874-0.0502319-0.0361938L12.361084,4.6737671 c-0.0472412-0.1446533-0.1799927-0.2422485-0.3295898-0.2422485h-0.5549927 c-0.020813-0.0002441-0.0394897-0.0136719-0.0461426-0.0339355l-0.340271-0.8250122 c-0.0733643-0.185791-0.2145386-0.2974243-0.4172974-0.1975098L9.4602661,4.0807495 C9.3106079,4.1569214,9.2161255,4.3128052,9.2161255,4.4833374L9.2159424,4.9463501 c0.0001831,0.0400391-0.0254517,0.0535278-0.0465088,0.0535278L7.5570068,4.999939L5.7786865,5 c-0.1348877,0-0.2580566,0.0765991-0.317749,0.1975098L4.3624268,7.4216309 C4.3555908,7.4420166,4.3364868,7.4558105,4.3150024,7.4558105H3.647644c-0.1333618,0-0.255127,0.0757446-0.3140259,0.1953125 l-1.4955444,3.046814C2.151001,10.8574219,2.4960938,11,3.1132812,11c1.3999634,0,1.3999634-0.7334595,2.7999878-0.7334595 C7.3134766,10.2665405,7.3134766,11,8.7132568,11c1.4000244,0,1.4000244-0.7334595,2.7999878-0.7334595 c0.899231,0,1.4499512,0.3059692,1.8450317,0.5216675l1.6109009-2.9627686 C15.0599365,7.6588135,14.9393311,7.4558105,14.7496338,7.4558105z M7.3970947,7.2557983 c0,0.1104736-0.0895386,0.2000122-0.2000122,0.2000122H5.2716064c-0.1245117,0-0.2358398-0.0980225-0.1328735-0.2788086 L5.5200195,6.397583c0.0427856-0.086792,0.1311646-0.1417847,0.2279053-0.1417847h1.4491577 c0.1104736,0,0.2000122,0.0895386,0.2000122,0.2000122V7.2557983z M9.6012573,7.2520142 c0,0.1125488-0.0912476,0.2037964-0.2037964,0.2037964H8.0050049c-0.1125488,0-0.2037354-0.0912476-0.2037354-0.2037964 V6.4595947c0-0.1125488,0.0911865-0.2037964,0.2037354-0.2037964h1.3924561c0.1125488,0,0.2037964,0.0912476,0.2037964,0.2037964 V7.2520142z M12.1358643,7.4558105l-1.9329224,0.0016479c-0.1113892,0.000061-0.2017212-0.090271-0.2017212-0.2016602 V6.4574585c0-0.1113892,0.090271-0.2016602,0.2016602-0.2016602h1.6533203c0.1159058,0,0.2168579,0.0790405,0.2446899,0.1915283 l0.1930542,0.7798462C12.3471069,7.3922119,12.2449951,7.4558105,12.1358643,7.4558105z"/>`,
+        plane: `<path fill-rule="evenodd" clip-rule="evenodd" fill="currentColor" d="M14.833374,5.6821361 c-0.0113525-0.010498-0.0253296-0.0201416-0.0446167-0.0306396c-0.005249-0.003479-0.0096436-0.006958-0.0157471-0.010498 c-0.0122681-0.007019-0.0262451-0.0148926-0.0429077-0.0253906c-0.1461792-0.0831299-1.0083008-0.420105-1.4782715-0.5758667 c-0.1540527-0.0507812-0.3098755-0.0463867-0.3973999-0.0236816L9.0366211,6.0436473L5.210022,4.4375682 C4.9369507,4.3202586,4.892334,4.298408,4.6393433,4.3132396L3.84552,4.388557 C3.6748657,4.4069285,3.6477051,4.5469432,3.7912598,4.6826243l2.2178955,2.1749878L3.62146,7.5000682L1.4910889,6.6764598 C1.3151855,6.607307,1.2600098,6.6081614,1.1681519,6.6326976L1.0875854,6.6545482 C1.0254517,6.6711497,0.9983521,6.7114329,1.000061,6.7543406c0.00177,0.0577393,0.0455322,0.0770264,0.1890869,0.2284546 c0,0,2.8743286,2.8051763,3.0336304,2.9478154c0.0551147,0.0490112,0.1312866,0.0673828,0.2039185,0.0481567 L14.5646973,7.247993c0.0717773-0.0192871,0.1286621-0.0735474,0.1514282-0.1435547 c0.1312866-0.4008789,0.312439-1.0581665,0.2800903-1.1789551C14.9690552,5.8239207,14.9085693,5.7416453,14.833374,5.6821361z"/>
+<rect x="2" y="11.9991455" fill-rule="evenodd" clip-rule="evenodd" fill="currentColor" width="12" height="1"/>`,
+    };
+
+    function modeColor(mode) {
+        return MODE_COLORS[(mode || "").toLowerCase()] || "#444";
+    }
+
+    function modeIcon(mode) {
+        const key = (mode || "").toLowerCase();
+        if (key === "coach") return MODE_ICONS.bus;
+        if (key === "subway") return MODE_ICONS.metro;
+        if (key === "rail") return MODE_ICONS.train;
+        if (key === "water") return MODE_ICONS.ferry;
+        if (key === "air") return MODE_ICONS.plane;
+        return MODE_ICONS[key] || "";
+    }
+
+    function lineBg(line) {
+        return safeHex(line.presentation?.colour) || modeColor(line.transportMode);
+    }
+
+    function lineFg(line) {
+        return safeHex(line.presentation?.textColour) || "#ffffff";
+    }
+
+    const refreshBtn = document.getElementById("refresh-btn");
+    const barFill = document.getElementById("refresh-bar-fill");
+    const liveRow = document.getElementById("live-row");
+    const liveLabelEl = document.getElementById("live-label");
+    function updateLiveLabel() {
+        liveLabelEl.textContent = t('live_refreshed', ageSecs);
+    }
+    function updateTabLabels() {
+        document.querySelectorAll('.tab').forEach(btn => {
+            btn.textContent = btn.dataset.tab === 'departures' ? t('tab_departures') : t('tab_arrivals');
+        });
+    }
+
+    function applyToolResult(result) {
+        try {
+            const text = result.content?.find(c => c.type === "text")?.text;
+            if (!text) return;
+            const data = JSON.parse(text);
+            lang = data.language || lang;
+            if (data.error) { refreshBtn.disabled = false; refreshBtn.textContent = t('refresh'); showStatus(data.message || data.error); return; }
+            const stopPlace = data.stopPlace;
+            if (!stopPlace) { showStatus(t('no_data')); return; }
+            currentParams = { stop: stopPlace.id, language: lang };
+            if (data.numberOfDepartures != null) currentParams.numberOfDepartures = data.numberOfDepartures;
+            if (data.timeRangeMinutes != null) currentParams.timeRangeMinutes = data.timeRangeMinutes;
+            if (data.transportModes != null) currentParams.transportModes = data.transportModes;
+            refreshBtn.disabled = false;
+            refreshBtn.textContent = t('refresh');
+            updateTabLabels();
+            liveRow.style.display = "flex";
+            render(stopPlace);
+            resetRefreshCycle();
+        } catch (e) {
+            refreshBtn.disabled = false;
+            refreshBtn.textContent = t('refresh');
+            showStatus(t('parse_error'));
+        }
+    }
+
+    app.ontoolresult = applyToolResult;
+
+    await app.connect();
+
+    refreshBtn.addEventListener("click", () => triggerRefresh());
+
+    document.querySelectorAll(".tab").forEach(btn => {
+        btn.addEventListener("click", () => setActiveTab(btn.dataset.tab));
+    });
+
+    async function triggerRefresh() {
+        if (!currentParams.stop) return;
+        refreshBtn.disabled = true;
+        refreshBtn.textContent = t('refreshing');
+        try {
+            const result = await app.callServerTool({ name: "poll-departures", arguments: currentParams });
+            applyToolResult(result);
+        } catch (e) {
+            refreshBtn.disabled = false;
+            refreshBtn.textContent = t('refresh');
+        }
+    }
+
+    function resetRefreshCycle() {
+        clearInterval(autoRefreshTimer);
+        clearInterval(ageTimer);
+        clearInterval(barTimer);
+
+        ageSecs = 0;
+        updateLiveLabel();
+        ageTimer = setInterval(() => { ageSecs++; updateLiveLabel(); }, 1000);
+
+        barProgress = 0;
+        barFill.style.transition = "none";
+        barFill.style.width = "0%";
+        requestAnimationFrame(() => requestAnimationFrame(() => {
+            barFill.style.transition = "width 1s linear";
+        }));
+        barTimer = setInterval(() => {
+            barProgress = Math.min(100, barProgress + (1000 / REFRESH_INTERVAL) * 100);
+            barFill.style.width = barProgress + "%";
+        }, 1000);
+
+        autoRefreshTimer = setInterval(() => triggerRefresh(), REFRESH_INTERVAL);
+    }
+
+    function esc(v) {
+        return String(v ?? "")
+            .replace(/&/g, "&amp;")
+            .replace(/</g, "&lt;")
+            .replace(/>/g, "&gt;")
+            .replace(/"/g, "&quot;");
+    }
+
+    function showStatus(msg) {
+        const html = `<div class="status-msg">${esc(msg)}</div>`;
+        document.getElementById("departures-list").innerHTML = html;
+        document.getElementById("arrivals-list").innerHTML   = html;
+    }
+
+    function safeHex(v) {
+        return v && /^[0-9a-fA-F]{3,8}$/.test(v) ? "#" + v : null;
+    }
+
+    function fmt(iso) {
+        if (!iso) return "--:--";
+        return new Date(iso).toLocaleTimeString(lang === 'en' ? 'en-GB' : lang === 'nn' ? 'nn-NO' : 'nb-NO', { hour: "2-digit", minute: "2-digit" });
+    }
+
+    function parseDurationSecs(dur) {
+        if (!dur) return 0;
+        const m = dur.match(/PT(?:(\d+)H)?(?:(\d+)M)?(?:(\d+(?:\.\d+)?)S)?/);
+        if (!m) return 0;
+        return (parseInt(m[1] || 0) * 3600) + (parseInt(m[2] || 0) * 60) + parseFloat(m[3] || 0);
+    }
+
+    function formatDelay(empiricalDelay) {
+        if (!empiricalDelay) return "";
+        const p50 = parseDurationSecs(empiricalDelay.p50);
+        const p90 = parseDurationSecs(empiricalDelay.p90);
+        if (p50 < 60) return `<span class="delay-badge delay-ok">${t('usually_on_time')}</span>`;
+        const mins = Math.round(p50 / 60);
+        const upTo = p90 > p50 + 120 ? `, ${t('up_to', Math.round(p90 / 60))}` : "";
+        return `<span class="delay-badge">${t('typically_late', mins)}${upTo}</span>`;
+    }
+
+    function countdown(expectedIso, isCancelled) {
+        if (isCancelled) return { text: t('cancelled'), cls: "late" };
+        if (!expectedIso) return { text: "", cls: "far" };
+        const diffMin = Math.round((new Date(expectedIso) - Date.now()) / 60_000);
+        if (diffMin < 0) return { text: t('departed'), cls: "far" };
+        if (diffMin === 0) return { text: t('now'), cls: "soon" };
+        if (diffMin <= 3) return { text: t('in_min', diffMin), cls: "soon" };
+        if (diffMin <= 10) return { text: t('in_min', diffMin), cls: "normal" };
+        return { text: t('in_min', diffMin), cls: "far" };
+    }
+
+    function occupancyDots(status) {
+        const levels = {
+            EMPTY:                    { pct: 0,   color: "teal",  label: "" },
+            MANY_SEATS_AVAILABLE:     { pct: 20,  color: "teal",  label: t('occ_empty') },
+            FEW_SEATS_AVAILABLE:      { pct: 55,  color: "teal",  label: t('occ_seats') },
+            STANDING_ROOM_ONLY:       { pct: 80,  color: "amber", label: t('occ_busy') },
+            FULL:                     { pct: 100, color: "red",   label: t('occ_full') },
+            CRUSHED_STANDING_ROOM_ONLY: { pct: 100, color: "red", label: t('occ_full') },
+        };
+        const info = levels[status] || { pct: 0, color: "teal", label: "" };
+        if (!info.label) return "";
+        return `<div class="occ-widget">
+            <span class="occ-icon">🧍</span>
+            <div class="occ-bar-track"><div class="occ-bar-fill ${info.color}" style="width:${info.pct}%"></div></div>
+            <span class="occ-label ${info.color}">${info.label}</span>
+        </div>`;
+    }
+
+    function setActiveTab(tab) {
+        document.querySelectorAll(".tab").forEach(btn => {
+            btn.classList.toggle("active", btn.dataset.tab === tab);
+        });
+        document.getElementById("departures-list").style.display = tab === "departures" ? "" : "none";
+        document.getElementById("arrivals-list").style.display   = tab === "arrivals"   ? "" : "none";
+    }
+
+    function render(stopPlace) {
+        document.getElementById("stop-name").textContent = stopPlace.name || t('tab_departures');
+        renderList(
+            document.getElementById("departures-list"),
+            (stopPlace.departures || []).slice(0, 20),
+            true
+        );
+        renderList(
+            document.getElementById("arrivals-list"),
+            (stopPlace.arrivals || []).slice(0, 20),
+            false
+        );
+    }
+
+    function renderList(list, calls, showNextHighlight) {
+        if (calls.length === 0) {
+            list.innerHTML = `<div class="status-msg">${showNextHighlight ? t('no_departures') : t('no_arrivals')}</div>`;
+            return;
+        }
+        list.innerHTML = "";
+        let nextSet = false;
+        for (const call of calls) {
+            const aimed    = showNextHighlight ? call.aimedDepartureTime    : call.aimedArrivalTime;
+            const expected = showNextHighlight ? call.expectedDepartureTime  : call.expectedArrivalTime;
+            const delayed  = !call.cancellation && expected && aimed
+                             && new Date(expected) - new Date(aimed) > 60_000;
+            const cancelled = call.cancellation;
+            const line = call.serviceJourney?.line || {};
+            const { text: cdText, cls: cdCls } = countdown(expected, cancelled);
+
+            const classes = ["dep-card"];
+            if (showNextHighlight && !nextSet && !cancelled) { classes.push("next-departure"); nextSet = true; }
+            if (delayed)   classes.push("delayed");
+            if (cancelled) classes.push("cancelled");
+
+            const bg   = esc(lineBg(line));
+            const fg   = esc(lineFg(line));
+            const icon = modeIcon(line.transportMode);
+            const card = document.createElement("div");
+            card.className = classes.join(" ");
+            card.innerHTML = `
+                <div class="dep-time-col">
+                    ${delayed ? `<span class="dep-time-aimed">${fmt(aimed)}</span>` : ""}
+                    <span class="dep-time">${fmt(expected)}</span>
+                    <span class="dep-countdown ${cdCls}">${cdText}</span>
+                </div>
+                <span class="badge" style="background:${bg};color:${fg};"><svg width="13" height="13" viewBox="0 0 16 16" fill="currentColor">${icon}</svg>${esc(line.publicCode || "?")}</span>
+                <div class="dep-dest">
+                    <span class="dep-dest-name">${esc(call.destinationDisplay?.frontText || "")}</span>
+                    <span class="dep-plat">${call.quay?.publicCode ? esc(t('platform', call.quay.publicCode)) : ""}</span>
+                </div>
+                <div class="dep-right">${occupancyDots(call.occupancyStatus)}${formatDelay(call.empiricalDelay)}</div>
+            `;
+            list.appendChild(card);
+
+            for (const s of (call.situations || [])) {
+                const alert = document.createElement("div");
+                alert.className = "dep-alert";
+                alert.textContent = "⚠ " + (s.summary?.[0]?.value || t('service_disruption'));
+                list.appendChild(alert);
+            }
+        }
+    }
+</script>
+</body>
+</html>

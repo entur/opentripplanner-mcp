@@ -67,26 +67,65 @@ public class OtpSearchService {
                                 duration
                                 fromPlace {
                                     name
+                                    latitude
+                                    longitude
                                 }
                                 fromEstimatedCall {
                                     occupancyStatus
+                                    destinationDisplay {
+                                        frontText
+                                    }
+                                    empiricalDelay {
+                                        p50
+                                        p90
+                                    }
                                 }
                                 toPlace {
                                     name
+                                    latitude
+                                    longitude
+                                }
+                                toEstimatedCall {
+                                    empiricalDelay {
+                                        p50
+                                        p90
+                                    }
                                 }
                                 line {
                                     publicCode
                                     name
+                                    presentation {
+                                      colour
+                                      textColour
+                                    }
+                                }
+                                serviceJourney {
+                                    id
                                 }
                                 aimedStartTime
                                 expectedStartTime
                                 aimedEndTime
                                 expectedEndTime
+                                pointsOnLink {
+                                    points
+                                }
+                                intermediateEstimatedCalls {
+                                    quay {
+                                        latitude
+                                        longitude
+                                    }
+                                }
                                 situations {
                                     summary {
                                         value
                                     }
                                 }
+                                emission {
+                                    co2
+                                }
+                            }
+                            emission {
+                                co2
                             }
                         }
                     }
@@ -97,44 +136,172 @@ public class OtpSearchService {
                     stopPlace(id: "%s") {
                         id
                         name
-                        estimatedCalls(
+                        arrivals: estimatedCalls(
                             numberOfDepartures: %d
                             %s
                             timeRange: %d
+                            arrivalDeparture: arrivals
                         ) {
-                            aimedDepartureTime
-                            expectedDepartureTime
-                            actualDepartureTime
-                            cancellation
-                            realtime
-                            realtimeState
-                            occupancyStatus
-                            quay {
-                                id
-                                publicCode
-                                name
-                            }
-                            destinationDisplay {
-                                frontText
-                            }
-                            serviceJourney {
-                                id
+                            ...calls
+                        }
+                        departures: estimatedCalls(
+                            numberOfDepartures: %d
+                            %s
+                            timeRange: %d
+                            arrivalDeparture: departures
+                        ) {
+                            ...calls
+                        }
+                    }
+                }
+                fragment calls on EstimatedCall {
+                  aimedDepartureTime
+                  expectedDepartureTime
+                  actualDepartureTime
+                  aimedArrivalTime
+                  expectedArrivalTime
+                  cancellation
+                  realtime
+                  realtimeState
+                  occupancyStatus
+                  quay {
+                    id
+                    publicCode
+                    name
+                  }
+                  destinationDisplay {
+                    frontText
+                  }
+                  serviceJourney {
+                    id
+                    line {
+                      id
+                      publicCode
+                      name
+                      transportMode
+                      presentation {
+                        colour
+                        textColour
+                      }
+                    }
+                  }
+                  situations {
+                    summary {
+                      value
+                    }
+                  }
+                  empiricalDelay {
+                    p50
+                    p90
+                  }
+                }
+""";
+
+    private static final String situationsQuery = """
+                {
+                    situations%s {
+                        id
+                        situationNumber
+                        severity
+                        reportType
+                        summary {
+                            value
+                            language
+                        }
+                        description {
+                            value
+                            language
+                        }
+                        validityPeriod {
+                            startTime
+                            endTime
+                        }
+                        affects {
+                            __typename
+                            ... on AffectedLine {
                                 line {
-                                    id
                                     publicCode
                                     name
                                     transportMode
                                 }
                             }
-                            situations {
-                                summary {
-                                    value
+                            ... on AffectedStopPlace {
+                                stopPlace {
+                                    id
+                                    name
+                                }
+                            }
+                            ... on AffectedStopPlaceOnLine {
+                                line {
+                                    publicCode
+                                    name
+                                    transportMode
+                                }
+                                stopPlace {
+                                    id
+                                    name
+                                }
+                            }
+                            ... on AffectedServiceJourney {
+                                serviceJourney {
+                                    line {
+                                        publicCode
+                                        name
+                                        transportMode
+                                    }
                                 }
                             }
                         }
                     }
-                }
-                """;
+                }""";
+
+    private static final String nearestQuery = """
+                {
+                    nearest(
+                        latitude: %f
+                        longitude: %f
+                        maximumDistance: %.1f
+                        maximumResults: %d
+                        filterByPlaceTypes: [stopPlace]
+                        %s
+                    ) {
+                        edges {
+                            node {
+                                distance
+                                place {
+                                    __typename
+                                    ... on StopPlace {
+                                        id
+                                        name
+                                        latitude
+                                        longitude
+                                        transportMode
+                                        estimatedCalls(numberOfDepartures: 3, timeRange: 1800) {
+                                            expectedDepartureTime
+                                            empiricalDelay {
+                                                p50
+                                                p90
+                                            }
+                                            destinationDisplay {
+                                                frontText
+                                            }
+                                            serviceJourney {
+                                                line {
+                                                    publicCode
+                                                    transportMode
+                                                    presentation {
+                                                        colour
+                                                        textColour
+                                                    }
+                                                }
+                                            }
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }""";
 
     public OtpSearchService(
             @Value("${org.entur.otp.url}") String otpURL,
@@ -300,9 +467,8 @@ public class OtpSearchService {
         String query = String.format(
                 departureBoardQuery,
                 stopId,
-                validatedNumDepartures,
-                optionalParams,
-                timeRangeSeconds
+                validatedNumDepartures, optionalParams, timeRangeSeconds,
+                validatedNumDepartures, optionalParams, timeRangeSeconds
         );
 
         log.debug("Executing departure board query for stop '{}'", stopId);
@@ -347,7 +513,123 @@ public class OtpSearchService {
             throw new TripPlanningException("No departure data returned from API");
         }
 
+        Map<String, Object> enriched = new HashMap<>(data);
+        enriched.put("numberOfDepartures", validatedNumDepartures);
+        enriched.put("timeRangeMinutes", validatedTimeRange);
+        if (transportModes != null && !transportModes.isEmpty()) {
+            enriched.put("transportModes", transportModes);
+        }
+
         log.info("Successfully fetched departures for stop '{}'", stopId);
+        return enriched;
+    }
+
+    public Map<String, Object> handleSituationsRequest(List<String> severities) {
+        log.info("Fetching situations (severities: {})", severities);
+
+        InputValidator.validateSeverities(severities);
+
+        String filterArg = "";
+        if (severities != null && !severities.isEmpty()) {
+            filterArg = "(severities: " + severities.stream()
+                .collect(Collectors.joining(", ", "[", "]")) + ")";
+        }
+
+        String query = String.format(situationsQuery, filterArg);
+
+        Map<String, String> reqBody = new HashMap<>();
+        reqBody.put("query", query);
+
+        ObjectMapper objectMapper = new ObjectMapper();
+        String reqJSON;
+        try {
+            reqJSON = objectMapper.writeValueAsString(reqBody);
+        } catch (Exception e) {
+            log.error("Failed to serialize situations request: {}", e.getMessage());
+            throw new TripPlanningException("Failed to create situations request", e);
+        }
+
+        HttpResponse<String> response = sendOtpGraphQlRequest(reqJSON);
+
+        Map<String, Object> result;
+        try {
+            result = objectMapper.readValue(response.body(), new TypeReference<>() {});
+        } catch (Exception e) {
+            log.error("Failed to parse situations response: {}", e.getMessage());
+            throw new TripPlanningException("Invalid response format from situations API", e);
+        }
+
+        if (result.containsKey("errors")) {
+            List<?> errors = (List<?>) result.get("errors");
+            if (errors != null && !errors.isEmpty()) {
+                log.error("Situations query returned errors: {}", errors);
+                throw new TripPlanningException(String.format("Situations query failed: %s", errors));
+            }
+        }
+
+        Map<String, Object> data = (Map<String, Object>) result.get("data");
+        if (data == null) {
+            log.error("GraphQL response contained no data");
+            throw new TripPlanningException("No data returned from situations API");
+        }
+
+        List<?> situations = (List<?>) data.getOrDefault("situations", List.of());
+        log.info("Successfully fetched {} situations", situations.size());
+        return data;
+    }
+
+    public Map<String, Object> handleNearbyStopsRequest(double latitude, double longitude,
+                                                         int radiusMeters, int maxResults,
+                                                         List<String> transportModes) {
+        log.info("Fetching nearby stops at ({}, {}), radius={}m, max={}", latitude, longitude, radiusMeters, maxResults);
+
+        String modeFilter = "";
+        if (transportModes != null && !transportModes.isEmpty()) {
+            String modes = transportModes.stream()
+                .map(String::toLowerCase)
+                .collect(Collectors.joining(", ", "[", "]"));
+            modeFilter = "filterByModes: " + modes;
+        }
+
+        String query = String.format(nearestQuery, latitude, longitude, (double) radiusMeters, maxResults, modeFilter);
+
+        Map<String, String> reqBody = new HashMap<>();
+        reqBody.put("query", query);
+
+        ObjectMapper objectMapper = new ObjectMapper();
+        String reqJSON;
+        try {
+            reqJSON = objectMapper.writeValueAsString(reqBody);
+        } catch (Exception e) {
+            log.error("Failed to serialize nearest stops request: {}", e.getMessage());
+            throw new TripPlanningException("Failed to create nearby stops request", e);
+        }
+
+        HttpResponse<String> response = sendOtpGraphQlRequest(reqJSON);
+
+        Map<String, Object> result;
+        try {
+            result = objectMapper.readValue(response.body(), new TypeReference<>() {});
+        } catch (Exception e) {
+            log.error("Failed to parse nearby stops response: {}", e.getMessage());
+            throw new TripPlanningException("Invalid response format from nearby stops API", e);
+        }
+
+        if (result.containsKey("errors")) {
+            List<?> errors = (List<?>) result.get("errors");
+            if (errors != null && !errors.isEmpty()) {
+                log.error("Nearest query returned errors: {}", errors);
+                throw new TripPlanningException(String.format("Nearby stops query failed: %s", errors));
+            }
+        }
+
+        Map<String, Object> data = (Map<String, Object>) result.get("data");
+        if (data == null) {
+            log.error("GraphQL response contained no data");
+            throw new TripPlanningException("No data returned from nearby stops API");
+        }
+
+        log.info("Successfully fetched nearby stops at ({}, {})", latitude, longitude);
         return data;
     }
 }

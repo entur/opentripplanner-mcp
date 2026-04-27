@@ -1,0 +1,833 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Trip Map</title>
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9/dist/leaflet.css">
+    <script src="https://unpkg.com/leaflet@1.9/dist/leaflet.js"></script>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+               background: #0f0f23; color: #e8e8e8; min-height: 100vh; }
+        #app { max-width: 680px; margin: 0 auto; display: flex; flex-direction: column; min-height: 100vh; }
+
+        #header { padding: 10px 14px; background: #16213e;
+                  display: flex; align-items: baseline; justify-content: space-between; gap: 12px;
+                  border-bottom: 1px solid #1e2a4a; flex-shrink: 0; }
+        #route-label { font-size: 14px; font-weight: 700; }
+        #replan-btn { font-size: 11px; padding: 4px 10px; border: 1px solid #3a3a5a;
+                      border-radius: 6px; background: transparent; color: #aaa; cursor: pointer; flex-shrink: 0; }
+        #replan-btn:hover { background: #2a2a4a; color: #e8e8e8; }
+        #replan-btn:disabled { opacity: 0.4; cursor: default; }
+
+        #map { height: 260px; flex-shrink: 0; background: #1e2235; }
+
+        #leg-strip { background: #0a0a1e; border-top: 1px solid #1e1e35;
+                     padding: 6px 12px; display: flex; gap: 5px; align-items: center;
+                     flex-wrap: wrap; font-size: 10px; color: #888; min-height: 30px; flex-shrink: 0; }
+        .strip-sep { color: #333; }
+        .strip-dest { color: #4ecdc4; }
+
+        #vehicle-status { font-size: 10px; color: #666; padding: 2px 12px 4px;
+                          min-height: 16px; flex-shrink: 0; }
+        #vehicle-status.ok  { color: #4ecdc4; }
+        #vehicle-status.err { color: #ff6b6b; }
+
+        #patterns { padding: 4px 0 8px; overflow-y: auto; }
+
+        .pattern { margin: 4px 8px; border: 1px solid #2a2a4a; border-radius: 8px;
+                   overflow: hidden; cursor: pointer; transition: border-color .15s; }
+        .pattern:hover { border-color: #4a4a7a; }
+        .pattern.active { border-color: #7c7cf8; box-shadow: 0 0 0 2px #7c7cf822; }
+        .pattern:not(.active) { opacity: 0.6; }
+        .pattern-main { padding: 8px 12px; display: flex; align-items: center; gap: 8px; }
+        .pattern.active .pattern-main { background: #1e1e38; }
+        .pattern-times { font-size: 13px; font-weight: 700; white-space: nowrap; }
+        .leg-bar { flex: 1; height: 7px; border-radius: 4px; overflow: hidden; display: flex; min-width: 60px; }
+        .lb { height: 100%; }
+        .pattern-dur { font-size: 11px; color: #888; white-space: nowrap;
+                       display: flex; align-items: center; gap: 4px; }
+        .delay-badge { font-size: 9px; color: #ff6b6b; background: #ff6b2222;
+                       border: 1px solid #ff6b2244; border-radius: 3px; padding: 1px 4px; }
+
+        /* Selected card leg detail */
+        .leg-rows { padding: 6px 12px 8px; background: #0f0f23; display: flex; flex-direction: column; gap: 1px; }
+        .transit-leg { display: flex; flex-direction: column; gap: 3px; padding: 5px 0; border-top: 1px solid #1e1e35; }
+        .transit-stop { font-size: 10px; color: #888; }
+        .transit-badge-row { display: flex; align-items: center; gap: 8px; }
+        .transit-badge { display: inline-flex; align-items: center; gap: 5px; border-radius: 20px;
+                         padding: 4px 11px 4px 7px; font-size: 11px; font-weight: 700; flex-shrink: 0; }
+        .mode-icon { width: 16px; height: 16px; flex-shrink: 0; }
+        .transit-arrival { margin-left: auto; font-size: 11px; color: #888; white-space: nowrap; }
+        .transit-times { font-size: 11px; display: flex; gap: 6px; align-items: center; padding-left: 2px; }
+        .time-delayed { color: #ff6b6b; }
+        .time-aimed { text-decoration: line-through; color: #555; }
+        .time-ontime { color: #aaa; }
+        .walk-connector { display: flex; align-items: center; gap: 5px; padding: 3px 0;
+                          color: #555; font-size: 11px; border-top: 1px solid #1e1e35; }
+
+        /* Unselected compact card */
+        .compact-row { padding: 9px 12px; display: flex; align-items: center; gap: 8px; }
+        .compact-times { font-size: 12px; font-weight: 700; white-space: nowrap; flex-shrink: 0; }
+        .compact-badges { display: flex; align-items: center; gap: 4px; flex: 1; flex-wrap: wrap; overflow: hidden; }
+        .compact-dur { font-size: 11px; color: #666; white-space: nowrap; flex-shrink: 0; }
+        .mini-badge { display: inline-flex; align-items: center; gap: 3px; border-radius: 20px;
+                      padding: 2px 7px 2px 5px; font-size: 10px; font-weight: 700; }
+        .mini-mode-icon { width: 13px; height: 13px; flex-shrink: 0; }
+        .mini-walk { font-size: 10px; color: #555; }
+
+        .badge { display: inline-flex; align-items: center; justify-content: center;
+                 min-width: 28px; padding: 2px 5px; border-radius: 3px; font-weight: 700; font-size: 10px; color: #fff; }
+
+        #status { padding: 40px; text-align: center; color: #555; font-size: 15px; }
+
+        .leg-meta { display: flex; gap: 6px; align-items: center; margin-top: 2px; flex-wrap: wrap; }
+        .leg-emission { font-size: 10px; color: #27ae60; background: #0a1f0a; border: 1px solid #1a4a1a; border-radius: 3px; padding: 1px 4px; }
+        .leg-delay { font-size: 10px; color: #e67e22; background: #2a1a0a; border: 1px solid #5a3010; border-radius: 3px; padding: 1px 4px; }
+        .leg-delay.delay-ok { color: #27ae60; background: #0a1f0a; border-color: #1a4a1a; }
+        .occ-widget { display: flex; align-items: center; gap: 4px; }
+        .occ-icon { font-size: 11px; opacity: 0.7; }
+        .occ-bar-track { width: 36px; height: 7px; border-radius: 4px; background: #2a2a4a; overflow: hidden; }
+        .occ-bar-fill { height: 100%; border-radius: 4px; }
+        .occ-bar-fill.teal  { background: #4ecdc4; }
+        .occ-bar-fill.amber { background: #ffaa6b; }
+        .occ-bar-fill.red   { background: #ff6b6b; }
+        .occ-label { font-size: 10px; font-weight: 500; }
+        .occ-label.teal  { color: #4ecdc4; }
+        .occ-label.amber { color: #ffaa6b; }
+        .occ-label.red   { color: #ff6b6b; }
+    </style>
+</head>
+<body>
+<div id="app">
+    <div id="header">
+        <span id="route-label">Loading…</span>
+        <button id="replan-btn" disabled>↻ Replan</button>
+    </div>
+    <div id="map"></div>
+    <div id="leg-strip"></div>
+    <div id="vehicle-status"></div>
+    <div id="patterns"><div id="status">Connecting…</div></div>
+</div>
+<script type="module">
+    import { App } from "https://unpkg.com/@modelcontextprotocol/ext-apps@0.4.2/app-with-deps";
+
+    const app = new App({ name: "trip", version: "2.0.0" });
+    let currentQuery = null;
+    let currentPatterns = [];
+    let activeIndex = 0;
+    let leafletMap = null;
+    let routeLayers = [];
+    let vehiclesWsUrl = null;
+    let vehicleSocket = null;
+    let vehicleMarker = null;
+
+    const i18n = {
+        en: {
+            replan:             "↻ Replan",
+            replanning:         "Replanning…",
+            no_trips:           "No trips found.",
+            no_data:            "Could not parse trip data.",
+            walk_min:           "walk {0} min",
+            walk_m:             "walk {0}m",
+            walk_label:         "walk",
+            stop_one:           "stop",
+            stop_many:          "stops",
+            dep_usually_ok:     "Departure: usually on time",
+            arr_usually_ok:     "Arrival: usually on time",
+            dep_typically_late: "Departure: typically {0} min late",
+            arr_typically_late: "Arrival: typically {0} min late",
+            up_to:              "up to {0} min",
+            from_fallback:      "From",
+            to_fallback:        "To",
+            occ_empty:          "empty",
+            occ_seats:          "few seats",
+            occ_busy:           "busy",
+            occ_full:           "full",
+        },
+        nb: {
+            replan:             "↻ Planlegg på nytt",
+            replanning:         "Planlegger…",
+            no_trips:           "Ingen reiser funnet.",
+            no_data:            "Kunne ikke lese reisedata.",
+            walk_min:           "gå {0} min",
+            walk_m:             "gå {0}m",
+            walk_label:         "gå",
+            stop_one:           "stopp",
+            stop_many:          "stopp",
+            dep_usually_ok:     "Avgang: vanligvis i rute",
+            arr_usually_ok:     "Ankomst: vanligvis i rute",
+            dep_typically_late: "Avgang: vanligvis {0} min forsinket",
+            arr_typically_late: "Ankomst: vanligvis {0} min forsinket",
+            up_to:              "opptil {0} min",
+            from_fallback:      "Fra",
+            to_fallback:        "Til",
+            occ_empty:          "ledig",
+            occ_seats:          "få seter",
+            occ_busy:           "travelt",
+            occ_full:           "stappfullt",
+        },
+        nn: {
+            replan:             "↻ Planlegg på nytt",
+            replanning:         "Planlegg på nytt…",
+            no_trips:           "Ingen reiser funne.",
+            no_data:            "Kunne ikkje lese reisedata.",
+            walk_min:           "gå {0} min",
+            walk_m:             "gå {0}m",
+            walk_label:         "gå",
+            stop_one:           "stopp",
+            stop_many:          "stopp",
+            dep_usually_ok:     "Avgang: vanlegvis i rute",
+            arr_usually_ok:     "Ankomst: vanlegvis i rute",
+            dep_typically_late: "Avgang: vanlegvis {0} min forseinka",
+            arr_typically_late: "Ankomst: vanlegvis {0} min forseinka",
+            up_to:              "opptil {0} min",
+            from_fallback:      "Frå",
+            to_fallback:        "Til",
+            occ_empty:          "ledig",
+            occ_seats:          "få seter",
+            occ_busy:           "travelt",
+            occ_full:           "stappfullt",
+        },
+    };
+    let lang = 'en';
+    function t(key, ...args) {
+        let s = (i18n[lang] || i18n.en)[key] || key;
+        args.forEach((v, i) => s = s.replace(`{${i}}`, v));
+        return s;
+    }
+
+    const vsEl = document.getElementById("vehicle-status");
+    function setVehicleStatus(msg, cls = "") {
+        vsEl.textContent = msg;
+        vsEl.className = cls;
+    }
+
+    const replanBtn = document.getElementById("replan-btn");
+
+    const MODE_COLORS = {
+        bus: "#d45200", coach: "#d45200",
+        tram: "#0077aa",
+        metro: "#b00", subway: "#b00",
+        rail: "#555", train: "#555",
+        water: "#005599", ferry: "#005599",
+        air: "#7b2fbe",
+        foot: "#888",
+    };
+
+    const MODE_ICONS = {
+        tram: `<path fill-rule="evenodd" clip-rule="evenodd" fill="currentColor" d="M14.0619507,5.2719116 c-0.0360718-0.1594849-0.1778564-0.2727661-0.3414307-0.2727661H8.5660925L9.8547363,4.109314 c0.1005249-0.0756836,0.1490479-0.1333008,0.1490479-0.2557373c0-0.1252441-0.0609131-0.2161255-0.1420288-0.2755737 L8.368042,2.3991089H7.4037476l1.7016602,1.4334717l-1.699707,1.1665649H2.27948 c-0.1635742,0-0.3053589,0.1132812-0.3414307,0.2727661l-0.928833,4.1077271 C0.9841309,9.501709,1.0106812,9.6287231,1.0825195,9.7305908l0.8125,1.1231689 c0.0657959,0.0910034,0.1712036,0.1448364,0.2834473,0.1448975l4.2353516,0.0003662v0.0001221l0.6726074-0.000061 l0.4901733,0.000061v-0.000061l6.244873-0.0004272c0.1123047-0.000061,0.2177124-0.053894,0.2835083-0.1448975l0.812439-1.1231689 c0.0718994-0.1018677,0.0984497-0.2288818,0.0733643-0.3509521L14.0619507,5.2719116z M3.75,8.1812744 c0,0.1942749-0.1566772,0.3509521-0.3500977,0.3509521H2.3496094c-0.105896,0-0.206543-0.0481567-0.2730713-0.1312866 C2.0100098,8.3186646,1.9855347,8.210144,2.0083008,8.1060181l0.30896-1.4003906 c0.0349731-0.1610718,0.1776733-0.2748413,0.3413086-0.2748413h0.7413330C3.5933228,6.4307861,3.75,6.5874634,3.75,6.7808838V8.1812744z M7.2496338,8.1812744c0,0.1934204-0.1575317,0.3500977-0.3500977,0.3500977H4.7990112 c-0.1934204,0-0.3500977-0.1566772-0.3500977-0.3500977V6.7808838c0-0.1934204,0.1566772-0.3500977,0.3500977-0.3500977h2.1005249 c0.1925659,0,0.3500977,0.1566772,0.3500977,0.3500977V8.1812744z M10.7602539,8.1812744 c0,0.1934204-0.1575317,0.3500977-0.3500977,0.3500977H8.3096313c-0.1934204,0-0.3500977-0.1566772-0.3500977-0.3500977 V6.7808838c0-0.1934204,0.1566772-0.3500977,0.3500977-0.3500977h2.1005249c0.1925659,0,0.3500977,0.1566772,0.3500977,0.3500977 V8.1812744z M13.8328247,8.4009399c-0.0665283,0.0831299-0.1671753,0.1312866-0.2722168,0.1312866h-1.7504883 c-0.1942749,0-0.3509521-0.1566772-0.3509521-0.3500977V6.7808838c0-0.1934204,0.1566772-0.3500977,0.3509521-0.3500977 h1.3906860c0.1654053,0,0.3063354,0.1137695,0.3421631,0.2748413l0.30896,1.4003906 C13.9246826,8.210144,13.9002075,8.3186646,13.8328247,8.4009399z"/>
+<rect x="2" y="11.9991455" fill-rule="evenodd" clip-rule="evenodd" fill="currentColor" width="12" height="1"/>`,
+
+        bus: `<g><path fill-rule="evenodd" clip-rule="evenodd" fill="currentColor" d="M10.5,11.7995834c0-0.5506039,0.4483328-0.9995832,1-0.9995832s1,0.4489794,1,0.9995832c0,0.5522699-0.4483328,1.0004168-1,1.0004168S10.5,12.3518534,10.5,11.7995834z"/>
+<path fill-rule="evenodd" clip-rule="evenodd" fill="currentColor" d="M14.9956055,9.5947266l-0.6999512-4.2958984C14.2667236,5.1270142,14.1223755,5,13.9500122,5h-12.25C1.3491211,5,1,5.3579102,1,5.7167358v3.8535767v0.2433472v0.8283691c0,0.1781006,0.1277466,0.3579102,0.3001099,0.3579102h1.5473022c0.2359009-0.7186279,0.9055786-1.1999388,1.703064-1.1999388S6.0175781,10.281311,6.253479,10.999939h3.5435181C10.0328979,10.281311,10.7025146,9.8000002,11.5,9.8000002s1.4671021,0.4813108,1.7030029,1.1999388h1.4470215C14.8425293,10.999939,15,10.8389282,15,10.6420288V9.8136597V9.6537476C15,9.6340942,14.99823,9.6143799,14.9956055,9.5947266z M12.1564331,6.7895508c0-0.1977539,0.1574707-0.3579102,0.3499756-0.3579102h1.086792c0.1766968,0,0.324585,0.1333008,0.3464966,0.3114014l0.1854858,1.4316406c0.0131226,0.1029053-0.0175171,0.204895-0.0848999,0.2827759c-0.0656128,0.0778198-0.1618652,0.1216431-0.2625122,0.1216431h-1.2713623c-0.1925049,0-0.3499756-0.1601562-0.3499756-0.3579102V6.7895508z M7.9564209,6.7895508c0-0.1977539,0.1566162-0.3579102,0.3499756-0.3579102h2.8000488c0.1925049,0,0.3499756,0.1601562,0.3499756,0.3579102v1.4316406c0,0.1977539-0.1574707,0.3579102-0.3499756,0.3579102H8.3063965c-0.1933594,0-0.3499756-0.1601562-0.3499756-0.3579102V6.7895508z M3.7564087,6.7895508c0-0.1977539,0.1566162-0.3579102,0.3500366-0.3579102h2.7999878c0.1933594,0,0.3508911,0.1601562,0.3508911,0.3579102v1.4316406c0,0.1977539-0.1575317,0.3579102-0.3508911,0.3579102H4.1064453c-0.1934204,0-0.3500366-0.1601562-0.3500366-0.3579102V6.7895508z M1.6564331,6.7895508c0-0.1977539,0.1574707-0.3579102,0.3499756-0.3579102h0.7008667c0.1925049,0,0.3482666,0.1601562,0.3482666,0.3579102v1.4316406c0,0.1977539-0.1557617,0.3579102-0.3482666,0.3579102H2.0064087c-0.1925049,0-0.3499756-0.1601562-0.3499756-0.3579102V6.7895508z"/>
+<path fill-rule="evenodd" clip-rule="evenodd" fill="currentColor" d="M3.5504456,11.7995834c0-0.5506039,0.448333-0.9995832,1-0.9995832s1,0.4489794,1,0.9995832c0,0.5522699-0.4483333,1.0004168-1,1.0004168S3.5504456,12.3518534,3.5504456,11.7995834z"/></g>`,
+
+        metro: `<polygon fill-rule="evenodd" clip-rule="evenodd" fill="currentColor" points="5.0040736,5 5.0040736,6.1663184 7.4164491,6.1663184 7.4164491,12 8.5835505,12 8.5835505,6.1663184 10.9991369,6.1663184 10.9991369,5 "/>
+<path fill="currentColor" d="M7.9994302,2C11.3081598,2,14,4.6915898,14,8s-2.6918402,6-6.0005698,6C4.69133,14,2,11.3084097,2,8 S4.69133,2,7.9994302,2 M7.9994302,1C4.1398902,1,1,4.14078,1,8s3.1398902,7,6.9994302,7C11.8601103,15,15,11.8592196,15,8 S11.8601103,1,7.9994302,1L7.9994302,1z"/>`,
+
+        train: `<rect x="1" y="11.9995728" fill-rule="evenodd" clip-rule="evenodd" fill="currentColor" width="13" height="1"/>
+<path fill="currentColor" d="M14.7497559,8.0994263c-0.0209961-0.0348511-0.0516357-0.0687866-0.0910034-0.1088867 c-0.0113525-0.012146-0.0227661-0.0252075-0.0349731-0.0365601c-0.0271606-0.0269775-0.0568848-0.0574951-0.0927734-0.0949097 c-0.3150024-0.3143921-2.3393555-1.8048096-3.43573-2.5276489c-0.3587646-0.2360229-0.7594604-0.3318481-0.9992065-0.3318481 H6.555603l0.0012817-0.0004272L7.8509521,4.109314C7.9514771,4.0336304,8,3.9760132,8,3.8535767 c0-0.1252441-0.0609131-0.2161255-0.1420288-0.2755737l-1.4937134-1.178894H5.4000244l1.7015991,1.4334717l-1.699707,1.1665649 l0.0012817,0.0004272H1v6h12.6115723c0.1968384,0,0.3807983-0.098999,0.4881592-0.2639771 C14.5907593,9.980835,15,9.326416,15,8.8336182C15,8.5566406,14.9046021,8.3049927,14.7497559,8.0994263z M12.2128906,7.5923462 c-0.0455322,0.1356201-0.1732788,0.1715088-0.3167725,0.1715088h-0.6658936c-0.0717163,0-0.1854858,0.010498-0.2843628-0.0630493 L9.9956055,7.0297241C9.8809814,6.9439697,9.8345947,6.7943115,9.880127,6.6586914 c0.0454712-0.1356201,0.1723633-0.227478,0.3158569-0.227478h0.6658936c0.0717163,0,0.1417236,0.0236206,0.2003784,0.0673828 l1.0342407,0.7787476C12.2111206,7.3630981,12.2583618,7.4567261,12.2128906,7.5923462z"/>`,
+
+        ferry: `<path fill="currentColor" d="M8.7366228,13c-0.8232427,0-1.2529302-0.2255859-1.6318364-0.4248047 c-0.3300781-0.1728516-0.5908203-0.3095703-1.1679688-0.3095703s-0.8378906,0.1367188-1.1679688,0.3095703 C4.3889661,12.7744141,3.9592786,13,3.1360364,13c-1.0517578,0-1.96875-0.5878906-2.0068359-0.6132812l-0.1288743-0.0710449 l0.4462763-0.8937683l0.1962699,0.1083679C1.6799817,11.5527344,2.3860364,12,3.1360364,12 c0.5771484,0,0.8378906-0.1367188,1.1679688-0.3095703c0.3798828-0.1992188,0.8095703-0.4248047,1.6328125-0.4248047 s1.2539062,0.2255859,1.6328125,0.4248047C7.8997083,11.8632812,8.1604509,12,8.7366228,12s0.8369141-0.1367188,1.1669922-0.3095703 c0.3789062-0.1992188,0.8095703-0.4248047,1.6328125-0.4248047c0.642683,0,1.0455141,0.1374817,1.3715782,0.2921104 l-0.4786806,0.8804379c-0.2299261-0.1028214-0.4807262-0.1725464-0.8928976-0.1725464 c-0.5771484,0-0.8378906,0.1367188-1.1679688,0.3095703C9.9895525,12.7744141,9.559865,13,8.7366228,13z"/>
+<path fill="currentColor" d="M14.7496338,7.4558105h-0.6616211h-0.2305908h-0.5390625 c-0.0228271,0-0.0430298-0.0145874-0.0502319-0.0361938L12.361084,4.6737671 c-0.0472412-0.1446533-0.1799927-0.2422485-0.3295898-0.2422485h-0.5549927 c-0.020813-0.0002441-0.0394897-0.0136719-0.0461426-0.0339355l-0.340271-0.8250122 c-0.0733643-0.185791-0.2145386-0.2974243-0.4172974-0.1975098L9.4602661,4.0807495 C9.3106079,4.1569214,9.2161255,4.3128052,9.2161255,4.4833374L9.2159424,4.9463501 c0.0001831,0.0400391-0.0254517,0.0535278-0.0465088,0.0535278L7.5570068,4.999939L5.7786865,5 c-0.1348877,0-0.2580566,0.0765991-0.317749,0.1975098L4.3624268,7.4216309 C4.3555908,7.4420166,4.3364868,7.4558105,4.3150024,7.4558105H3.647644c-0.1333618,0-0.255127,0.0757446-0.3140259,0.1953125 l-1.4955444,3.046814C2.151001,10.8574219,2.4960938,11,3.1132812,11c1.3999634,0,1.3999634-0.7334595,2.7999878-0.7334595 C7.3134766,10.2665405,7.3134766,11,8.7132568,11c1.4000244,0,1.4000244-0.7334595,2.7999878-0.7334595 c0.899231,0,1.4499512,0.3059692,1.8450317,0.5216675l1.6109009-2.9627686 C15.0599365,7.6588135,14.9393311,7.4558105,14.7496338,7.4558105z M7.3970947,7.2557983 c0,0.1104736-0.0895386,0.2000122-0.2000122,0.2000122H5.2716064c-0.1245117,0-0.2358398-0.0980225-0.1328735-0.2788086 L5.5200195,6.397583c0.0427856-0.086792,0.1311646-0.1417847,0.2279053-0.1417847h1.4491577 c0.1104736,0,0.2000122,0.0895386,0.2000122,0.2000122V7.2557983z M9.6012573,7.2520142 c0,0.1125488-0.0912476,0.2037964-0.2037964,0.2037964H8.0050049c-0.1125488,0-0.2037354-0.0912476-0.2037354-0.2037964 V6.4595947c0-0.1125488,0.0911865-0.2037964,0.2037354-0.2037964h1.3924561c0.1125488,0,0.2037964,0.0912476,0.2037964,0.2037964 V7.2520142z M12.1358643,7.4558105l-1.9329224,0.0016479c-0.1113892,0.000061-0.2017212-0.090271-0.2017212-0.2016602 V6.4574585c0-0.1113892,0.090271-0.2016602,0.2016602-0.2016602h1.6533203c0.1159058,0,0.2168579,0.0790405,0.2446899,0.1915283 l0.1930542,0.7798462C12.3471069,7.3922119,12.2449951,7.4558105,12.1358643,7.4558105z"/>`,
+
+        plane: `<path fill-rule="evenodd" clip-rule="evenodd" fill="currentColor" d="M14.833374,5.6821361 c-0.0113525-0.010498-0.0253296-0.0201416-0.0446167-0.0306396c-0.005249-0.003479-0.0096436-0.006958-0.0157471-0.010498 c-0.0122681-0.007019-0.0262451-0.0148926-0.0429077-0.0253906c-0.1461792-0.0831299-1.0083008-0.420105-1.4782715-0.5758667 c-0.1540527-0.0507812-0.3098755-0.0463867-0.3973999-0.0236816L9.0366211,6.0436473L5.210022,4.4375682 C4.9369507,4.3202586,4.892334,4.298408,4.6393433,4.3132396L3.84552,4.388557 C3.6748657,4.4069285,3.6477051,4.5469432,3.7912598,4.6826243l2.2178955,2.1749878L3.62146,7.5000682L1.4910889,6.6764598 C1.3151855,6.607307,1.2600098,6.6081614,1.1681519,6.6326976L1.0875854,6.6545482 C1.0254517,6.6711497,0.9983521,6.7114329,1.000061,6.7543406c0.00177,0.0577393,0.0455322,0.0770264,0.1890869,0.2284546 c0,0,2.8743286,2.8051763,3.0336304,2.9478154c0.0551147,0.0490112,0.1312866,0.0673828,0.2039185,0.0481567 L14.5646973,7.247993c0.0717773-0.0192871,0.1286621-0.0735474,0.1514282-0.1435547 c0.1312866-0.4008789,0.312439-1.0581665,0.2800903-1.1789551C14.9690552,5.8239207,14.9085693,5.7416453,14.833374,5.6821361z"/>
+<rect x="2" y="11.9991455" fill-rule="evenodd" clip-rule="evenodd" fill="currentColor" width="12" height="1"/>`,
+
+        foot: `<g><path fill-rule="evenodd" clip-rule="evenodd" fill="currentColor" d="M8.6634693,3.5 c-0.6911101,0-1.2499995-0.5596175-1.2499995-1.2495313S7.9723592,1,8.6634693,1c0.6901731,0,1.25,0.560555,1.25,1.2504687 S9.3536425,3.5,8.6634693,3.5z"/>
+<path fill-rule="evenodd" clip-rule="evenodd" fill="currentColor" d="M5.920763,11.3909302 c-0.0134382,0.0281067-0.0348501,0.0728903-0.0482883,0.100997L4.1280994,14.041687 c-0.197876,0.2658691-0.1428223,0.6417847,0.1230469,0.8395996s0.6417236,0.1427002,0.8395996-0.1231689 l1.9057007-2.2975464c0.0586219-0.1037798,0.1158504-0.2050934,0.1744723-0.3088732l0.518765-1.4857435 l-1.2045288-1.152771L5.920763,11.3909302z"/>
+<path fill-rule="evenodd" clip-rule="evenodd" fill="currentColor" d="M12.7910633,7.7894897L10.765111,6.5461721 c-0.0258265-0.0158496-0.0477705-0.0372896-0.0642157-0.0627408L9.7200708,4.7809229 c-0.1464119-0.2265935-0.3781652-0.3844175-0.642642-0.4376392L7.6368794,4.0525298 C7.3575301,3.9963152,7.0674663,4.0619435,6.8395233,4.232935l-1.7981434,1.348877 C4.9208608,5.6722198,4.8223271,5.7886906,4.7531395,5.9225245L3.6708241,8.0161133 C3.5450306,8.2160645,3.6051502,8.4802246,3.8051624,8.6060791c0.2000122,0.1257935,0.4641113,0.0656738,0.5899658-0.1343384 l1.2930737-1.9960122c0.0160427-0.0247636,0.0374331-0.0456147,0.0625978-0.0610199l1.0879321-0.6659904 L6.5301991,7.2822266C6.4506702,7.6774902,6.4767323,8.086731,6.6057606,8.468689 c0.1082764,0.3203125,0.2860107,0.6127319,0.5205078,0.8563232l2.2757406,2.2877035 c0.0151844,0.0234737,0.0298758,0.0461836,0.0450602,0.0696573l1.1149902,2.9128418 c0.1060791,0.3140259,0.4465942,0.4825439,0.760498,0.3764648s0.4824829-0.4465332,0.3764038-0.7605591 l-0.8052721-2.8745174c-0.0519543-0.1071701-0.1026735-0.2117929-0.1546278-0.318964l-1.8543701-2.545166 c-0.0571823-0.0784836-0.0788288-0.17735-0.0596752-0.2725477l0.3737011-1.8573351l0.6874847,0.8713613 c0.0933266,0.1182866,0.2121744,0.2139559,0.3476677,0.2798595l2.1193275,1.0308471 c0.2029419,0.1209106,0.4655762,0.0543213,0.5864868-0.1486816S12.9940052,7.9104004,12.7910633,7.7894897z"/></g>`,
+    };
+
+    function modeIcon(mode) {
+        const key = (mode || "").toLowerCase();
+        if (key === "coach") return MODE_ICONS.bus;
+        if (key === "subway") return MODE_ICONS.metro;
+        if (key === "rail") return MODE_ICONS.train;
+        if (key === "water") return MODE_ICONS.ferry;
+        if (key === "air") return MODE_ICONS.plane;
+        return MODE_ICONS[key] || "";
+    }
+
+    function modeColor(mode) {
+        return MODE_COLORS[(mode || "").toLowerCase()] || "#444";
+    }
+
+    function safeHex(v) {
+        return v && /^[0-9a-fA-F]{3,8}$/.test(v) ? "#" + v : null;
+    }
+
+    function legColor(leg) {
+        return safeHex(leg.line?.presentation?.colour) || modeColor(leg.mode);
+    }
+
+    function legTextColor(leg) {
+        return safeHex(leg.line?.presentation?.textColour) || "#ffffff";
+    }
+
+    function esc(v) {
+        return String(v ?? "")
+            .replace(/&/g, "&amp;")
+            .replace(/</g, "&lt;")
+            .replace(/>/g, "&gt;")
+            .replace(/"/g, "&quot;");
+    }
+
+    // Google Polyline Algorithm Format decoder (1e5 precision)
+    function decodePolyline(encoded) {
+        const result = [];
+        let i = 0, lat = 0, lng = 0;
+        while (i < encoded.length) {
+            let shift = 0, val = 0, b;
+            do { b = encoded.charCodeAt(i++) - 63; val |= (b & 0x1f) << shift; shift += 5; } while (b >= 0x20);
+            lat += (val & 1) ? ~(val >> 1) : (val >> 1);
+            shift = 0; val = 0;
+            do { b = encoded.charCodeAt(i++) - 63; val |= (b & 0x1f) << shift; shift += 5; } while (b >= 0x20);
+            lng += (val & 1) ? ~(val >> 1) : (val >> 1);
+            result.push([lat / 1e5, lng / 1e5]);
+        }
+        return result;
+    }
+
+    function fmt(iso) {
+        if (!iso) return "--:--";
+        return new Date(iso).toLocaleTimeString(lang === 'en' ? 'en-GB' : lang === 'nn' ? 'nn-NO' : 'nb-NO', { hour: "2-digit", minute: "2-digit" });
+    }
+
+    function fmtDuration(secs) {
+        if (secs == null) return "";
+        const h = Math.floor(secs / 3600);
+        const m = Math.floor((secs % 3600) / 60);
+        return h > 0 ? `${h}h ${m}m` : `${m}m`;
+    }
+
+    function parseDurationSecs(dur) {
+        if (!dur) return 0;
+        const m = dur.match(/PT(?:(\d+)H)?(?:(\d+)M)?(?:(\d+(?:\.\d+)?)S)?/);
+        if (!m) return 0;
+        return (parseInt(m[1] || 0) * 3600) + (parseInt(m[2] || 0) * 60) + parseFloat(m[3] || 0);
+    }
+
+    function occupancyWidget(status) {
+        const levels = {
+            EMPTY:                      { pct: 0,   color: "teal",  label: "" },
+            MANY_SEATS_AVAILABLE:       { pct: 20,  color: "teal",  label: t('occ_empty') },
+            FEW_SEATS_AVAILABLE:        { pct: 55,  color: "teal",  label: t('occ_seats') },
+            STANDING_ROOM_ONLY:         { pct: 80,  color: "amber", label: t('occ_busy') },
+            FULL:                       { pct: 100, color: "red",   label: t('occ_full') },
+            CRUSHED_STANDING_ROOM_ONLY: { pct: 100, color: "red",   label: t('occ_full') },
+        };
+        const info = levels[status] || { pct: 0, color: "teal", label: "" };
+        if (!info.label) return "";
+        return `<div class="occ-widget">
+            <span class="occ-icon">🧍</span>
+            <div class="occ-bar-track"><div class="occ-bar-fill ${info.color}" style="width:${info.pct}%"></div></div>
+            <span class="occ-label ${info.color}">${info.label}</span>
+        </div>`;
+    }
+
+    function renderLegRows(legs) {
+        let html = '<div class="leg-rows">';
+        let firstTransitLeg = true;
+        for (const leg of legs) {
+            const isFoot = (leg.mode || "").toLowerCase() === "foot";
+            if (isFoot) {
+                const mins = Math.round((leg.duration || 0) / 60);
+                const icon = MODE_ICONS.foot || "";
+                html += `<div class="walk-connector">
+                    <svg width="12" height="12" viewBox="0 0 16 16" style="flex-shrink:0;color:#555;">${icon}</svg>
+                    ${t('walk_min', mins)}
+                </div>`;
+            } else {
+                const borderStyle = firstTransitLeg ? ' style="border-top:none"' : '';
+                firstTransitLeg = false;
+                const stopName = esc(leg.fromPlace?.name || "");
+                const color = esc(legColor(leg));
+                const textColor = esc(legTextColor(leg));
+                const code = esc(leg.line?.publicCode || leg.mode || "?");
+                const dest = esc(leg.fromEstimatedCall?.destinationDisplay?.frontText || "");
+                const label = dest ? `${code} ${dest}` : code;
+                const icon = modeIcon(leg.mode);
+
+                const depAimed = leg.aimedStartTime;
+                const depExpected = leg.expectedStartTime;
+                const arrival = leg.expectedEndTime;
+                const delayMs = depAimed && depExpected
+                    ? new Date(depExpected) - new Date(depAimed) : 0;
+
+                const timesHtml = delayMs > 60_000
+                    ? `<span class="time-delayed">${esc(fmt(depExpected))}</span>
+                       <span class="time-aimed">${esc(fmt(depAimed))}</span>`
+                    : `<span class="time-ontime">${esc(fmt(depAimed))}</span>`;
+
+                const emissionCo2 = leg.emission?.co2;
+                const metaParts = [];
+                const occHtml = occupancyWidget(leg.fromEstimatedCall?.occupancyStatus);
+                if (occHtml) metaParts.push(occHtml);
+                if (emissionCo2 != null) metaParts.push(`<span class="leg-emission">${Math.round(emissionCo2)}g CO₂</span>`);
+                for (const [label, ed] of [["Departure", leg.fromEstimatedCall?.empiricalDelay], ["Arrival", leg.toEstimatedCall?.empiricalDelay]]) {
+                    if (!ed) continue;
+                    const p50 = parseDurationSecs(ed.p50);
+                    const p90 = parseDurationSecs(ed.p90);
+                    const isDep = label === "Departure";
+                    if (p50 < 60) {
+                        metaParts.push(`<span class="leg-delay delay-ok">${isDep ? t('dep_usually_ok') : t('arr_usually_ok')}</span>`);
+                    } else {
+                        const mins = Math.round(p50 / 60);
+                        const upTo = p90 > p50 + 120 ? `, ${t('up_to', Math.round(p90 / 60))}` : "";
+                        const key = isDep ? 'dep_typically_late' : 'arr_typically_late';
+                        metaParts.push(`<span class="leg-delay">${t(key, mins)}${upTo}</span>`);
+                    }
+                }
+                const legMetaHtml = metaParts.length > 0 ? `<div class="leg-meta">${metaParts.join("")}</div>` : "";
+
+                html += `<div class="transit-leg"${borderStyle}>
+                    <div class="transit-stop">${stopName}</div>
+                    <div class="transit-badge-row">
+                        <div class="transit-badge" style="background:${color};color:${textColor};">
+                            <svg class="mode-icon" viewBox="0 0 16 16" fill="currentColor"
+                                 style="color:${textColor};">${icon}</svg>
+                            ${label}
+                        </div>
+                        <span class="transit-arrival">${esc(fmt(arrival))}</span>
+                    </div>
+                    <div class="transit-times">${timesHtml}</div>
+                    ${legMetaHtml}
+                </div>`;
+            }
+        }
+        html += "</div>";
+        return html;
+    }
+
+    function renderCompactBadges(legs) {
+        let html = "";
+        let prevWasFoot = false;
+        let first = true;
+        for (const leg of legs) {
+            const isFoot = (leg.mode || "").toLowerCase() === "foot";
+            if (isFoot) { prevWasFoot = true; continue; }
+            if (!first && prevWasFoot) {
+                html += `<span class="mini-walk">${t('walk_label')}</span>`;
+            }
+            first = false;
+            prevWasFoot = false;
+            const color = esc(legColor(leg));
+            const textColor = esc(legTextColor(leg));
+            const code = esc(leg.line?.publicCode || leg.mode || "?");
+            const icon = modeIcon(leg.mode);
+            html += `<div class="mini-badge" style="background:${color};color:${textColor};">
+                <svg class="mini-mode-icon" viewBox="0 0 16 16" fill="currentColor"
+                     style="color:${textColor};">${icon}</svg>
+                ${code}
+            </div>`;
+        }
+        return html;
+    }
+
+    function buildPatternCard(i, p, isActive) {
+        const legs = p.legs || [];
+        const totalDur = p.duration || 1;
+
+        const firstTransit = legs.find(l => (l.mode || "").toLowerCase() !== "foot");
+        let delayBadge = "";
+        if (firstTransit) {
+            const { expectedStartTime: est, aimedStartTime: ast } = firstTransit;
+            const ms = est && ast ? new Date(est) - new Date(ast) : 0;
+            if (ms > 60_000) {
+                delayBadge = `<span class="delay-badge">+${Math.round(ms / 60_000)} min</span>`;
+            }
+        }
+
+        const barSegs = legs.map(leg => {
+            const w = Math.round(((leg.duration || 0) / totalDur) * 100);
+            const c = (leg.mode || "").toLowerCase() === "foot" ? "#3a3a5a" : legColor(leg);
+            return `<div class="lb" style="width:${w}%;background:${esc(c)};"></div>`;
+        }).join("");
+
+        if (isActive) {
+            return `<div class="pattern active" data-index="${i}">
+                <div class="pattern-main">
+                    <span class="pattern-times">${esc(fmt(p.expectedStartTime))} – ${esc(fmt(p.expectedEndTime))}</span>
+                    <div class="leg-bar">${barSegs}</div>
+                    <span class="pattern-dur">${esc(fmtDuration(p.duration))}${delayBadge}</span>
+                </div>
+                ${renderLegRows(legs)}
+            </div>`;
+        }
+        return `<div class="pattern" data-index="${i}">
+            <div class="compact-row">
+                <span class="compact-times">${esc(fmt(p.expectedStartTime))}</span>
+                <div class="compact-badges">${renderCompactBadges(legs)}</div>
+                <span class="compact-dur">${esc(fmtDuration(p.duration))}</span>
+            </div>
+        </div>`;
+    }
+
+    function renderPatterns() {
+        const container = document.getElementById("patterns");
+        container.innerHTML = currentPatterns
+            .map((p, i) => buildPatternCard(i, p, i === activeIndex))
+            .join("");
+        container.querySelectorAll(".pattern").forEach(el => {
+            el.addEventListener("click", () => selectPattern(parseInt(el.dataset.index, 10)));
+        });
+    }
+
+    function initMap() {
+        if (leafletMap) return;
+        leafletMap = L.map("map", { zoomControl: true });
+        L.tileLayer("https://tile.openstreetmap.org/{z}/{x}/{y}.png", {
+            attribution: "© <a href='https://openstreetmap.org/copyright'>OpenStreetMap</a> contributors",
+            maxZoom: 19,
+        }).addTo(leafletMap);
+    }
+
+    function drawRoute(pattern) {
+        routeLayers.forEach(l => leafletMap.removeLayer(l));
+        routeLayers = [];
+
+        const allPoints = [];
+        const legs = pattern.legs || [];
+
+        for (const leg of legs) {
+            const isFoot = (leg.mode || "").toLowerCase() === "foot";
+            const color = legColor(leg);
+
+            let points = null;
+            if (leg.pointsOnLink?.points) {
+                const decoded = decodePolyline(leg.pointsOnLink.points);
+                if (decoded.length > 0) points = decoded;
+            }
+            if (!points && leg.fromPlace?.latitude != null && leg.toPlace?.latitude != null) {
+                points = [
+                    [leg.fromPlace.latitude, leg.fromPlace.longitude],
+                    [leg.toPlace.latitude, leg.toPlace.longitude]
+                ];
+            }
+            if (!points) continue;
+
+            allPoints.push(...points);
+
+            const line = L.polyline(points, {
+                color,
+                weight: isFoot ? 2.5 : 4,
+                dashArray: isFoot ? "6 5" : null,
+                opacity: 0.9,
+            }).addTo(leafletMap);
+            routeLayers.push(line);
+
+            if (!isFoot) {
+                for (const call of (leg.intermediateEstimatedCalls || [])) {
+                    if (call.quay?.latitude == null) continue;
+                    const dot = L.circleMarker([call.quay.latitude, call.quay.longitude], {
+                        radius: 3, color, weight: 1, fillColor: color, fillOpacity: 0.6,
+                    }).addTo(leafletMap);
+                    routeLayers.push(dot);
+                }
+            }
+        }
+
+        // Transfer dots at leg boundaries (not first/last)
+        for (let i = 0; i < legs.length - 1; i++) {
+            const p = legs[i].toPlace;
+            if (p?.latitude == null) continue;
+            const dot = L.circleMarker([p.latitude, p.longitude], {
+                radius: 4, color: "#fff", weight: 2,
+                fillColor: legColor(legs[i]), fillOpacity: 1,
+            }).addTo(leafletMap);
+            routeLayers.push(dot);
+        }
+
+        // Origin marker
+        const first = legs[0];
+        if (first?.fromPlace?.latitude != null) {
+            const m = L.circleMarker([first.fromPlace.latitude, first.fromPlace.longitude], {
+                radius: 8, color: "#fff", weight: 2, fillColor: "#7c7cf8", fillOpacity: 1,
+            }).addTo(leafletMap);
+            routeLayers.push(m);
+        }
+
+        // Destination marker
+        const last = legs[legs.length - 1];
+        if (last?.toPlace?.latitude != null) {
+            const m = L.circleMarker([last.toPlace.latitude, last.toPlace.longitude], {
+                radius: 8, color: "#fff", weight: 2, fillColor: "#4ecdc4", fillOpacity: 1,
+            }).addTo(leafletMap);
+            routeLayers.push(m);
+        }
+
+        if (allPoints.length > 0) {
+            leafletMap.fitBounds(allPoints, { padding: [20, 20] });
+        }
+    }
+
+    function renderLegStrip(pattern) {
+        const strip = document.getElementById("leg-strip");
+        strip.innerHTML = "";
+        const legs = pattern.legs || [];
+
+        legs.forEach((leg, idx) => {
+            const isFoot = (leg.mode || "").toLowerCase() === "foot";
+            const el = document.createElement("span");
+
+            if (isFoot) {
+                const mins = Math.round((leg.duration || 0) / 60);
+                el.innerHTML = `<span class="badge" style="background:#2a2a2a;border:1px solid #444;color:#888;">${t('walk_m', mins)}</span>`;
+            } else {
+                const code = esc(leg.line?.publicCode || leg.mode || "?");
+                const stops = (leg.intermediateEstimatedCalls || []).length + 1;
+                el.innerHTML = `<span class="badge" style="background:${esc(legColor(leg))};color:${esc(legTextColor(leg))}">${code}</span>`
+                    + ` <span style="color:#666;font-size:10px;">· ${stops} ${stops !== 1 ? t('stop_many') : t('stop_one')}</span>`;
+            }
+            strip.appendChild(el);
+
+            if (idx < legs.length - 1) {
+                const sep = document.createElement("span");
+                sep.className = "strip-sep";
+                sep.textContent = "›";
+                strip.appendChild(sep);
+            }
+        });
+
+        const last = legs[legs.length - 1];
+        if (last?.toPlace?.name) {
+            const sep = document.createElement("span");
+            sep.className = "strip-sep";
+            sep.textContent = "›";
+            strip.appendChild(sep);
+            const dest = document.createElement("span");
+            dest.className = "strip-dest";
+            dest.textContent = last.toPlace.name;
+            strip.appendChild(dest);
+        }
+    }
+
+    function findCurrentLeg(legs) {
+        const now = Date.now();
+        const transitLegs = legs.filter(l => (l.mode || "").toLowerCase() !== "foot");
+        if (transitLegs.length === 0) return null;
+
+        const active = transitLegs.find(l => {
+            const start = l.expectedStartTime ? new Date(l.expectedStartTime).getTime() : null;
+            const end = l.expectedEndTime ? new Date(l.expectedEndTime).getTime() : null;
+            return start != null && end != null && start <= now && now <= end;
+        });
+        if (active) return active;
+
+        const firstStart = transitLegs[0].expectedStartTime
+            ? new Date(transitLegs[0].expectedStartTime).getTime() : null;
+        if (firstStart != null && firstStart > now) return transitLegs[0];
+
+        return null; // trip entirely in the past
+    }
+
+    function clearVehicleMarker() {
+        if (vehicleMarker && leafletMap) {
+            leafletMap.removeLayer(vehicleMarker);
+            vehicleMarker = null;
+        }
+    }
+
+    function updateVehicleMarker(vehicle, leg) {
+        if (!leafletMap || !vehicle.location) return;
+        const { latitude, longitude } = vehicle.location;
+
+        const stale = vehicle.vehicleStatus === "PARKED" ||
+            (vehicle.lastUpdated &&
+             (Date.now() - new Date(vehicle.lastUpdated).getTime()) > 90_000);
+
+        const color = legColor(leg);
+        const textColor = legTextColor(leg);
+        const icon = modeIcon(leg.mode);
+        const opacity = stale ? "opacity:0.4;" : "";
+        const hasBearing = vehicle.bearing != null && !stale;
+
+        const iconSvg = `<svg width="18" height="18" viewBox="0 0 16 16" fill="currentColor" ` +
+            `style="color:${textColor};">${icon}</svg>`;
+        const circle = `<div style="width:28px;height:28px;border-radius:50%;background:${color};` +
+            `display:flex;align-items:center;justify-content:center;box-shadow:0 2px 6px #0009;">` +
+            (hasBearing ? `<div style="transform:rotate(-${vehicle.bearing}deg)">${iconSvg}</div>` : iconSvg) +
+            `</div>`;
+
+        let html, size, anchor;
+        if (hasBearing) {
+            const arrow = `<div style="width:0;height:0;margin-bottom:-1px;` +
+                `border-left:6px solid transparent;border-right:6px solid transparent;` +
+                `border-bottom:9px solid ${color};"></div>`;
+            html = `<div style="display:flex;flex-direction:column;align-items:center;` +
+                `transform:rotate(${vehicle.bearing}deg);${opacity}">${arrow}${circle}</div>`;
+            size = [28, 37];
+            anchor = [14, 23]; // center of circle: 9px arrow + 14px half-circle
+        } else {
+            html = `<div style="${opacity}">${circle}</div>`;
+            size = [28, 28];
+            anchor = [14, 14];
+        }
+
+        const divIcon = L.divIcon({ html, className: "", iconSize: size, iconAnchor: anchor });
+
+        if (vehicleMarker) {
+            vehicleMarker.setLatLng([latitude, longitude]);
+            vehicleMarker.setIcon(divIcon);
+        } else {
+            vehicleMarker = L.marker([latitude, longitude], { icon: divIcon, zIndexOffset: 1000 })
+                .addTo(leafletMap);
+            const targetZoom = Math.min(leafletMap.getZoom(), 13);
+            leafletMap.setView([latitude, longitude], targetZoom, { animate: true });
+        }
+
+        if (vehicle.vehicleId) {
+            vehicleMarker.bindTooltip(esc(vehicle.vehicleId), { permanent: false, direction: "top" });
+        }
+    }
+
+    function closeVehicleSubscription() {
+        if (vehicleSocket) {
+            try { vehicleSocket.send(JSON.stringify({ type: "complete", id: "1" })); } catch (_) {}
+            vehicleSocket.close();
+            vehicleSocket = null;
+        }
+    }
+
+    function openVehicleSubscription(leg) {
+        const serviceJourneyId = leg.serviceJourney?.id;
+        if (!serviceJourneyId || !vehiclesWsUrl) return;
+
+        setVehicleStatus("vehicle: connecting… (" + serviceJourneyId + ")");
+        const socket = new WebSocket(vehiclesWsUrl, "graphql-transport-ws");
+        vehicleSocket = socket;
+
+        socket.onopen = () => {
+            setVehicleStatus("vehicle: handshake…");
+            socket.send(JSON.stringify({
+                type: "connection_init",
+                payload: { headers: { "Et-Client-Name": "entur-mcp" } }
+            }));
+        };
+
+        socket.onmessage = (event) => {
+            let msg;
+            try { msg = JSON.parse(event.data); } catch (_) { return; }
+
+            if (msg.type === "connection_ack") {
+                setVehicleStatus("vehicle: subscribed, waiting…");
+                socket.send(JSON.stringify({
+                    type: "subscribe",
+                    id: "1",
+                    payload: {
+                        query: "subscription VehiclePos($id: String!) { vehicles(serviceJourneyId: $id) { location { latitude longitude } bearing vehicleId lastUpdated vehicleStatus } }",
+                        variables: { id: serviceJourneyId }
+                    }
+                }));
+            } else if (msg.type === "next") {
+                const vehicles = msg.payload?.data?.vehicles;
+                if (vehicles?.length > 0) {
+                    setVehicleStatus("vehicle: tracking " + (vehicles[0].vehicleId || ""), "ok");
+                    updateVehicleMarker(vehicles[0], leg);
+                } else {
+                    setVehicleStatus("vehicle: no vehicle found for journey");
+                }
+            } else if (msg.type === "complete" || msg.type === "error") {
+                const detail = msg.type === "error" ? JSON.stringify(msg.payload) : "complete";
+                setVehicleStatus("vehicle: " + detail, "err");
+                if (vehicleSocket === socket) { vehicleSocket = null; clearVehicleMarker(); }
+            }
+        };
+
+        socket.onclose = (e) => {
+            if (vehicleSocket === socket) {
+                setVehicleStatus("vehicle: connection closed (" + e.code + (e.reason ? " " + e.reason : "") + ")", "err");
+                vehicleSocket = null; clearVehicleMarker();
+            }
+        };
+        socket.onerror = (e) => {
+            if (vehicleSocket === socket) {
+                setVehicleStatus("vehicle: connection error", "err");
+                vehicleSocket = null; clearVehicleMarker();
+            }
+        };
+    }
+
+    function selectPattern(index) {
+        activeIndex = index;
+        clearVehicleMarker();
+        closeVehicleSubscription();
+        setVehicleStatus("");
+        renderPatterns();
+        const p = currentPatterns[index];
+        if (p) {
+            drawRoute(p);
+            renderLegStrip(p);
+            const leg = findCurrentLeg(p.legs || []);
+            if (leg?.serviceJourney?.id) {
+                openVehicleSubscription(leg);
+            } else if (!leg) {
+                setVehicleStatus("vehicle: trip in the past");
+            } else {
+                setVehicleStatus("vehicle: no service journey id on leg (" + (leg.mode || "?") + ")");
+            }
+        }
+    }
+
+    function showStatus(msg) {
+        document.getElementById("patterns").innerHTML = `<div id="status">${esc(msg)}</div>`;
+    }
+
+    function render(data) {
+        const query = data.query || {};
+        document.getElementById("route-label").textContent =
+            `${query.from || t('from_fallback')} → ${query.to || t('to_fallback')}`;
+
+        currentPatterns = data.trip?.tripPatterns || [];
+        if (currentPatterns.length === 0) { showStatus(t('no_trips')); return; }
+
+        activeIndex = 0;
+        initMap();
+        selectPattern(0);
+    }
+
+    function applyToolResult(result) {
+        try {
+            const text = result.content?.find(c => c.type === "text")?.text;
+            if (!text) { replanBtn.disabled = false; replanBtn.textContent = t('replan'); return; }
+            const data = JSON.parse(text);
+            lang = data.language || lang;
+            if (data.error) { replanBtn.disabled = false; replanBtn.textContent = t('replan'); showStatus(data.message || data.error); return; }
+            currentQuery = data.query ? { ...data.query, language: lang } : null;
+            if (data.vehiclesWsUrl) vehiclesWsUrl = data.vehiclesWsUrl;
+            replanBtn.disabled = !currentQuery;
+            replanBtn.textContent = t('replan');
+            render(data);
+        } catch (e) {
+            replanBtn.disabled = false;
+            replanBtn.textContent = t('replan');
+            showStatus(t('no_data'));
+        }
+    }
+
+    app.ontoolresult = applyToolResult;
+
+    await app.connect();
+
+    replanBtn.addEventListener("click", async () => {
+        if (!currentQuery) return;
+        replanBtn.disabled = true;
+        replanBtn.textContent = t('replanning');
+        try {
+            const result = await app.callServerTool({ name: "poll-trip", arguments: currentQuery });
+            applyToolResult(result);
+        } catch (e) {
+            replanBtn.disabled = false;
+            replanBtn.textContent = t('replan');
+        }
+    });
+
+    window.addEventListener("beforeunload", () => {
+        closeVehicleSubscription();
+    });
+</script>
+</body>
+</html>

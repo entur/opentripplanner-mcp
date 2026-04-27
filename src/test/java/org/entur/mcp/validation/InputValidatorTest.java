@@ -4,6 +4,8 @@ import org.entur.mcp.exception.ValidationException;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 
+import java.util.List;
+
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatCode;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
@@ -267,5 +269,58 @@ class InputValidatorTest {
     @DisplayName("validateTimeRange should accept maximum valid value")
     void validateTimeRange_withMaximum_shouldReturn() {
         assertThat(InputValidator.validateTimeRange(1440, 60)).isEqualTo(1440);
+    }
+
+    // ==================== Radius Validation Tests ====================
+
+    @Test
+    @DisplayName("validateRadius should return default when null")
+    void validateRadius_withNull_shouldReturnDefault() {
+        assertThat(InputValidator.validateRadius(null, 500)).isEqualTo(500);
+    }
+
+    @Test
+    @DisplayName("validateRadius should return provided value when within range")
+    void validateRadius_withValidValue_shouldReturnValue() {
+        assertThat(InputValidator.validateRadius(300, 500)).isEqualTo(300);
+    }
+
+    @Test
+    @DisplayName("validateRadius should throw when value exceeds 2000")
+    void validateRadius_withTooLarge_shouldThrow() {
+        assertThatThrownBy(() -> InputValidator.validateRadius(3000, 500))
+            .isInstanceOf(ValidationException.class)
+            .hasMessageContaining("radiusMeters cannot exceed 2000");
+    }
+
+    @Test
+    @DisplayName("validateRadius should throw when value is less than 1")
+    void validateRadius_withZero_shouldThrow() {
+        assertThatThrownBy(() -> InputValidator.validateRadius(0, 500))
+            .isInstanceOf(ValidationException.class)
+            .hasMessageContaining("radiusMeters must be at least 1");
+    }
+
+    // ==================== Severities Validation Tests ====================
+
+    @Test
+    @DisplayName("validateSeverities should return null when null")
+    void validateSeverities_withNull_shouldReturnNull() {
+        assertThat(InputValidator.validateSeverities(null)).isNull();
+    }
+
+    @Test
+    @DisplayName("validateSeverities should return list when all valid")
+    void validateSeverities_withValidValues_shouldReturnList() {
+        List<String> valid = List.of("normal", "severe");
+        assertThat(InputValidator.validateSeverities(valid)).isEqualTo(valid);
+    }
+
+    @Test
+    @DisplayName("validateSeverities should throw ValidationException for unknown severity")
+    void validateSeverities_withInvalidValue_shouldThrow() {
+        assertThatThrownBy(() -> InputValidator.validateSeverities(List.of("normal", "invalid")))
+            .isInstanceOf(ValidationException.class)
+            .hasMessageContaining("Invalid severity values");
     }
 }

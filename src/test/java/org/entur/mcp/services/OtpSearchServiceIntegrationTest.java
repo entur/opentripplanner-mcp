@@ -123,7 +123,8 @@ class OtpSearchServiceIntegrationTest {
 
         @SuppressWarnings("unchecked")
         Map<String, Object> stopPlace = (Map<String, Object>) result.get("stopPlace");
-        assertThat(stopPlace).containsKey("estimatedCalls");
+        assertThat(stopPlace).containsKey("arrivals");
+        assertThat(stopPlace).containsKey("departures");
         assertThat(stopPlace).containsKey("id");
         assertThat(stopPlace).containsKey("name");
     }
@@ -163,9 +164,9 @@ class OtpSearchServiceIntegrationTest {
         @SuppressWarnings("unchecked")
         Map<String, Object> stopPlace = (Map<String, Object>) result.get("stopPlace");
         @SuppressWarnings("unchecked")
-        java.util.List<Object> estimatedCalls = (java.util.List<Object>) stopPlace.get("estimatedCalls");
+        java.util.List<Object> departures = (java.util.List<Object>) stopPlace.get("departures");
 
         // Should have at most 2 departures
-        assertThat(estimatedCalls).hasSizeLessThanOrEqualTo(2);
+        assertThat(departures).hasSizeLessThanOrEqualTo(2);
     }
 }

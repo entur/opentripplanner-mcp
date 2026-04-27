@@ -26,4 +26,5 @@ data:
       management.metrics.tags.application=opentripplanner-mcp
 
       org.entur.otp.url={{ .Values.configmap.urls.otp }}
-      org.entur.geocoder.url={{.Values.configmap.urls.geocoder }}
+      org.entur.geocoder.url={{ .Values.configmap.urls.geocoder }}
+      org.entur.vehicles.ws.url={{ .Values.configmap.urls.vehiclesWs }}

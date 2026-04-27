@@ -7,3 +7,4 @@ configmap:
   urls:
     otp: https://api.entur.io/journey-planner/v3/graphql
     geocoder: https://api.entur.io/geocoder/v2/autocomplete
+    vehiclesWs: wss://api.entur.io/realtime/v2/vehicles/subscriptions

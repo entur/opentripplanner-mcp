@@ -75,8 +75,10 @@ public class TestFixtures {
                                 "distance": 506.45,
                                 "duration": 463,
                                 "fromPlace": {"name": "Origin"},
-                                "toPlace": {"name": "Oslo S"}
-                            }]
+                                "toPlace": {"name": "Oslo S"},
+                                "emission": {"co2": 45.2}
+                            }],
+                            "emission": {"co2": 45.2}
                         }]
                     }
                 }
@@ -110,7 +112,32 @@ public class TestFixtures {
                     "stopPlace": {
                         "id": "NSR:StopPlace:337",
                         "name": "Oslo S",
-                        "estimatedCalls": [{
+                        "arrivals": [{
+                            "aimedDepartureTime": "2025-01-21T14:30:00+01:00",
+                            "expectedDepartureTime": "2025-01-21T14:30:00+01:00",
+                            "actualDepartureTime": null,
+                            "cancellation": false,
+                            "realtime": true,
+                            "realtimeState": "UPDATED",
+                            "quay": {
+                                "id": "NSR:Quay:566",
+                                "publicCode": "19",
+                                "name": "Oslo S"
+                            },
+                            "destinationDisplay": { "frontText": "Oslo S" },
+                            "serviceJourney": {
+                                "id": "VYG:ServiceJourney:123",
+                                "line": {
+                                    "id": "VYG:Line:R10",
+                                    "publicCode": "R10",
+                                    "name": "Drammen - Lillehammer",
+                                    "transportMode": "rail"
+                                }
+                            },
+                            "situations": [],
+                            "empiricalDelay": {"p50": "PT2M30S", "p90": "PT5M"}
+                        }],
+                        "departures": [{
                             "aimedDepartureTime": "2025-01-21T14:30:00+01:00",
                             "expectedDepartureTime": "2025-01-21T14:32:00+01:00",
                             "actualDepartureTime": null,
@@ -122,9 +149,7 @@ public class TestFixtures {
                                 "publicCode": "19",
                                 "name": "Oslo S"
                             },
-                            "destinationDisplay": {
-                                "frontText": "Lillehammer"
-                            },
+                            "destinationDisplay": { "frontText": "Lillehammer" },
                             "serviceJourney": {
                                 "id": "VYG:ServiceJourney:123",
                                 "line": {
@@ -134,8 +159,94 @@ public class TestFixtures {
                                     "transportMode": "rail"
                                 }
                             },
-                            "situations": []
+                            "situations": [],
+                            "empiricalDelay": {"p50": "PT2M30S", "p90": "PT5M"}
                         }]
+                    }
+                }
+            }
+            """;
+    }
+
+    public static String createSituationsResponse() {
+        return """
+            {
+                "data": {
+                    "situations": [{
+                        "id": "UHRTaXR1YXRpb25FbGVtZW50OlRFU1Q",
+                        "situationNumber": "TST:SituationNumber:test-123",
+                        "severity": "normal",
+                        "reportType": "incident",
+                        "summary": [
+                            {"value": "Forsinkelser på linje 1", "language": "no"},
+                            {"value": "Delays on line 1", "language": "en"}
+                        ],
+                        "description": [
+                            {"value": "Det er tekniske problemer.", "language": "no"},
+                            {"value": "There are technical issues.", "language": "en"}
+                        ],
+                        "validityPeriod": {
+                            "startTime": "2026-04-27T06:00:00+02:00",
+                            "endTime": "2026-04-27T22:00:00+02:00"
+                        },
+                        "affects": [{
+                            "__typename": "AffectedLine",
+                            "line": {
+                                "publicCode": "1",
+                                "name": "Frognerseteren - Helsfyr",
+                                "transportMode": "metro"
+                            }
+                        }]
+                    }]
+                }
+            }
+            """;
+    }
+
+    public static String createNearestStopsResponse() {
+        return """
+            {
+                "data": {
+                    "nearest": {
+                        "edges": [
+                            {
+                                "node": {
+                                    "distance": 89.5,
+                                    "place": {
+                                        "__typename": "StopPlace",
+                                        "id": "NSR:StopPlace:59601",
+                                        "name": "Dronningens gate",
+                                        "latitude": 59.910525,
+                                        "longitude": 10.746901,
+                                        "transportMode": ["tram", "bus"],
+                                        "estimatedCalls": [
+                                            {
+                                                "expectedDepartureTime": "2026-04-27T10:05:00+02:00",
+                                                "empiricalDelay": {"p50": "PT1M", "p90": "PT3M"},
+                                                "destinationDisplay": {"frontText": "Majorstuen"},
+                                                "serviceJourney": {
+                                                    "line": {"publicCode": "12", "transportMode": "tram"}
+                                                }
+                                            }
+                                        ]
+                                    }
+                                }
+                            },
+                            {
+                                "node": {
+                                    "distance": 149.2,
+                                    "place": {
+                                        "__typename": "StopPlace",
+                                        "id": "NSR:StopPlace:58366",
+                                        "name": "Jernbanetorget",
+                                        "latitude": 59.911898,
+                                        "longitude": 10.75038,
+                                        "transportMode": ["tram", "metro", "bus"],
+                                        "estimatedCalls": []
+                                    }
+                                }
+                            }
+                        ]
                     }
                 }
             }

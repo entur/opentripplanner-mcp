@@ -2,3 +2,5 @@
 /target/
 **/.terraform/*
 **/charts/*.tgz
+/docs/
+/.superpowers/
