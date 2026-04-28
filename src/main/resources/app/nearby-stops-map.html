@@ -44,7 +44,7 @@
     <script type="module">
         import { App } from "https://unpkg.com/@modelcontextprotocol/ext-apps@0.4.2/dist/src/app-with-deps.js";
 
-        const app = App.create();
+        const app = new App({ name: "nearby-stops", version: "1.0.0" });
         let leafletMap = null;
         let originMarker = null;
         let radiusCircle = null;
@@ -250,9 +250,10 @@
             }
         }
 
-        app.ontoolresult = (toolName, result) => {
+        app.ontoolresult = (result) => {
             try {
-                const data = JSON.parse(result?.content?.[0]?.text ?? '{}');
+                const text = result?.content?.find(c => c.type === "text")?.text;
+                const data = JSON.parse(text ?? '{}');
                 if (data.error) {
                     lang = data.language || lang;
                     statusEl.textContent = t('data_error', data.message || data.error);
@@ -264,6 +265,8 @@
                 statusEl.textContent = t('parse_error', e.message);
             }
         };
+
+        await app.connect();
     </script>
 </body>
 </html>
