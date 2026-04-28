@@ -35,11 +35,13 @@ public class TripSearchTool {
     static final List<String> CSP_SCRIPT_DOMAINS = List.of("https://unpkg.com");
     static final List<String> CSP_MAP_DOMAINS = List.of("https://unpkg.com", "https://tile.openstreetmap.org");
     static final List<String> CSP_API_DOMAINS = List.of(
+            "https://unpkg.com",
             "https://api.dev.entur.io",
             "https://api.staging.entur.io",
             "https://api.entur.io"
     );
     static final List<String> CSP_API_DOMAINS_WITH_WS = List.of(
+            "https://unpkg.com",
             "https://api.dev.entur.io",
             "https://api.staging.entur.io",
             "https://api.entur.io",
