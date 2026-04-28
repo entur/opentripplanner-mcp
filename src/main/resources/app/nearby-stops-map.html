@@ -166,7 +166,8 @@
             const q = data?.query ?? {};
 
             if (!leafletMap) {
-                leafletMap = L.map('map').setView([q.latitude, q.longitude], 15);
+                leafletMap = L.map('map', { zoomControl: false }).setView([q.latitude, q.longitude], 15);
+                L.control.zoom({ position: 'bottomright' }).addTo(leafletMap);
                 L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', {
                     attribution: '© <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
                 }).addTo(leafletMap);
@@ -187,10 +188,12 @@
             const subtitle = q.location
                 ? ` &nbsp;·&nbsp; <span style="color:#aaa;font-weight:400">${esc(t('near_subtitle', q.location, q.radiusMeters))}</span>`
                 : '';
-            titleOverlay.innerHTML = `<strong>${esc(t('title'))}</strong>${subtitle}`;
-            countOverlay.textContent = edges.length > 0
-                ? `${edges.length} ${edges.length === 1 ? t('stop_found_one') : t('stop_found_many')}`
-                : t('no_stops');
+            if (titleOverlay) {
+                titleOverlay.innerHTML = `<strong>${esc(t('title'))}</strong>${subtitle}`;
+                countOverlay.textContent = edges.length > 0
+                    ? `${edges.length} ${edges.length === 1 ? t('stop_found_one') : t('stop_found_many')}`
+                    : t('no_stops');
+            }
 
             stopMarkers.forEach(m => leafletMap.removeLayer(m));
             stopMarkers.length = 0;
