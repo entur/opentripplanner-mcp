@@ -7,38 +7,32 @@
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
     <style>
         * { margin: 0; padding: 0; box-sizing: border-box; }
-        body { font-family: inherit; font-size: 14px; display: flex; height: 100vh; overflow: hidden; background: #12121e; color: #e0e0e0; }
-        #panel { width: 260px; background: #1a1a2e; overflow-y: auto; flex-shrink: 0; display: flex; flex-direction: column; }
-        #header { padding: 12px; background: #16213e; border-bottom: 1px solid #0f3460; }
-        #header h2 { font-size: 14px; font-weight: 600; color: #fff; }
-        #subtitle { color: #888; font-size: 11px; margin-top: 2px; }
-        #status { padding: 8px 12px; color: #888; font-size: 12px; border-bottom: 1px solid #0f3460; min-height: 32px; }
-        #stop-list { list-style: none; flex: 1; overflow-y: auto; }
-        .stop-item { padding: 10px 12px; border-bottom: 1px solid #0f3460; cursor: pointer; transition: background 0.1s; }
-        .stop-item:hover { background: #16213e; }
-        .stop-name { font-weight: 600; color: #fff; font-size: 13px; }
-        .stop-meta { color: #888; font-size: 11px; margin-top: 2px; }
-        .mode-badge { display: inline-block; padding: 1px 5px; border-radius: 3px; font-size: 10px; color: #fff; margin-right: 2px; }
-        .departure-row { font-size: 11px; color: #bbb; margin-top: 3px; display: flex; gap: 6px; align-items: baseline; }
-        .line-code { font-weight: 700; }
-        #map { flex: 1; }
+        body { font-family: inherit; font-size: 14px; display: flex; flex-direction: column; height: 100vh; overflow: hidden; background: #12121e; color: #e0e0e0; }
+        #map { height: 260px; flex-shrink: 0; position: relative; }
+        #card-strip { flex: 1; background: #1a1a2e; display: flex; overflow-x: auto; border-top: 2px solid #0f3460; scrollbar-width: thin; scrollbar-color: #0f3460 #1a1a2e; }
+        .stop-card { min-width: 210px; flex-shrink: 0; padding: 12px 14px; border-right: 1px solid #0f3460; display: flex; flex-direction: column; gap: 4px; cursor: pointer; transition: background 0.1s; }
+        .stop-card:hover { background: #16213e; }
+        .stop-card.active { background: #1e2a4a; }
+        .card-stop-name { font-weight: 700; color: #fff; font-size: 12px; flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+        .card-distance { color: #888; font-size: 10px; flex-shrink: 0; }
+        .card-modes { display: flex; gap: 3px; flex-wrap: wrap; }
+        .mode-badge { display: inline-block; padding: 2px 6px; border-radius: 3px; font-size: 10px; color: #fff; }
+        .departure-row { font-size: 11px; display: flex; gap: 5px; align-items: center; }
+        .departure-row .dest { color: #ddd; flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+        .departure-row .time { color: #ddd; flex-shrink: 0; }
+        .dep-delay { font-size: 10px; color: #e67e22; }
+        .dep-delay.delay-ok { color: #27ae60; }
+        .no-departures { color: #555; font-size: 11px; margin-top: 4px; }
+        .map-overlay { position: absolute; z-index: 1000; background: rgba(22,33,62,0.92); color: #fff; padding: 5px 10px; border-radius: 5px; font-size: 11px; pointer-events: none; }
+        .status-card { min-width: 210px; padding: 12px 14px; color: #888; font-size: 12px; display: flex; align-items: center; }
         .leaflet-popup-content { min-width: 160px; }
         .popup-stop-name { font-weight: 700; font-size: 13px; }
         .popup-dep { font-size: 11px; margin-top: 4px; display: flex; gap: 6px; }
-        .dep-delay { font-size: 10px; color: #e67e22; }
-        .dep-delay.delay-ok { color: #27ae60; }
     </style>
 </head>
 <body>
-    <div id="panel">
-        <div id="header">
-            <h2>Nearby Stops</h2>
-            <div id="subtitle"></div>
-        </div>
-        <div id="status">Waiting for data…</div>
-        <ul id="stop-list"></ul>
-    </div>
     <div id="map"></div>
+    <div id="card-strip"><div class="status-card">Waiting for data…</div></div>
 
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
     <script type="module">
@@ -49,6 +43,8 @@
         let originMarker = null;
         let radiusCircle = null;
         const stopMarkers = [];
+        let titleOverlay = null;
+        let countOverlay = null;
 
         const i18n = {
             en: {
@@ -63,6 +59,7 @@
                 origin:           "Origin",
                 parse_error:      "Parse error: {0}",
                 data_error:       "Error: {0}",
+                no_departures:    "No departures now",
             },
             nb: {
                 title:            "Nærmeste stopp",
@@ -76,6 +73,7 @@
                 origin:           "Opprinnelse",
                 parse_error:      "Lesefeil: {0}",
                 data_error:       "Feil: {0}",
+                no_departures:    "Ingen avganger nå",
             },
             nn: {
                 title:            "Næraste stopp",
@@ -89,6 +87,7 @@
                 origin:           "Opphav",
                 parse_error:      "Lesefeil: {0}",
                 data_error:       "Feil: {0}",
+                no_departures:    "Ingen avgangar no",
             },
         };
         let lang = 'en';
@@ -98,10 +97,7 @@
             return s;
         }
 
-        const statusEl   = document.getElementById('status');
-        const subtitleEl = document.getElementById('subtitle');
-        const stopListEl = document.getElementById('stop-list');
-        const titleEl = document.querySelector('#header h2');
+        const cardStripEl = document.getElementById('card-strip');
 
         function esc(s) {
             return String(s ?? '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
@@ -166,28 +162,41 @@
         }
 
         function render(data) {
-            titleEl.textContent = t('title');
             const edges = data?.nearest?.edges ?? [];
             const q = data?.query ?? {};
-
-            statusEl.textContent = edges.length > 0
-                ? `${edges.length} ${edges.length === 1 ? t('stop_found_one') : t('stop_found_many')}`
-                : t('no_stops');
-            subtitleEl.textContent = q.location
-                ? t('near_subtitle', q.location, q.radiusMeters)
-                : '';
 
             if (!leafletMap) {
                 leafletMap = L.map('map').setView([q.latitude, q.longitude], 15);
                 L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', {
                     attribution: '© <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
                 }).addTo(leafletMap);
+
+                const mapEl = document.getElementById('map');
+
+                titleOverlay = document.createElement('div');
+                titleOverlay.className = 'map-overlay';
+                titleOverlay.style.cssText = 'top:10px;left:10px;max-width:60%;';
+                mapEl.appendChild(titleOverlay);
+
+                countOverlay = document.createElement('div');
+                countOverlay.className = 'map-overlay';
+                countOverlay.style.cssText = 'top:10px;right:10px;';
+                mapEl.appendChild(countOverlay);
             }
+
+            const subtitle = q.location
+                ? ` &nbsp;·&nbsp; <span style="color:#aaa;font-weight:400">${esc(t('near_subtitle', q.location, q.radiusMeters))}</span>`
+                : '';
+            titleOverlay.innerHTML = `<strong>${esc(t('title'))}</strong>${subtitle}`;
+            countOverlay.textContent = edges.length > 0
+                ? `${edges.length} ${edges.length === 1 ? t('stop_found_one') : t('stop_found_many')}`
+                : t('no_stops');
 
             stopMarkers.forEach(m => leafletMap.removeLayer(m));
             stopMarkers.length = 0;
             if (originMarker) leafletMap.removeLayer(originMarker);
             if (radiusCircle) leafletMap.removeLayer(radiusCircle);
+            cardStripEl.innerHTML = '';
 
             originMarker = L.circleMarker([q.latitude, q.longitude], {
                 radius: 7, color: '#e74c3c', fillColor: '#e74c3c', fillOpacity: 1, weight: 2
@@ -198,14 +207,19 @@
                 color: '#3498db', weight: 1, fillColor: '#3498db', fillOpacity: 0.04
             }).addTo(leafletMap);
 
-            stopListEl.innerHTML = '';
+            const cardEls = [];
 
-            edges.forEach(({ node }) => {
+            function setActive(idx) {
+                cardEls.forEach((c, i) => c.classList.toggle('active', i === idx));
+            }
+
+            edges.forEach(({ node }, idx) => {
                 const stop = node?.place;
                 if (!stop?.latitude) return;
 
                 const modes = stop.transportMode ?? [];
-                const calls = stop.estimatedCalls ?? [];
+                const calls = (stop.estimatedCalls ?? []).slice(0, 4);
+
                 const marker = L.marker([stop.latitude, stop.longitude], { icon: makeStopIcon(modes) })
                     .addTo(leafletMap);
 
@@ -220,29 +234,50 @@
                     `<span class="mode-badge" style="background:${modeColor(m)}">${esc(m)}</span>`
                 ).join('');
 
-                const depRows = calls.map(c => {
+                const depRowsHtml = calls.map(c => {
                     const line = c.serviceJourney?.line;
                     const delay = formatDelay(c.empiricalDelay);
+                    const delayHtml = delay
+                        ? ` <span class="dep-delay${delay.ok ? ' delay-ok' : ''}">${esc(delay.text)}</span>`
+                        : '';
                     return `<div class="departure-row">` +
-                        `<span class="line-code" style="background:${lineColor(line)};color:${lineTextColor(line)};padding:1px 5px;border-radius:3px">${esc(line?.publicCode ?? '?')}</span>` +
-                        `<span>${esc(c.destinationDisplay?.frontText ?? '')}</span>` +
-                        `<span style="margin-left:auto">${formatTime(c.expectedDepartureTime)}${delay ? ` <span class="dep-delay${delay.ok ? ' delay-ok' : ''}">${esc(delay.text)}</span>` : ''}</span>` +
+                        `<span class="mode-badge" style="background:${lineColor(line)};color:${lineTextColor(line)}">${esc(line?.publicCode ?? '?')}</span>` +
+                        `<span class="dest">${esc(c.destinationDisplay?.frontText ?? '')}</span>` +
+                        `<span class="time">${formatTime(c.expectedDepartureTime)}${delayHtml}</span>` +
                         `</div>`;
                 }).join('');
 
-                const li = document.createElement('li');
-                li.className = 'stop-item';
-                li.innerHTML = `
-                    <div class="stop-name">${esc(stop.name)}</div>
-                    <div class="stop-meta">${modeBadges} ${Math.round(node.distance)}m</div>
-                    ${depRows}
-                `;
-                li.addEventListener('click', () => {
+                const card = document.createElement('div');
+                card.className = 'stop-card' + (idx === 0 ? ' active' : '');
+                card.innerHTML =
+                    `<div style="display:flex;align-items:baseline;gap:6px;">` +
+                        `<span class="card-stop-name">${esc(stop.name)}</span>` +
+                        `<span class="card-distance">${Math.round(node.distance)}m</span>` +
+                    `</div>` +
+                    `<div class="card-modes">${modeBadges}</div>` +
+                    (calls.length > 0 ? depRowsHtml : `<div class="no-departures">${t('no_departures')}</div>`);
+
+                card.addEventListener('click', () => {
+                    setActive(idx);
                     leafletMap.panTo([stop.latitude, stop.longitude]);
                     marker.openPopup();
                 });
-                stopListEl.appendChild(li);
+
+                marker.on('click', () => {
+                    setActive(idx);
+                    card.scrollIntoView({ behavior: 'smooth', block: 'nearest', inline: 'nearest' });
+                });
+
+                cardEls.push(card);
+                cardStripEl.appendChild(card);
             });
+
+            if (edges.length === 0) {
+                const placeholder = document.createElement('div');
+                placeholder.className = 'status-card';
+                placeholder.textContent = t('no_stops');
+                cardStripEl.appendChild(placeholder);
+            }
 
             if (edges.length > 0) {
                 const group = L.featureGroup([originMarker, ...stopMarkers]);
@@ -256,13 +291,21 @@
                 const data = JSON.parse(text ?? '{}');
                 if (data.error) {
                     lang = data.language || lang;
-                    statusEl.textContent = t('data_error', data.message || data.error);
+                    cardStripEl.innerHTML = '';
+                    const errCard = document.createElement('div');
+                    errCard.className = 'status-card';
+                    errCard.textContent = t('data_error', data.message || data.error);
+                    cardStripEl.appendChild(errCard);
                     return;
                 }
                 lang = data.language || 'en';
                 render(data);
             } catch (e) {
-                statusEl.textContent = t('parse_error', e.message);
+                cardStripEl.innerHTML = '';
+                const errCard = document.createElement('div');
+                errCard.className = 'status-card';
+                errCard.textContent = t('parse_error', e.message);
+                cardStripEl.appendChild(errCard);
             }
         };
 
