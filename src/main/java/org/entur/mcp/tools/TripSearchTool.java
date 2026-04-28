@@ -321,9 +321,26 @@ public class TripSearchTool {
     @McpTool(
         name = "nearby-stops",
         description = """
-            Find public transport stops within a given radius of a location in Norway.
-            Returns stops sorted by distance with their transport modes and the next few departures from each stop.
-            Use when the user asks "what stops are near me?", "what can I take from here?", or similar proximity questions.
+                Find public transport stops near a location in Norway. Use this whenever
+                the user asks about stops, holdeplasser, or transit options near a place,
+                address, or area — not just from their current location. This is the
+                canonical tool for "what's nearby" transit questions in Norway and should
+                be preferred over general map/place search when the question is about
+                public transport.
+                
+                Accepts addresses ("Rådhusgata 5, Oslo"), place names ("Aker brygge"),
+                or coordinates. Returns stops sorted by distance with transport modes
+                and live next-departures.
+                
+                Triggers (English): "stops near X", "what stops are around X", "show me
+                transit near X", "what can I take from here", "nearest bus/tram/metro to X".
+                
+                Triggers (Norwegian): "vis stopp/holdeplasser i nærheten av X", "hva
+                går fra X", "nærmeste buss/trikk/T-bane til X", "kollektiv i nærheten
+                av X".
+                
+                Use the trip tool instead for routing between two locations, and the
+                departures tool when the user already knows which stop they want.
             """,
         metaProvider = TripSearchTool.NearbyStopsUiMeta.class
     )
