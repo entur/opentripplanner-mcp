@@ -276,7 +276,7 @@ public class OtpSearchService {
                                         latitude
                                         longitude
                                         transportMode
-                                        estimatedCalls(numberOfDepartures: 3, timeRange: 1800) {
+                                        estimatedCalls(numberOfDepartures: 5, timeRange: 1800) {
                                             expectedDepartureTime
                                             empiricalDelay {
                                                 p50
@@ -442,7 +442,7 @@ public class OtpSearchService {
                                                             List<String> transportModes) {
         // Validate inputs
         InputValidator.validateLocation(stopId, "stopId");
-        int validatedNumDepartures = InputValidator.validateAndNormalizeMaxResults(numberOfDepartures, 10);
+        int validatedNumDepartures = InputValidator.validateAndNormalizeMaxResults(numberOfDepartures, 5);
         int validatedTimeRange = InputValidator.validateTimeRange(timeRangeMinutes, 60);
 
         log.info("Fetching departures for stop '{}' (numDepartures: {}, timeRange: {} min)",

@@ -227,7 +227,7 @@ public class TripSearchTool {
         ) String stop,
 
         @McpToolParam(
-            description = "Number of departures to return (default: 10, max: 50)",
+            description = "Number of departures to return (default: 5, max: 50)",
             required = false
         ) Integer numberOfDepartures,
 

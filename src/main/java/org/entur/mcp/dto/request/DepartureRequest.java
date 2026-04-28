@@ -20,7 +20,7 @@ public class DepartureRequest {
     @Min(value = 1, message = "numberOfDepartures must be at least 1")
     @Max(value = 50, message = "numberOfDepartures cannot exceed 50")
     @Schema(description = "Number of departures to return",
-            example = "10", defaultValue = "10")
+            example = "5", defaultValue = "5")
     private Integer numberOfDepartures;
 
     @Pattern(regexp = "^\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}.*$",
