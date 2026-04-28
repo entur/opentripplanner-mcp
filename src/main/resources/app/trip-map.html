@@ -478,6 +478,8 @@
 
     function initMap() {
         if (leafletMap) return;
+        const mapEl0 = document.getElementById('map');
+        if (mapEl0._leaflet_id) delete mapEl0._leaflet_id;
         leafletMap = L.map("map", { zoomControl: true });
         L.tileLayer("https://tile.openstreetmap.org/{z}/{x}/{y}.png", {
             attribution: "© <a href='https://openstreetmap.org/copyright'>OpenStreetMap</a> contributors",
