@@ -15,7 +15,7 @@ data:
       spring.ai.mcp.server.protocol=STATELESS
       spring.ai.mcp.server.capabilities.prompt=false
       spring.ai.mcp.server.capabilities.completion=false
-      spring.ai.mcp.server.capabilities.resource=false
+      spring.ai.mcp.server.capabilities.resource=true
       spring.ai.mcp.server.capabilities.tool=true
 
       # OpenAPI / Swagger UI Configuration

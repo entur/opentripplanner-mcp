@@ -32,6 +32,22 @@ public class TripSearchTool {
     private static final Logger log = LoggerFactory.getLogger(TripSearchTool.class);
     private static final ObjectMapper objectMapper = new ObjectMapper();
 
+    static final List<String> CSP_SCRIPT_DOMAINS = List.of("https://unpkg.com");
+    static final List<String> CSP_MAP_DOMAINS = List.of("https://unpkg.com", "https://tile.openstreetmap.org");
+    static final List<String> CSP_API_DOMAINS = List.of(
+            "https://api.dev.entur.io",
+            "https://api.staging.entur.io",
+            "https://api.entur.io"
+    );
+    static final List<String> CSP_API_DOMAINS_WITH_WS = List.of(
+            "https://api.dev.entur.io",
+            "https://api.staging.entur.io",
+            "https://api.entur.io",
+            "wss://api.dev.entur.io",
+            "wss://api.staging.entur.io",
+            "wss://api.entur.io"
+    );
+
     @Value("classpath:/app/departures-board.html")
     private Resource departuresBoardHtml;
 
@@ -56,8 +72,8 @@ public class TripSearchTool {
         @Override
         public Map<String, Object> getMeta() {
             return Map.of("ui", Map.of("csp", Map.of(
-                "resourceDomains", List.of("https://unpkg.com"),
-                "connectDomains", List.of("https://api.dev.entur.io", "https://api.entur.io")
+                "resourceDomains", CSP_SCRIPT_DOMAINS,
+                "connectDomains", CSP_API_DOMAINS
             )));
         }
     }
@@ -80,8 +96,8 @@ public class TripSearchTool {
         @Override
         public Map<String, Object> getMeta() {
             return Map.of("ui", Map.of("csp", Map.of(
-                "resourceDomains", List.of("https://unpkg.com", "https://tile.openstreetmap.org"),
-                "connectDomains", List.of("https://api.dev.entur.io", "https://api.entur.io", "wss://api.dev.entur.io", "wss://api.entur.io")
+                "resourceDomains", CSP_MAP_DOMAINS,
+                "connectDomains", CSP_API_DOMAINS_WITH_WS
             )));
         }
     }
@@ -97,8 +113,8 @@ public class TripSearchTool {
         @Override
         public Map<String, Object> getMeta() {
             return Map.of("ui", Map.of("csp", Map.of(
-                "resourceDomains", List.of("https://unpkg.com", "https://tile.openstreetmap.org"),
-                "connectDomains", List.of("https://api.dev.entur.io", "https://api.entur.io")
+                "resourceDomains", CSP_MAP_DOMAINS,
+                "connectDomains", CSP_API_DOMAINS
             )));
         }
     }
