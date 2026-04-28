@@ -675,8 +675,14 @@
         } else {
             vehicleMarker = L.marker([latitude, longitude], { icon: divIcon, zIndexOffset: 1000 })
                 .addTo(leafletMap);
-            const targetZoom = Math.min(leafletMap.getZoom(), 13);
-            leafletMap.setView([latitude, longitude], targetZoom, { animate: true });
+            const bounds = L.latLngBounds([[latitude, longitude]]);
+            for (const layer of routeLayers) {
+                if (layer.getBounds) bounds.extend(layer.getBounds());
+                else if (layer.getLatLng) bounds.extend(layer.getLatLng());
+            }
+            if (bounds.isValid()) {
+                leafletMap.fitBounds(bounds, { padding: [20, 20], animate: true });
+            }
         }
 
         if (vehicle.vehicleId) {
