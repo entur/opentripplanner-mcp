@@ -32,24 +32,6 @@ public class TripSearchTool {
     private static final Logger log = LoggerFactory.getLogger(TripSearchTool.class);
     private static final ObjectMapper objectMapper = new ObjectMapper();
 
-    static final List<String> CSP_SCRIPT_DOMAINS = List.of("https://unpkg.com");
-    static final List<String> CSP_MAP_DOMAINS = List.of("https://unpkg.com", "https://tile.openstreetmap.org");
-    static final List<String> CSP_API_DOMAINS = List.of(
-            "https://unpkg.com",
-            "https://api.dev.entur.io",
-            "https://api.staging.entur.io",
-            "https://api.entur.io"
-    );
-    static final List<String> CSP_API_DOMAINS_WITH_WS = List.of(
-            "https://unpkg.com",
-            "https://api.dev.entur.io",
-            "https://api.staging.entur.io",
-            "https://api.entur.io",
-            "wss://api.dev.entur.io",
-            "wss://api.staging.entur.io",
-            "wss://api.entur.io"
-    );
-
     @Value("classpath:/app/departures-board.html")
     private Resource departuresBoardHtml;
 
@@ -66,58 +48,58 @@ public class TripSearchTool {
     public static final class DeparturesUiMeta implements MetaProvider {
         @Override
         public Map<String, Object> getMeta() {
-            return Map.of("ui", Map.of("resourceUri", "ui://departures/departures-board.html"));
+            return McpMetaProviders.uiMeta("ui://departures/departures-board.html");
         }
     }
 
     public static final class DeparturesCspMeta implements MetaProvider {
         @Override
         public Map<String, Object> getMeta() {
-            return Map.of("ui", Map.of("csp", Map.of(
-                "resourceDomains", CSP_SCRIPT_DOMAINS,
-                "connectDomains", CSP_API_DOMAINS
-            )));
+            return McpMetaProviders.cspMeta(
+                McpMetaProviders.CSP_SCRIPT_DOMAINS,
+                McpMetaProviders.CSP_API_DOMAINS
+            );
         }
     }
 
     public static final class AppOnlyMeta implements MetaProvider {
         @Override
         public Map<String, Object> getMeta() {
-            return Map.of("ui", Map.of("visibility", List.of("app")));
+            return McpMetaProviders.appOnlyMeta();
         }
     }
 
     public static final class TripUiMeta implements MetaProvider {
         @Override
         public Map<String, Object> getMeta() {
-            return Map.of("ui", Map.of("resourceUri", "ui://trip/trip-map.html"));
+            return McpMetaProviders.uiMeta("ui://trip/trip-map.html");
         }
     }
 
     public static final class TripCspMeta implements MetaProvider {
         @Override
         public Map<String, Object> getMeta() {
-            return Map.of("ui", Map.of("csp", Map.of(
-                "resourceDomains", CSP_MAP_DOMAINS,
-                "connectDomains", CSP_API_DOMAINS_WITH_WS
-            )));
+            return McpMetaProviders.cspMeta(
+                McpMetaProviders.CSP_MAP_DOMAINS,
+                McpMetaProviders.CSP_API_DOMAINS_WITH_WS
+            );
         }
     }
 
     public static final class NearbyStopsUiMeta implements MetaProvider {
         @Override
         public Map<String, Object> getMeta() {
-            return Map.of("ui", Map.of("resourceUri", "ui://nearby/nearby-stops-map.html"));
+            return McpMetaProviders.uiMeta("ui://nearby/nearby-stops-map.html");
         }
     }
 
     public static final class NearbyStopsCspMeta implements MetaProvider {
         @Override
         public Map<String, Object> getMeta() {
-            return Map.of("ui", Map.of("csp", Map.of(
-                "resourceDomains", CSP_MAP_DOMAINS,
-                "connectDomains", CSP_API_DOMAINS
-            )));
+            return McpMetaProviders.cspMeta(
+                McpMetaProviders.CSP_MAP_DOMAINS,
+                McpMetaProviders.CSP_API_DOMAINS
+            );
         }
     }
 

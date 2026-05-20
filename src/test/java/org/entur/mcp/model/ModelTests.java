@@ -90,4 +90,15 @@ class ModelTests {
         assertThat(error.getDetails()).isNotNull();
         assertThat(error.getDetails()).isInstanceOf(Map.class);
     }
+
+    @Test
+    @DisplayName("ErrorResponse.mobilityError should produce MOBILITY_ERROR code")
+    void mobilityError_shouldHaveCorrectShape() {
+        ErrorResponse response = ErrorResponse.mobilityError("Mobility API unavailable");
+
+        assertThat(response.getError()).isEqualTo("MOBILITY_ERROR");
+        assertThat(response.getMessage()).isEqualTo("Mobility API unavailable");
+        assertThat(response.getType()).isEqualTo("MobilityException");
+        assertThat(response.getDetails()).isEmpty();
+    }
 }

@@ -323,4 +323,51 @@ class InputValidatorTest {
             .isInstanceOf(ValidationException.class)
             .hasMessageContaining("Invalid severity values");
     }
+
+    // ==================== Form Factors Validation Tests ====================
+
+    @Test
+    @DisplayName("validateFormFactors normalizes lowercase to uppercase")
+    void validateFormFactors_normalizesCase() {
+        List<String> result = InputValidator.validateFormFactors(List.of("scooter_standing", "Bicycle"));
+        assertThat(result).containsExactly("SCOOTER_STANDING", "BICYCLE");
+    }
+
+    @Test
+    @DisplayName("validateFormFactors returns null when input is null")
+    void validateFormFactors_nullInput_returnsNull() {
+        assertThat(InputValidator.validateFormFactors(null)).isNull();
+    }
+
+    @Test
+    @DisplayName("validateFormFactors returns empty list unchanged")
+    void validateFormFactors_emptyList_returnsEmpty() {
+        assertThat(InputValidator.validateFormFactors(List.of())).isEmpty();
+    }
+
+    @Test
+    @DisplayName("validateFormFactors throws on invalid value")
+    void validateFormFactors_invalidValue_throws() {
+        assertThatThrownBy(() -> InputValidator.validateFormFactors(List.of("BICYCLE", "AIRPLANE")))
+            .isInstanceOf(ValidationException.class)
+            .hasMessageContaining("AIRPLANE")
+            .hasMessageContaining("formFactors");
+    }
+
+    // ==================== Propulsion Types Validation Tests ====================
+
+    @Test
+    @DisplayName("validatePropulsionTypes normalizes and validates")
+    void validatePropulsionTypes_normalizes() {
+        List<String> result = InputValidator.validatePropulsionTypes(List.of("electric", "human"));
+        assertThat(result).containsExactly("ELECTRIC", "HUMAN");
+    }
+
+    @Test
+    @DisplayName("validatePropulsionTypes throws on invalid value")
+    void validatePropulsionTypes_invalidValue_throws() {
+        assertThatThrownBy(() -> InputValidator.validatePropulsionTypes(List.of("STEAM")))
+            .isInstanceOf(ValidationException.class)
+            .hasMessageContaining("STEAM");
+    }
 }

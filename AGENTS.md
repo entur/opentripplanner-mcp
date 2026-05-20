@@ -21,27 +21,34 @@ mvn package   # Build JAR
 - **Health probes**: `GET /actuator/health` (port 9090)
 
 ```
-Tools (src/main/java/.../tools/TripSearchTool.java)
-    ├── trip + TripUiMeta              → OTP GraphQL API (trip planning) + trip-map UI
-    ├── departures + DeparturesUiMeta  → OTP GraphQL API (departures) + departure-board UI
-    ├── nearby-stops + NearbyStopsUiMeta → OTP GraphQL API (nearby stops) + nearby-stops-map UI
-    ├── alerts (text-only)             → OTP GraphQL API (service disruptions)
-    ├── geocode (text-only)            → Entur Geocoder REST API
-    ├── poll-trip (app-only)           → delegates to trip(), called by trip-map UI
-    └── poll-departures (app-only)     → delegates to departures(), called by departure-board UI
+Tools
+    TripSearchTool.java
+        ├── trip + TripUiMeta              → OTP GraphQL API (trip planning) + trip-map UI
+        ├── departures + DeparturesUiMeta  → OTP GraphQL API (departures) + departure-board UI
+        ├── nearby-stops + NearbyStopsUiMeta → OTP GraphQL API (nearby stops) + nearby-stops-map UI
+        ├── alerts (text-only)             → OTP GraphQL API (service disruptions)
+        ├── geocode (text-only)            → Entur Geocoder REST API
+        ├── poll-trip (app-only)           → delegates to trip(), called by trip-map UI
+        └── poll-departures (app-only)     → delegates to departures(), called by departure-board UI
+    MobilityTool.java
+        └── nearby-mobility + NearbyMobilityUiMeta → Entur Mobility GraphQL API (vehicles + stations) + nearby-mobility-map UI
+    McpMetaProviders.java                  → shared CSP/UI/AppOnly MetaProvider helpers
 Services (src/main/java/.../services/)
-    ├── OtpSearchService   → OTP GraphQL API
-    └── GeocoderService    → Entur Geocoder REST API
+    ├── OtpSearchService     → OTP GraphQL API
+    ├── GeocoderService      → Entur Geocoder REST API
+    └── MobilityService      → Entur Mobility GraphQL API
 UI apps (src/main/resources/app/)
-    ├── departures-board.html  → departure board (served via @McpResource)
-    ├── trip-map.html          → trip options viewer (served via @McpResource)
-    └── nearby-stops-map.html  → nearby stops viewer (served via @McpResource)
+    ├── departures-board.html     → departure board (served via @McpResource)
+    ├── trip-map.html             → trip options viewer (served via @McpResource)
+    ├── nearby-stops-map.html     → nearby stops viewer (served via @McpResource)
+    └── nearby-mobility-map.html  → shared-mobility viewer (served via @McpResource)
 ```
 
-**Seven MCP tools** (5 model-visible + 2 app-only):
+**Eight MCP tools** (6 model-visible + 2 app-only):
 - `trip` — multi-leg route planning with trip map UI
 - `departures` — real-time departure board with interactive UI
 - `nearby-stops` — nearby stops within a radius with map UI
+- `nearby-mobility` — closest shared-mobility vehicles and rental stations within a radius with map UI
 - `alerts` — active service disruptions/cancellations (text-only, filterable by severity)
 - `geocode` — place name/address to coordinates (text-only)
 - `poll-departures` — app-only auto-refresh for departure board
@@ -49,7 +56,7 @@ UI apps (src/main/resources/app/)
 
 **Key patterns:**
 - Tools return JSON text content (success data or serialized `ErrorResponse`)
-- `@McpTool` + `@McpResource` from `org.springframework.ai.mcp.annotation` (Spring AI 2.0.0-M3)
+- `@McpTool` + `@McpResource` from `org.springframework.ai.mcp.annotation` (Spring AI 2.0.0-M6)
 - `MetaProvider` inner classes set `_meta.ui` (resourceUri, csp, visibility)
 - App-only tools use `AppOnlyMeta` → `_meta.ui.visibility: ["app"]`
 - UI apps are plain HTML files served as classpath resources (no build step)
@@ -63,6 +70,7 @@ UI apps (src/main/resources/app/)
 **External APIs (application.properties):**
 - `org.entur.otp.url` (default: `https://api.dev.entur.io/journey-planner/v3/graphql`)
 - `org.entur.geocoder.url` (default: `https://api.dev.entur.io/geocoder/v2/autocomplete`)
+- `org.entur.mobility.url` (default: `https://api.entur.io/mobility/v2/graphql`)
 - `org.entur.mcp.client_name` (default: `entur-mcp`) — sent as `ET-Client-Name` header
 
 **Testing patterns:**

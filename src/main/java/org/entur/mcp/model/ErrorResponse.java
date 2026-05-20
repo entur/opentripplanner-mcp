@@ -41,6 +41,10 @@ public class ErrorResponse {
         return new ErrorResponse("TRIP_PLANNING_ERROR", message, "TripPlanningException", new HashMap<>());
     }
 
+    public static ErrorResponse mobilityError(String message) {
+        return new ErrorResponse("MOBILITY_ERROR", message, "MobilityException", new HashMap<>());
+    }
+
     public static ErrorResponse genericError(String message) {
         return new ErrorResponse("ERROR", message, "Exception", new HashMap<>());
     }

@@ -1,0 +1,326 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Nearby Mobility</title>
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { font-family: inherit; font-size: 14px; display: flex; flex-direction: column; height: 100vh; overflow: hidden; background: #12121e; color: #e0e0e0; }
+        #map { height: clamp(260px, 55vh, 600px); flex-shrink: 0; position: relative; }
+        #card-strip { flex: 1; background: #1a1a2e; display: flex; overflow-x: auto; border-top: 2px solid #0f3460; scrollbar-width: thin; scrollbar-color: #0f3460 #1a1a2e; }
+        .mob-card { min-width: 220px; flex-shrink: 0; padding: 12px 14px; border-right: 1px solid #0f3460; display: flex; flex-direction: column; gap: 4px; cursor: pointer; transition: background 0.1s; }
+        .mob-card:hover { background: #16213e; }
+        .mob-card.active { background: #1e2a4a; }
+        .mob-card-header { display: flex; align-items: center; gap: 6px; }
+        .mob-icon { width: 18px; height: 18px; border-radius: 50%; flex-shrink: 0; }
+        .mob-icon.bike { background: #27ae60; }
+        .mob-icon.scooter { background: #e67e22; }
+        .mob-icon.car { background: #3498db; }
+        .mob-icon.moped { background: #9b59b6; }
+        .mob-icon.station { background: #16a085; border: 2px solid #fff; }
+        .mob-icon.other { background: #7f8c8d; }
+        .mob-name { font-weight: 700; color: #fff; font-size: 12px; flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+        .mob-distance { color: #888; font-size: 10px; flex-shrink: 0; }
+        .mob-operator { color: #aaa; font-size: 11px; }
+        .mob-range { color: #ddd; font-size: 11px; }
+        .mob-availability { color: #ddd; font-size: 11px; }
+        .mob-rental-link { display: inline-block; margin-top: 4px; font-size: 11px; color: #4aa3ff; text-decoration: underline; cursor: pointer; }
+        .map-overlay { position: absolute; z-index: 1000; background: rgba(22,33,62,0.92); color: #fff; padding: 5px 10px; border-radius: 5px; font-size: 11px; pointer-events: none; }
+        .status-card { min-width: 220px; padding: 12px 14px; color: #888; font-size: 12px; display: flex; align-items: center; }
+        .leaflet-popup-content { min-width: 160px; }
+    </style>
+</head>
+<body>
+    <div id="map"></div>
+    <div id="card-strip"><div class="status-card">Waiting for data…</div></div>
+
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+    <script type="module">
+        import { App } from "https://unpkg.com/@modelcontextprotocol/ext-apps@0.4.2/dist/src/app-with-deps.js";
+
+        const app = new App({ name: "nearby-mobility", version: "1.0.0" });
+        let leafletMap = null;
+        let originMarker = null;
+        let radiusCircle = null;
+        const markers = [];
+        let titleOverlay = null;
+        let countOverlay = null;
+
+        const i18n = {
+            en: {
+                title: "Shared mobility",
+                no_results: "Nothing found within radius",
+                near_subtitle: "Near {0} · {1}m radius",
+                vehicles_count: "{0} vehicles",
+                stations_count: "{0} stations",
+                origin: "Origin",
+                range_remaining: "{0} km range",
+                available: "{0} available",
+                open_in_app: "Open in app",
+                parse_error: "Parse error: {0}",
+                data_error: "Error: {0}",
+                form_factor: {
+                    BICYCLE: "Bicycle",
+                    CARGO_BICYCLE: "Cargo bike",
+                    CAR: "Car",
+                    MOPED: "Moped",
+                    SCOOTER_STANDING: "E-scooter",
+                    SCOOTER_SEATED: "E-scooter",
+                    OTHER: "Vehicle",
+                },
+            },
+            nb: {
+                title: "Delemobilitet",
+                no_results: "Ingen kjøretøy funnet i nærheten",
+                near_subtitle: "Nær {0} · {1}m radius",
+                vehicles_count: "{0} kjøretøy",
+                stations_count: "{0} stasjoner",
+                origin: "Opprinnelse",
+                range_remaining: "{0} km igjen",
+                available: "{0} tilgjengelig",
+                open_in_app: "Åpne i app",
+                parse_error: "Lesefeil: {0}",
+                data_error: "Feil: {0}",
+                form_factor: {
+                    BICYCLE: "Sykkel",
+                    CARGO_BICYCLE: "Lastesykkel",
+                    CAR: "Bil",
+                    MOPED: "Moped",
+                    SCOOTER_STANDING: "Sparkesykkel",
+                    SCOOTER_SEATED: "Sparkesykkel",
+                    OTHER: "Kjøretøy",
+                },
+            },
+            nn: {
+                title: "Delemobilitet",
+                no_results: "Ingen køyretøy funne i nærleiken",
+                near_subtitle: "Nær {0} · {1}m radius",
+                vehicles_count: "{0} køyretøy",
+                stations_count: "{0} stasjonar",
+                origin: "Opphav",
+                range_remaining: "{0} km igjen",
+                available: "{0} tilgjengeleg",
+                open_in_app: "Opne i app",
+                parse_error: "Lesefeil: {0}",
+                data_error: "Feil: {0}",
+                form_factor: {
+                    BICYCLE: "Sykkel",
+                    CARGO_BICYCLE: "Lastesykkel",
+                    CAR: "Bil",
+                    MOPED: "Moped",
+                    SCOOTER_STANDING: "Sparkesykkel",
+                    SCOOTER_SEATED: "Sparkesykkel",
+                    OTHER: "Køyretøy",
+                },
+            },
+        };
+        let lang = 'en';
+        function t(key, ...args) {
+            const parts = key.split('.');
+            let s = i18n[lang] || i18n.en;
+            for (const p of parts) s = s ? s[p] : undefined;
+            if (typeof s !== 'string') s = key;
+            args.forEach((v, i) => s = s.replace(`{${i}}`, v));
+            return s;
+        }
+
+        const cardStripEl = document.getElementById('card-strip');
+
+        function iconClassForFormFactor(ff) {
+            if (!ff) return 'other';
+            if (ff === 'BICYCLE' || ff === 'CARGO_BICYCLE') return 'bike';
+            if (ff === 'SCOOTER_STANDING' || ff === 'SCOOTER_SEATED') return 'scooter';
+            if (ff === 'CAR') return 'car';
+            if (ff === 'MOPED') return 'moped';
+            return 'other';
+        }
+
+        function colorForIcon(cls) {
+            return ({
+                bike: '#27ae60', scooter: '#e67e22', car: '#3498db',
+                moped: '#9b59b6', station: '#16a085', other: '#7f8c8d',
+            })[cls] || '#7f8c8d';
+        }
+
+        function translatedString(ts, fallback) {
+            if (!ts || !Array.isArray(ts.translation) || ts.translation.length === 0) return fallback || '';
+            const match = ts.translation.find(t => t.language === lang);
+            return (match || ts.translation[0]).value || fallback || '';
+        }
+
+        function dominantFormFactor(station) {
+            const types = station.vehicleTypesAvailable || [];
+            if (types.length === 0) return 'OTHER';
+            const sorted = [...types].sort((a, b) => (b.count || 0) - (a.count || 0));
+            return sorted[0]?.vehicleType?.formFactor || 'OTHER';
+        }
+
+        function renderMap(originLat, originLon, originName, radius, vehicles, stations) {
+            if (!leafletMap) {
+                leafletMap = L.map('map', { zoomControl: false }).setView([originLat, originLon], 15);
+                L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', {
+                    attribution: '© OpenStreetMap',
+                }).addTo(leafletMap);
+                L.control.zoom({ position: 'bottomright' }).addTo(leafletMap);
+            } else {
+                leafletMap.setView([originLat, originLon], 15);
+            }
+
+            markers.forEach(m => leafletMap.removeLayer(m));
+            markers.length = 0;
+            if (originMarker) leafletMap.removeLayer(originMarker);
+            if (radiusCircle) leafletMap.removeLayer(radiusCircle);
+
+            originMarker = L.circleMarker([originLat, originLon], {
+                radius: 7, color: '#e74c3c', fillColor: '#e74c3c', fillOpacity: 1, weight: 2,
+            }).bindPopup(t('origin') + ': ' + originName).addTo(leafletMap);
+            radiusCircle = L.circle([originLat, originLon], {
+                radius, color: '#0f3460', weight: 1, dashArray: '4 6', fillOpacity: 0.05,
+            }).addTo(leafletMap);
+
+            const bounds = L.latLngBounds([[originLat, originLon]]);
+
+            vehicles.forEach(v => {
+                const cls = iconClassForFormFactor(v?.vehicleType?.formFactor);
+                const m = L.circleMarker([v.lat, v.lon], {
+                    radius: 6, color: colorForIcon(cls), fillColor: colorForIcon(cls),
+                    fillOpacity: 0.9, weight: 1,
+                }).addTo(leafletMap);
+                markers.push(m);
+                bounds.extend([v.lat, v.lon]);
+            });
+
+            stations.forEach(s => {
+                const cls = iconClassForFormFactor(dominantFormFactor(s));
+                const m = L.circleMarker([s.lat, s.lon], {
+                    radius: 9, color: '#fff', fillColor: colorForIcon(cls),
+                    fillOpacity: 0.95, weight: 2,
+                }).addTo(leafletMap);
+                markers.push(m);
+                bounds.extend([s.lat, s.lon]);
+            });
+
+            if (vehicles.length + stations.length > 0) {
+                leafletMap.fitBounds(bounds, { padding: [40, 40], maxZoom: 16 });
+            }
+
+            renderOverlays(originName, radius, vehicles.length, stations.length);
+        }
+
+        function renderOverlays(originName, radius, vehicleCount, stationCount) {
+            const mapEl = document.getElementById('map');
+            if (titleOverlay) titleOverlay.remove();
+            if (countOverlay) countOverlay.remove();
+            titleOverlay = document.createElement('div');
+            titleOverlay.className = 'map-overlay';
+            titleOverlay.style.top = '10px';
+            titleOverlay.style.left = '10px';
+            titleOverlay.textContent = `${t('title')} · ${t('near_subtitle', originName, radius)}`;
+            mapEl.appendChild(titleOverlay);
+
+            countOverlay = document.createElement('div');
+            countOverlay.className = 'map-overlay';
+            countOverlay.style.top = '10px';
+            countOverlay.style.right = '10px';
+            countOverlay.textContent = `${t('vehicles_count', vehicleCount)} · ${t('stations_count', stationCount)}`;
+            mapEl.appendChild(countOverlay);
+        }
+
+        function rentalUrl(uris) {
+            if (!uris) return null;
+            return uris.web || uris.ios || uris.android || null;
+        }
+
+        function renderCards(vehicles, stations) {
+            cardStripEl.innerHTML = '';
+            const total = vehicles.length + stations.length;
+            if (total === 0) {
+                const empty = document.createElement('div');
+                empty.className = 'status-card';
+                empty.textContent = t('no_results');
+                cardStripEl.appendChild(empty);
+                return;
+            }
+
+            const items = [
+                ...vehicles.map(v => ({ kind: 'vehicle', data: v })),
+                ...stations.map(s => ({ kind: 'station', data: s })),
+            ].sort((a, b) => (a.data.distanceMeters || 0) - (b.data.distanceMeters || 0));
+
+            items.forEach(item => {
+                const card = document.createElement('div');
+                card.className = 'mob-card';
+                if (item.kind === 'vehicle') {
+                    const ff = item.data?.vehicleType?.formFactor || 'OTHER';
+                    const iconCls = iconClassForFormFactor(ff);
+                    const operator = translatedString(item.data?.system?.operator?.name, '');
+                    const rangeKm = ((item.data.currentRangeMeters || 0) / 1000).toFixed(1);
+                    const url = rentalUrl(item.data.rentalUris);
+                    card.innerHTML = `
+                        <div class="mob-card-header">
+                            <span class="mob-icon ${iconCls}"></span>
+                            <span class="mob-name">${t('form_factor.' + ff)}</span>
+                            <span class="mob-distance">${item.data.distanceMeters ?? 0}m</span>
+                        </div>
+                        <div class="mob-operator">${operator}</div>
+                        <div class="mob-range">${t('range_remaining', rangeKm)}</div>
+                        ${url ? `<a class="mob-rental-link" href="${url}" target="_blank" rel="noopener">${t('open_in_app')}</a>` : ''}
+                    `;
+                } else {
+                    const ff = dominantFormFactor(item.data);
+                    const iconCls = 'station';
+                    const operator = translatedString(item.data?.system?.operator?.name, '');
+                    const name = translatedString(item.data.name, '');
+                    const url = rentalUrl(item.data.rentalUris);
+                    card.innerHTML = `
+                        <div class="mob-card-header">
+                            <span class="mob-icon ${iconCls}" style="background:${colorForIcon(iconClassForFormFactor(ff))}; border-color:#fff;"></span>
+                            <span class="mob-name">${name}</span>
+                            <span class="mob-distance">${item.data.distanceMeters ?? 0}m</span>
+                        </div>
+                        <div class="mob-operator">${operator}</div>
+                        <div class="mob-availability">${t('available', item.data.numVehiclesAvailable ?? 0)}</div>
+                        ${url ? `<a class="mob-rental-link" href="${url}" target="_blank" rel="noopener">${t('open_in_app')}</a>` : ''}
+                    `;
+                }
+                cardStripEl.appendChild(card);
+            });
+        }
+
+        function showError(msg) {
+            cardStripEl.innerHTML = `<div class="status-card">${msg}</div>`;
+        }
+
+        app.ontoolresult = (result) => {
+            try {
+                const raw = result?.content?.find(c => c.type === "text")?.text;
+                if (!raw) return;
+                const data = JSON.parse(raw);
+                if (data.error) {
+                    showError(t('data_error', data.message || data.error));
+                    return;
+                }
+                if (data.language && i18n[data.language]) lang = data.language;
+                const q = data.query || {};
+                const originLat = Number(q.latitude);
+                const originLon = Number(q.longitude);
+                const radius = Number(q.radiusMeters) || 500;
+                const originName = q.location || '';
+                const vehicles = Array.isArray(data.vehicles) ? data.vehicles : [];
+                const stations = Array.isArray(data.stations) ? data.stations : [];
+
+                if (Number.isFinite(originLat) && Number.isFinite(originLon)) {
+                    renderMap(originLat, originLon, originName, radius, vehicles, stations);
+                }
+                renderCards(vehicles, stations);
+            } catch (err) {
+                showError(t('parse_error', err.message || String(err)));
+            }
+        };
+
+        await app.connect();
+    </script>
+</body>
+</html>

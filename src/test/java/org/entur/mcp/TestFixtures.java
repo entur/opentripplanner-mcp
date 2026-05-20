@@ -272,4 +272,123 @@ public class TestFixtures {
             }
             """, lng, lat, nsrId, name, name);
     }
+
+    public static String createMobilityVehiclesResponse() {
+        return """
+            {
+                "data": {
+                    "vehicles": [
+                        {
+                            "id": "YVO:Vehicle:abc-123",
+                            "lat": 59.9123,
+                            "lon": 10.7456,
+                            "isReserved": false,
+                            "currentRangeMeters": 12400.0,
+                            "currentFuelPercent": 0.72,
+                            "vehicleType": {
+                                "formFactor": "SCOOTER_STANDING",
+                                "propulsionType": "ELECTRIC"
+                            },
+                            "system": {
+                                "id": "voi_oslo",
+                                "name": {"translation": [{"language": "en", "value": "Voi Oslo"}]},
+                                "operator": {
+                                    "id": "YVO:Operator:voi",
+                                    "name": {"translation": [{"language": "en", "value": "Voi"}]}
+                                }
+                            },
+                            "rentalUris": {
+                                "android": "voiapp://ride/abc-123",
+                                "ios": "voiapp://ride/abc-123",
+                                "web": "https://voi.example/ride/abc-123"
+                            }
+                        },
+                        {
+                            "id": "YVO:Vehicle:def-456",
+                            "lat": 59.9150,
+                            "lon": 10.7500,
+                            "isReserved": false,
+                            "currentRangeMeters": 8200.0,
+                            "currentFuelPercent": 0.55,
+                            "vehicleType": {
+                                "formFactor": "SCOOTER_STANDING",
+                                "propulsionType": "ELECTRIC"
+                            },
+                            "system": {
+                                "id": "voi_oslo",
+                                "name": {"translation": [{"language": "en", "value": "Voi Oslo"}]},
+                                "operator": {
+                                    "id": "YVO:Operator:voi",
+                                    "name": {"translation": [{"language": "en", "value": "Voi"}]}
+                                }
+                            },
+                            "rentalUris": null
+                        }
+                    ]
+                }
+            }
+            """;
+    }
+
+    public static String createMobilityStationsResponse() {
+        return """
+            {
+                "data": {
+                    "stations": [
+                        {
+                            "id": "OBY:Station:1234",
+                            "name": {"translation": [{"language": "nb", "value": "Oslo S"}]},
+                            "lat": 59.9100,
+                            "lon": 10.7500,
+                            "numVehiclesAvailable": 6,
+                            "vehicleTypesAvailable": [
+                                {
+                                    "count": 4,
+                                    "vehicleType": {"formFactor": "BICYCLE", "propulsionType": "ELECTRIC_ASSIST"}
+                                },
+                                {
+                                    "count": 2,
+                                    "vehicleType": {"formFactor": "BICYCLE", "propulsionType": "HUMAN"}
+                                }
+                            ],
+                            "system": {
+                                "id": "oslobysykkel",
+                                "name": {"translation": [{"language": "nb", "value": "Oslo Bysykkel"}]},
+                                "operator": {
+                                    "id": "OBY:Operator:oslobysykkel",
+                                    "name": {"translation": [{"language": "nb", "value": "Oslo Bysykkel"}]}
+                                }
+                            },
+                            "rentalUris": {
+                                "android": "obyapp://station/1234",
+                                "ios": "obyapp://station/1234",
+                                "web": "https://oslobysykkel.no/station/1234"
+                            }
+                        }
+                    ]
+                }
+            }
+            """;
+    }
+
+    public static String createMobilityEmptyResponse() {
+        return """
+            {
+                "data": {
+                    "vehicles": [],
+                    "stations": []
+                }
+            }
+            """;
+    }
+
+    public static String createMobilityErrorResponse(String errorMessage) {
+        return String.format("""
+            {
+                "errors": [{
+                    "message": "%s"
+                }]
+            }
+            """, errorMessage);
+    }
 }

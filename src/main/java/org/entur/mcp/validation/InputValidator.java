@@ -15,6 +15,14 @@ public class InputValidator {
     private static final Set<String> VALID_SEVERITIES = Set.of(
         "noImpact", "verySlight", "slight", "normal", "severe", "verySevere"
     );
+    private static final Set<String> VALID_FORM_FACTORS = Set.of(
+        "BICYCLE", "CARGO_BICYCLE", "CAR", "MOPED",
+        "SCOOTER_STANDING", "SCOOTER_SEATED", "OTHER"
+    );
+    private static final Set<String> VALID_PROPULSION_TYPES = Set.of(
+        "HUMAN", "ELECTRIC_ASSIST", "ELECTRIC", "COMBUSTION",
+        "COMBUSTION_DIESEL", "HYBRID", "PLUG_IN_HYBRID", "HYDROGEN_FUEL_CELL"
+    );
     private static final int MIN_RESULTS = 1;
     private static final int MAX_TIME_RANGE_MINUTES = 1440; // 24 hours
     private static final int MIN_TIME_RANGE_MINUTES = 1;
@@ -108,5 +116,32 @@ public class InputValidator {
                 "Invalid severity values: " + invalid + ". Valid values: " + VALID_SEVERITIES);
         }
         return severities;
+    }
+
+    public static List<String> validateFormFactors(List<String> formFactors) {
+        return validateEnumList(formFactors, VALID_FORM_FACTORS, "formFactors");
+    }
+
+    public static List<String> validatePropulsionTypes(List<String> propulsionTypes) {
+        return validateEnumList(propulsionTypes, VALID_PROPULSION_TYPES, "propulsionTypes");
+    }
+
+    private static List<String> validateEnumList(List<String> values, Set<String> allowed, String fieldName) {
+        if (values == null) return null;
+        if (values.isEmpty()) return values;
+
+        List<String> normalized = values.stream()
+            .map(v -> v == null ? "" : v.trim().toUpperCase())
+            .collect(Collectors.toList());
+
+        List<String> invalid = normalized.stream()
+            .filter(v -> !allowed.contains(v))
+            .collect(Collectors.toList());
+
+        if (!invalid.isEmpty()) {
+            throw new ValidationException(fieldName,
+                String.format("Invalid %s values: %s. Valid values: %s", fieldName, invalid, allowed));
+        }
+        return normalized;
     }
 }
