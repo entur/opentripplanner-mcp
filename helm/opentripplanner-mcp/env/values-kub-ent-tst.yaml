@@ -8,3 +8,4 @@ configmap:
     otp: https://api.staging.entur.io/journey-planner/v3/graphql
     geocoder: https://api.staging.entur.io/geocoder/v2/autocomplete
     vehiclesWs: wss://api.staging.entur.io/realtime/v2/vehicles/subscriptions
+    mobility: https://api.staging.entur.io/mobility/v2/graphql
