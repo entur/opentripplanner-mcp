@@ -1,5 +1,6 @@
 package org.entur.mcp.services;
 
+import mockwebserver3.Dispatcher;
 import mockwebserver3.MockResponse;
 import mockwebserver3.MockWebServer;
 import mockwebserver3.RecordedRequest;
@@ -39,14 +40,9 @@ class MobilityServiceTest {
     @Test
     @DisplayName("Happy path: returns vehicles and stations arrays")
     void findNearby_happyPath_returnsBothArrays() {
-        mockWebServer.enqueue(new MockResponse.Builder()
-            .code(200)
-            .body(TestFixtures.createMobilityVehiclesResponse())
-            .build());
-        mockWebServer.enqueue(new MockResponse.Builder()
-            .code(200)
-            .body(TestFixtures.createMobilityStationsResponse())
-            .build());
+        mockWebServer.setDispatcher(mobilityDispatcher(
+            TestFixtures.createMobilityVehiclesResponse(),
+            TestFixtures.createMobilityStationsResponse()));
 
         Map<String, Object> result = mobilityService.findNearby(
             59.91, 10.75, 500, null, null, null, 20);
@@ -118,14 +114,9 @@ class MobilityServiceTest {
     void findNearby_resultsHaveDistance_sortedAscending() {
         // Vehicle abc-123 at (59.9123, 10.7456) is farther from (59.91, 10.75)
         // than def-456 at (59.9150, 10.7500). After sorting, def-456 should be first.
-        mockWebServer.enqueue(new MockResponse.Builder()
-            .code(200)
-            .body(TestFixtures.createMobilityVehiclesResponse())
-            .build());
-        mockWebServer.enqueue(new MockResponse.Builder()
-            .code(200)
-            .body(TestFixtures.createMobilityStationsResponse())
-            .build());
+        mockWebServer.setDispatcher(mobilityDispatcher(
+            TestFixtures.createMobilityVehiclesResponse(),
+            TestFixtures.createMobilityStationsResponse()));
 
         Map<String, Object> result = mobilityService.findNearby(
             59.91, 10.75, 500, null, null, null, 20);
@@ -167,5 +158,19 @@ class MobilityServiceTest {
         assertThat(body1 + body2).contains("SCOOTER_STANDING");
         assertThat(body1 + body2).contains("ELECTRIC");
         assertThat(body1 + body2).contains("YVO:Operator:voi");
+    }
+
+    // MobilityService dispatches the vehicles and stations queries in parallel, so a FIFO
+    // enqueue() race-condition can give either request either response. Dispatch by query
+    // operation name so the right body reaches the right future regardless of arrival order.
+    private static Dispatcher mobilityDispatcher(String vehiclesBody, String stationsBody) {
+        return new Dispatcher() {
+            @Override
+            public MockResponse dispatch(RecordedRequest request) {
+                String body = request.getBody().utf8();
+                String responseBody = body.contains("query Vehicles") ? vehiclesBody : stationsBody;
+                return new MockResponse.Builder().code(200).body(responseBody).build();
+            }
+        };
     }
 }
