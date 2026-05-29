@@ -77,6 +77,14 @@
         .mini-mode-icon { width: 13px; height: 13px; flex-shrink: 0; }
         .mini-walk { font-size: 10px; color: #555; }
 
+        .buy-btn { display: inline-flex; align-items: center; justify-content: center;
+                   text-decoration: none; font-weight: 700; background: #4ecdc4; color: #0f0f23;
+                   border-radius: 6px; flex-shrink: 0; transition: background .15s; }
+        .buy-btn:hover { background: #6fe3da; }
+        .buy-btn-compact { font-size: 10px; padding: 3px 10px; }
+        .pattern-buy { padding: 0 12px 10px; }
+        .buy-btn-active { width: 100%; font-size: 12px; padding: 8px 12px; }
+
         .badge { display: inline-flex; align-items: center; justify-content: center;
                  min-width: 28px; padding: 2px 5px; border-radius: 3px; font-weight: 700; font-size: 10px; color: #fff; }
 
@@ -141,6 +149,7 @@
             up_to:              "up to {0} min",
             from_fallback:      "From",
             to_fallback:        "To",
+            buy:                "Buy",
             occ_empty:          "empty",
             occ_seats:          "few seats",
             occ_busy:           "busy",
@@ -163,6 +172,7 @@
             up_to:              "opptil {0} min",
             from_fallback:      "Fra",
             to_fallback:        "Til",
+            buy:                "Kjøp",
             occ_empty:          "ledig",
             occ_seats:          "få seter",
             occ_busy:           "travelt",
@@ -185,6 +195,7 @@
             up_to:              "opptil {0} min",
             from_fallback:      "Frå",
             to_fallback:        "Til",
+            buy:                "Kjøp",
             occ_empty:          "ledig",
             occ_seats:          "få seter",
             occ_busy:           "travelt",
@@ -427,6 +438,30 @@
         return html;
     }
 
+    // Build an entur.no /kjop-reise deep-link for a trip pattern.
+    // Returns null when the trip isn't purchasable (no transit legs, missing
+    // serviceJourney/StopPlace IDs, or more than the documented max of 10 legs).
+    function buildBuyUrl(pattern) {
+        const transitLegs = (pattern.legs || []).filter(l => (l.mode || "").toLowerCase() !== "foot");
+        if (transitLegs.length === 0 || transitLegs.length > 10) return null;
+        const legParts = [];
+        for (const leg of transitLegs) {
+            const sjId = leg.serviceJourney?.id;
+            const fromSp = leg.fromPlace?.quay?.stopPlace?.id;
+            const toSp = leg.toPlace?.quay?.stopPlace?.id;
+            const date = (leg.aimedStartTime || "").slice(0, 10);
+            if (!sjId || !fromSp || !toSp || !/^\d{4}-\d{2}-\d{2}$/.test(date)) return null;
+            legParts.push(`${sjId},${fromSp},${toSp},${date}`);
+        }
+        return `https://entur.no/kjop-reise?legs=${legParts.join(";")}&travellers=adult`;
+    }
+
+    function buyButtonHtml(pattern, variant) {
+        const url = buildBuyUrl(pattern);
+        if (!url) return "";
+        return `<a class="buy-btn buy-btn-${variant}" href="${esc(url)}" target="_blank" rel="noopener">${t('buy')}</a>`;
+    }
+
     function buildPatternCard(i, p, isActive) {
         const legs = p.legs || [];
         const totalDur = p.duration || 1;
@@ -455,6 +490,7 @@
                     <span class="pattern-dur">${esc(fmtDuration(p.duration))}${delayBadge}</span>
                 </div>
                 ${renderLegRows(legs)}
+                ${(() => { const b = buyButtonHtml(p, "active"); return b ? `<div class="pattern-buy">${b}</div>` : ""; })()}
             </div>`;
         }
         return `<div class="pattern" data-index="${i}">
@@ -462,6 +498,7 @@
                 <span class="compact-times">${esc(fmt(p.expectedStartTime))}</span>
                 <div class="compact-badges">${renderCompactBadges(legs)}</div>
                 <span class="compact-dur">${esc(fmtDuration(p.duration))}</span>
+                ${buyButtonHtml(p, "compact")}
             </div>
         </div>`;
     }
@@ -473,6 +510,16 @@
             .join("");
         container.querySelectorAll(".pattern").forEach(el => {
             el.addEventListener("click", () => selectPattern(parseInt(el.dataset.index, 10)));
+        });
+        container.querySelectorAll(".buy-btn").forEach(el => {
+            // The app runs in a sandboxed iframe, so default anchor navigation is
+            // blocked. Route the click through the host instead (the href is kept
+            // so the browser's right-click "open/copy link" still works).
+            el.addEventListener("click", e => {
+                e.preventDefault();
+                e.stopPropagation();
+                app.openLink({ url: el.href }).catch(() => {});
+            });
         });
     }
 

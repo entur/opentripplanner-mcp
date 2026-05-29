@@ -69,6 +69,11 @@ public class OtpSearchService {
                                     name
                                     latitude
                                     longitude
+                                    quay {
+                                        stopPlace {
+                                            id
+                                        }
+                                    }
                                 }
                                 fromEstimatedCall {
                                     occupancyStatus
@@ -84,6 +89,11 @@ public class OtpSearchService {
                                     name
                                     latitude
                                     longitude
+                                    quay {
+                                        stopPlace {
+                                            id
+                                        }
+                                    }
                                 }
                                 toEstimatedCall {
                                     empiricalDelay {
