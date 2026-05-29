@@ -14,8 +14,8 @@
 	<description>MCP-server for trip-planning using Entur's services</description>
 	<properties>
 		<java.version>21</java.version>
-		<spring-boot.version>4.0.0</spring-boot.version>
-		<spring-ai.version>2.0.0-M6</spring-ai.version>
+		<spring-boot.version>4.0.6</spring-boot.version>
+		<spring-ai.version>2.0.0-M7</spring-ai.version>
 	</properties>
 
     <dependencyManagement>
@@ -46,6 +46,17 @@
 		<dependency>
 			<groupId>org.springframework.ai</groupId>
 			<artifactId>spring-ai-mcp-annotations</artifactId>
+		</dependency>
+
+		<!--
+		  M7 workaround: the webmvc MCP server auto-configurations reference
+		  McpServerStdioDisabledCondition (in spring-ai-autoconfigure-mcp-server-common)
+		  but the M7 webmvc starter no longer pulls that module in transitively,
+		  causing ClassNotFoundException at context load. Declare it explicitly.
+		-->
+		<dependency>
+			<groupId>org.springframework.ai</groupId>
+			<artifactId>spring-ai-autoconfigure-mcp-server-common</artifactId>
 		</dependency>
 
         <!-- metrics -->
