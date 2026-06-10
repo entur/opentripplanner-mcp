@@ -17,6 +17,7 @@ data:
       spring.ai.mcp.server.capabilities.completion=false
       spring.ai.mcp.server.capabilities.resource=true
       spring.ai.mcp.server.capabilities.tool=true
+      spring.ai.mcp.server.name=entur-journey-planner
 
       # OpenAPI / Swagger UI Configuration
       springdoc.api-docs.path=/api/openapi
