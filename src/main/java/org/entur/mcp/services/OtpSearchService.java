@@ -22,6 +22,7 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
+import java.util.stream.Stream;
 
 @Service
 @Timed(value = "mcp.trip.service", description = "Trip request towards the OTP-service")
@@ -325,7 +326,8 @@ public class OtpSearchService {
     }
 
     public Map<String, Object> handleTripRequest(String from, String to, String departureTime,
-                                                 String arrivalTime, Integer maxResults) {
+                                                 String arrivalTime, Integer maxResults,
+                                                 List<String> transportModes) {
         // Validate inputs
         InputValidator.validateLocation(from, "from");
         InputValidator.validateLocation(to, "to");
@@ -333,6 +335,7 @@ public class OtpSearchService {
         InputValidator.validateDateTime(arrivalTime, "arrivalTime");
         InputValidator.validateConflictingParameters(departureTime, arrivalTime);
         int validatedMaxResults = InputValidator.validateAndNormalizeMaxResults(maxResults, 3);
+        List<String> validatedModes = InputValidator.validateTransportModes(transportModes);
 
         log.info("Planning trip from '{}' to '{}' (maxResults: {})", from, to, validatedMaxResults);
 
@@ -350,11 +353,31 @@ public class OtpSearchService {
             log.debug("Using arrival time: {}", arrivalTime);
         }
 
+        // Emitted only when filtering, so the unfiltered query stays byte-identical to before.
+        // All four fields are required: with a null accessMode/egressMode OTP only considers
+        // transit boardable at the exact origin coordinate and returns zero trip patterns.
+        String modesParam = "";
+        if (validatedModes != null && !validatedModes.isEmpty()) {
+            String modeEntries = validatedModes.stream()
+                .map(m -> String.format("{transportMode: %s}", m))
+                .collect(Collectors.joining(", ", "[", "]"));
+            modesParam = String.format(
+                "modes: {accessMode: foot, egressMode: foot, directMode: foot, transportModes: %s}",
+                modeEntries);
+        }
+
+        // Collapsed into a single placeholder so the unfiltered query (both fragments empty)
+        // renders the exact same blank-then-numTripPatterns line the template produced before
+        // this filter existed - no stray blank line is introduced.
+        String optionalParams = Stream.of(dateTimeParam, modesParam)
+            .filter(s -> !s.isEmpty())
+            .collect(Collectors.joining("\n                        "));
+
         String query = String.format(
                 baseQuery,
                 fromLocation.getPlace(), fromLocation.getLatitude(), fromLocation.getLongitude(),
                 toLocation.getPlace(), toLocation.getLatitude(), toLocation.getLongitude(),
-                dateTimeParam, validatedMaxResults
+                optionalParams, validatedMaxResults
         );
 
         log.debug("Executing GraphQL query for trip from '{}' to '{}'", fromLocation.getPlace(), toLocation.getPlace());
@@ -454,6 +477,7 @@ public class OtpSearchService {
         InputValidator.validateLocation(stopId, "stopId");
         int validatedNumDepartures = InputValidator.validateAndNormalizeMaxResults(numberOfDepartures, 5);
         int validatedTimeRange = InputValidator.validateTimeRange(timeRangeMinutes, 60);
+        List<String> validatedModes = InputValidator.validateTransportModes(transportModes);
 
         log.info("Fetching departures for stop '{}' (numDepartures: {}, timeRange: {} min)",
             stopId, validatedNumDepartures, validatedTimeRange);
@@ -464,9 +488,8 @@ public class OtpSearchService {
             InputValidator.validateDateTime(startTime, "startTime");
             optionalParams.append(String.format("startTime: \"%s\"\n", startTime));
         }
-        if (transportModes != null && !transportModes.isEmpty()) {
-            String modesStr = transportModes.stream()
-                .map(String::toLowerCase)
+        if (validatedModes != null && !validatedModes.isEmpty()) {
+            String modesStr = validatedModes.stream()
                 .collect(Collectors.joining(", ", "[", "]"));
             optionalParams.append(String.format("whiteListedModes: %s\n", modesStr));
         }
@@ -526,8 +549,8 @@ public class OtpSearchService {
         Map<String, Object> enriched = new HashMap<>(data);
         enriched.put("numberOfDepartures", validatedNumDepartures);
         enriched.put("timeRangeMinutes", validatedTimeRange);
-        if (transportModes != null && !transportModes.isEmpty()) {
-            enriched.put("transportModes", transportModes);
+        if (validatedModes != null && !validatedModes.isEmpty()) {
+            enriched.put("transportModes", validatedModes);
         }
 
         log.info("Successfully fetched departures for stop '{}'", stopId);
@@ -593,10 +616,10 @@ public class OtpSearchService {
                                                          List<String> transportModes) {
         log.info("Fetching nearby stops at ({}, {}), radius={}m, max={}", latitude, longitude, radiusMeters, maxResults);
 
+        List<String> validatedModes = InputValidator.validateTransportModes(transportModes);
         String modeFilter = "";
-        if (transportModes != null && !transportModes.isEmpty()) {
-            String modes = transportModes.stream()
-                .map(String::toLowerCase)
+        if (validatedModes != null && !validatedModes.isEmpty()) {
+            String modes = validatedModes.stream()
                 .collect(Collectors.joining(", ", "[", "]"));
             modeFilter = "filterByModes: " + modes;
         }

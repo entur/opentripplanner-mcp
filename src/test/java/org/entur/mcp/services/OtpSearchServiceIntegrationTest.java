@@ -31,7 +31,8 @@ class OtpSearchServiceIntegrationTest {
                 "Asker",
                 null,
                 null,
-                3
+                3,
+                null
         );
 
         // Assert
@@ -55,7 +56,8 @@ class OtpSearchServiceIntegrationTest {
                 "Asker",
                 departureTime,
                 null,
-                3
+                3,
+                null
         );
 
         // Assert
@@ -72,7 +74,8 @@ class OtpSearchServiceIntegrationTest {
                 "59.832,10.433",   // Asker coordinates
                 null,
                 null,
-                3
+                3,
+                null
         );
 
         // Assert
@@ -89,7 +92,8 @@ class OtpSearchServiceIntegrationTest {
                 "Asker",
                 null,
                 null,
-                1
+                1,
+                null
         );
 
         // Assert

@@ -160,6 +160,33 @@ class MobilityServiceTest {
         assertThat(body1 + body2).contains("YVO:Operator:voi");
     }
 
+    @Test
+    @DisplayName("Should hoist repeated system blocks into a top-level systems map")
+    void findNearby_deduplicatesSystems() {
+        // Both vehicles share system YOS:System:voi — it must appear once in the output.
+        // Dispatch by query name (see mobilityDispatcher below) rather than plain enqueue(),
+        // since the vehicles/stations requests fire concurrently and a FIFO enqueue can hand
+        // either fixture to either request.
+        mockWebServer.setDispatcher(mobilityDispatcher(
+            TestFixtures.createMobilityVehiclesResponseTwoSameSystem(),
+            TestFixtures.createMobilityStationsResponseEmpty()));
+
+        Map<String, Object> result =
+            mobilityService.findNearby(59.91, 10.75, 500, null, null, null, 20);
+
+        @SuppressWarnings("unchecked")
+        Map<String, Object> systems = (Map<String, Object>) result.get("systems");
+        assertThat(systems).hasSize(1).containsKey("YOS:System:voi");
+
+        @SuppressWarnings("unchecked")
+        List<Map<String, Object>> vehicles = (List<Map<String, Object>>) result.get("vehicles");
+        assertThat(vehicles).hasSize(2);
+        assertThat(vehicles).allSatisfy(v -> {
+            assertThat(v).doesNotContainKey("system");
+            assertThat(v).containsEntry("systemId", "YOS:System:voi");
+        });
+    }
+
     // MobilityService dispatches the vehicles and stations queries in parallel, so a FIFO
     // enqueue() race-condition can give either request either response. Dispatch by query
     // operation name so the right body reaches the right future regardless of arrival order.

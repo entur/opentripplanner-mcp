@@ -40,7 +40,7 @@ class MetricsIntegrationTest {
     void httpRequest_shouldGenerateMetricsWithClientTags() throws Exception {
         // Mock service responses
         Map<String, Object> mockResponse = Map.of("trip", Map.of("tripPatterns", List.of()));
-        when(otpSearchService.handleTripRequest(any(), any(), any(), any(), any()))
+        when(otpSearchService.handleTripRequest(any(), any(), any(), any(), any(), any()))
             .thenReturn(mockResponse);
 
         // Make request with ET-Client-Name header
@@ -127,7 +127,7 @@ class MetricsIntegrationTest {
         Map<String, Object> geocodeResponse = Map.of("features", List.of());
         Map<String, Object> departureResponse = Map.of("stopPlace", Map.of());
 
-        when(otpSearchService.handleTripRequest(any(), any(), any(), any(), any()))
+        when(otpSearchService.handleTripRequest(any(), any(), any(), any(), any(), any()))
             .thenReturn(tripResponse);
         when(geocoderService.handleGeocodeRequest(any(), anyInt()))
             .thenReturn(geocodeResponse);

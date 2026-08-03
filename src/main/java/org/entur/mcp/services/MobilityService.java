@@ -17,6 +17,7 @@ import java.net.http.HttpResponse;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashMap;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.CompletableFuture;
@@ -121,10 +122,32 @@ public class MobilityService {
         attachDistanceAndSort(vehicles, lat, lon);
         attachDistanceAndSort(stations, lat, lon);
 
+        // The system block (id + translated name + translated operator name) is identical for every
+        // vehicle from the same operator and accounts for ~27% of the payload. Hoist it once.
+        Map<String, Object> systems = new LinkedHashMap<>();
+        hoistSystems(vehicles, systems);
+        hoistSystems(stations, systems);
+
         Map<String, Object> result = new HashMap<>();
         result.put("vehicles", vehicles);
         result.put("stations", stations);
+        result.put("systems", systems);
         return result;
+    }
+
+    private static void hoistSystems(List<Map<String, Object>> items, Map<String, Object> systems) {
+        for (Map<String, Object> item : items) {
+            Object system = item.remove("system");
+            if (system instanceof Map<?, ?> systemMap) {
+                Object id = systemMap.get("id");
+                if (id != null) {
+                    systems.putIfAbsent(id.toString(), system);
+                    item.put("systemId", id);
+                } else {
+                    log.debug("Dropping malformed 'system' block with no id: {}", systemMap);
+                }
+            }
+        }
     }
 
     private CompletableFuture<Map<String, Object>> sendQueryAsync(String query, Map<String, Object> variables) {

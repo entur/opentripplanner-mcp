@@ -2,6 +2,7 @@ package org.entur.mcp.tools;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import io.modelcontextprotocol.spec.McpSchema.CallToolResult;
 import org.entur.mcp.exception.GeocodingException;
 import org.entur.mcp.exception.TripPlanningException;
 import org.entur.mcp.exception.ValidationException;
@@ -121,47 +122,53 @@ public class TripSearchTool {
                 For real-time departures from a specific stop, use the departures tool instead.""",
         metaProvider = TripSearchTool.TripUiMeta.class
     )
-    public String trip(
+    public CallToolResult trip(
         @McpToolParam(description = "Starting location (address, place name, or coordinates)", required = true) String from,
         @McpToolParam(description = "Destination location (address, place name, or coordinates)", required = true) String to,
         @McpToolParam(description = "Departure time in ISO format (e.g., 2023-05-26T12:00:00)", required = false) String departureTime,
         @McpToolParam(description = "Arrival time in ISO format (e.g., 2023-05-26T14:00:00)", required = false) String arrivalTime,
         @McpToolParam(description = "Maximum number of trip options to return", required = false) Integer maxResults,
-        @McpToolParam(description = "Language for the UI. Detect from the conversation: 'nb' for Norwegian Bokmål, 'nn' for Norwegian Nynorsk, 'en' for English.", required = true) String language
+        @McpToolParam(description = "Language for the UI. Detect from the conversation: 'nb' for Norwegian Bokmål, 'nn' for Norwegian Nynorsk, 'en' for English.", required = true) String language,
+        @McpToolParam(description = "Filter by transport modes: air, bus, cableway, coach, funicular, lift, metro, monorail, rail, taxi, tram, trolleybus, unknown, water. Omit for all modes.", required = false) List<String> transportModes
     ) {
         try {
             log.debug("Trip tool called with from='{}', to='{}', departureTime='{}', arrivalTime='{}', maxResults={}, language={}",
                 from, to, departureTime, arrivalTime, maxResults, language);
 
-            Map<String, Object> response = otpSearchService.handleTripRequest(from, to, departureTime, arrivalTime, maxResults);
+            Map<String, Object> response = otpSearchService.handleTripRequest(
+                from, to, departureTime, arrivalTime, maxResults, transportModes);
             Map<String, Object> wrapped = new HashMap<>(response);
-            wrapped.put("query", Map.of(
-                "from", from,
-                "to", to,
-                "departureTime", departureTime != null ? departureTime : "",
-                "arrivalTime", arrivalTime != null ? arrivalTime : "",
-                "maxResults", maxResults != null ? maxResults : 3
-            ));
+            Map<String, Object> query = new HashMap<>();
+            query.put("from", from);
+            query.put("to", to);
+            query.put("departureTime", departureTime != null ? departureTime : "");
+            query.put("arrivalTime", arrivalTime != null ? arrivalTime : "");
+            query.put("maxResults", maxResults != null ? maxResults : 3);
+            query.put("transportModes", transportModes != null ? transportModes : List.of());
+            wrapped.put("query", query);
             wrapped.put("vehiclesWsUrl", vehiclesWsUrl);
             wrapped.put("language", LanguageUtil.normalize(language));
-            return objectMapper.writeValueAsString(wrapped);
+            return UiPayload.split(wrapped, objectMapper,
+                "trip.tripPatterns[].legs[].pointsOnLink",
+                "trip.tripPatterns[].legs[].intermediateEstimatedCalls",
+                "trip.tripPatterns[].legs[].line.presentation");
 
         } catch (ValidationException e) {
             log.warn("Validation error in trip tool: {} - {}", e.getField(), e.getMessage());
-            return toErrorJson(ErrorResponse.validationError(e.getField(), e.getMessage()));
+            return UiPayload.text(toErrorJson(ErrorResponse.validationError(e.getField(), e.getMessage())));
 
         } catch (GeocodingException e) {
             log.warn("Geocoding error in trip tool: {} - {}", e.getLocation(), e.getMessage());
-            return toErrorJson(ErrorResponse.geocodingError(e.getLocation(), e.getMessage()));
+            return UiPayload.text(toErrorJson(ErrorResponse.geocodingError(e.getLocation(), e.getMessage())));
 
         } catch (TripPlanningException e) {
             log.error("Trip planning error: {}", e.getMessage());
-            return toErrorJson(ErrorResponse.tripPlanningError(e.getMessage()));
+            return UiPayload.text(toErrorJson(ErrorResponse.tripPlanningError(e.getMessage())));
 
         } catch (Exception e) {
             log.error("Unexpected error in trip tool: {}", e.getMessage(), e);
-            return toErrorJson(ErrorResponse.genericError(
-                "An unexpected error occurred: " + e.getMessage()));
+            return UiPayload.text(toErrorJson(ErrorResponse.genericError(
+                "An unexpected error occurred: " + e.getMessage())));
         }
     }
 
@@ -204,7 +211,7 @@ public class TripSearchTool {
                         """,
         metaProvider = TripSearchTool.DeparturesUiMeta.class
     )
-    public String departures(
+    public CallToolResult departures(
         @McpToolParam(
             description = "Stop place name (e.g., 'Oslo S', 'Bergen stasjon') or NSR ID (e.g., NSR:StopPlace:337)",
             required = true
@@ -226,7 +233,7 @@ public class TripSearchTool {
         ) Integer timeRangeMinutes,
 
         @McpToolParam(
-            description = "Filter by transport modes (e.g., 'rail', 'bus', 'tram', 'metro', 'water', 'air')",
+            description = "Filter by transport modes: air, bus, cableway, coach, funicular, lift, metro, monorail, rail, taxi, tram, trolleybus, unknown, water. Omit for all modes.",
             required = false
         ) List<String> transportModes,
 
@@ -246,24 +253,26 @@ public class TripSearchTool {
                 stopId, numberOfDepartures, startTime, timeRangeMinutes, transportModes);
             Map<String, Object> wrapped = new HashMap<>(response);
             wrapped.put("language", LanguageUtil.normalize(language));
-            return objectMapper.writeValueAsString(wrapped);
+            return UiPayload.split(wrapped, objectMapper,
+                "stopPlace.arrivals[].serviceJourney.line.presentation",
+                "stopPlace.departures[].serviceJourney.line.presentation");
 
         } catch (ValidationException e) {
             log.warn("Validation error in departures tool: {} - {}", e.getField(), e.getMessage());
-            return toErrorJson(ErrorResponse.validationError(e.getField(), e.getMessage()));
+            return UiPayload.text(toErrorJson(ErrorResponse.validationError(e.getField(), e.getMessage())));
 
         } catch (GeocodingException e) {
             log.warn("Geocoding error in departures tool: {} - {}", e.getLocation(), e.getMessage());
-            return toErrorJson(ErrorResponse.geocodingError(e.getLocation(), e.getMessage()));
+            return UiPayload.text(toErrorJson(ErrorResponse.geocodingError(e.getLocation(), e.getMessage())));
 
         } catch (TripPlanningException e) {
             log.error("Departure board error: {}", e.getMessage());
-            return toErrorJson(ErrorResponse.tripPlanningError(e.getMessage()));
+            return UiPayload.text(toErrorJson(ErrorResponse.tripPlanningError(e.getMessage())));
 
         } catch (Exception e) {
             log.error("Unexpected error in departures tool: {}", e.getMessage(), e);
-            return toErrorJson(ErrorResponse.genericError(
-                "An unexpected error occurred: " + e.getMessage()));
+            return UiPayload.text(toErrorJson(ErrorResponse.genericError(
+                "An unexpected error occurred: " + e.getMessage())));
         }
     }
 
@@ -326,7 +335,7 @@ public class TripSearchTool {
             """,
         metaProvider = TripSearchTool.NearbyStopsUiMeta.class
     )
-    public String nearbyStops(
+    public CallToolResult nearbyStops(
         @McpToolParam(
             description = "Starting location — address, place name, or lat,lng coordinates",
             required = true
@@ -340,7 +349,7 @@ public class TripSearchTool {
             required = false
         ) Integer maxResults,
         @McpToolParam(
-            description = "Filter by transport modes: bus, rail, tram, metro, water, air",
+            description = "Filter by transport modes: air, bus, cableway, coach, funicular, lift, metro, monorail, rail, taxi, tram, trolleybus, unknown, water. Omit for all modes.",
             required = false
         ) List<String> transportModes,
         @McpToolParam(
@@ -369,20 +378,21 @@ public class TripSearchTool {
                 "radiusMeters", validatedRadius
             ));
             wrapped.put("language", LanguageUtil.normalize(language));
-            return objectMapper.writeValueAsString(wrapped);
+            return UiPayload.split(wrapped, objectMapper,
+                "nearest.edges[].node.place.estimatedCalls[].serviceJourney.line.presentation");
 
         } catch (ValidationException e) {
             log.warn("Validation error in nearby-stops tool: {} - {}", e.getField(), e.getMessage());
-            return toErrorJson(ErrorResponse.validationError(e.getField(), e.getMessage()));
+            return UiPayload.text(toErrorJson(ErrorResponse.validationError(e.getField(), e.getMessage())));
         } catch (GeocodingException e) {
             log.warn("Geocoding error in nearby-stops tool: {} - {}", e.getLocation(), e.getMessage());
-            return toErrorJson(ErrorResponse.geocodingError(e.getLocation(), e.getMessage()));
+            return UiPayload.text(toErrorJson(ErrorResponse.geocodingError(e.getLocation(), e.getMessage())));
         } catch (TripPlanningException e) {
             log.error("Nearby stops error: {}", e.getMessage());
-            return toErrorJson(ErrorResponse.tripPlanningError(e.getMessage()));
+            return UiPayload.text(toErrorJson(ErrorResponse.tripPlanningError(e.getMessage())));
         } catch (Exception e) {
             log.error("Unexpected error in nearby-stops tool: {}", e.getMessage(), e);
-            return toErrorJson(ErrorResponse.genericError("An unexpected error occurred: " + e.getMessage()));
+            return UiPayload.text(toErrorJson(ErrorResponse.genericError("An unexpected error occurred: " + e.getMessage())));
         }
     }
 
@@ -401,7 +411,7 @@ public class TripSearchTool {
         description = "Refreshes departure data for a stop. Called by the departures UI.",
         metaProvider = TripSearchTool.AppOnlyMeta.class
     )
-    public String pollDepartures(
+    public CallToolResult pollDepartures(
         @McpToolParam(description = "NSR stop place ID (e.g. NSR:StopPlace:337)", required = true) String stop,
         @McpToolParam(description = "Number of departures to return", required = false) Integer numberOfDepartures,
         @McpToolParam(description = "Start time in ISO format", required = false) String startTime,
@@ -437,15 +447,16 @@ public class TripSearchTool {
         description = "Re-plans a trip with updated parameters. Called by the trip map UI.",
         metaProvider = TripSearchTool.AppOnlyMeta.class
     )
-    public String pollTrip(
+    public CallToolResult pollTrip(
         @McpToolParam(description = "Starting location", required = true) String from,
         @McpToolParam(description = "Destination location", required = true) String to,
         @McpToolParam(description = "Departure time in ISO format", required = false) String departureTime,
         @McpToolParam(description = "Arrival time in ISO format", required = false) String arrivalTime,
         @McpToolParam(description = "Maximum number of trip options", required = false) Integer maxResults,
-        @McpToolParam(description = "Language code (en, nb, nn)", required = false) String language
+        @McpToolParam(description = "Language code (en, nb, nn)", required = false) String language,
+        @McpToolParam(description = "Filter by transport modes", required = false) List<String> transportModes
     ) {
-        return trip(from, to, departureTime, arrivalTime, maxResults, language);
+        return trip(from, to, departureTime, arrivalTime, maxResults, language, transportModes);
     }
 
     /**

@@ -1,6 +1,8 @@
 package org.entur.mcp.tools;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
+import io.modelcontextprotocol.spec.McpSchema.CallToolResult;
+import org.entur.mcp.TestFixtures;
 import org.entur.mcp.exception.GeocodingException;
 import org.entur.mcp.exception.TripPlanningException;
 import org.entur.mcp.exception.ValidationException;
@@ -19,6 +21,8 @@ import java.util.Map;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatCode;
+import static org.entur.mcp.TestFixtures.textOf;
+import static org.entur.mcp.TestFixtures.uiMetaOf;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyDouble;
 import static org.mockito.ArgumentMatchers.anyInt;
@@ -55,11 +59,11 @@ class TripSearchToolUnitTest {
         Map<String, Object> mockResponse = new HashMap<>();
         mockResponse.put("trip", Map.of("tripPatterns", List.of()));
 
-        when(otpSearchService.handleTripRequest(anyString(), anyString(), any(), any(), any()))
+        when(otpSearchService.handleTripRequest(anyString(), anyString(), any(), any(), any(), any()))
             .thenReturn(mockResponse);
 
         // Act
-        String result = tripSearchTool.trip("Oslo S", "Asker", null, null, 3, "en");
+        String result = textOf(tripSearchTool.trip("Oslo S", "Asker", null, null, 3, "en", null));
 
         // Assert
         assertThat(result).isNotNull();
@@ -77,11 +81,11 @@ class TripSearchToolUnitTest {
         // Arrange
         Map<String, Object> mockResponse = new HashMap<>();
         mockResponse.put("trip", Map.of("tripPatterns", List.of()));
-        when(otpSearchService.handleTripRequest(anyString(), anyString(), any(), any(), any()))
+        when(otpSearchService.handleTripRequest(anyString(), anyString(), any(), any(), any(), any()))
             .thenReturn(mockResponse);
 
         // Act
-        String result = tripSearchTool.trip("Oslo S", "Asker", null, null, 3, "en");
+        String result = textOf(tripSearchTool.trip("Oslo S", "Asker", null, null, 3, "en", null));
 
         // Assert
         @SuppressWarnings("unchecked")
@@ -90,17 +94,77 @@ class TripSearchToolUnitTest {
         assertThat(parsed.get("vehiclesWsUrl")).isEqualTo("wss://test.example.com/vehicles");
     }
 
+    @Test
+    @DisplayName("trip should keep geometry out of the model-facing content")
+    void trip_movesGeometryToMeta() throws Exception {
+        when(otpSearchService.handleTripRequest(anyString(), anyString(), any(), any(), any(), any()))
+            .thenReturn(TestFixtures.createTripResponseMapWithGeometry());
+
+        CallToolResult result = tripSearchTool.trip("Oslo S", "Asker", null, null, 3, "en", null);
+
+        assertThat(textOf(result)).doesNotContain("pointsOnLink");
+        assertThat(textOf(result)).doesNotContain("intermediateEstimatedCalls");
+        assertThat(textOf(result)).doesNotContain("presentation");
+        assertThat(textOf(result)).contains("expectedStartTime");
+        assertThat(textOf(result)).contains("serviceJourney");   // kept: powers buy-link
+        assertThat(uiMetaOf(result))
+            .containsKey("trip.tripPatterns[].legs[].pointsOnLink");
+    }
+
+    @Test
+    @DisplayName("departures should keep line colours out of the model-facing content")
+    void departures_movesPresentationToMeta() throws Exception {
+        when(geocoderService.resolveStopId(anyString())).thenReturn("NSR:StopPlace:337");
+        when(otpSearchService.handleDepartureBoardRequest(anyString(), any(), any(), any(), any()))
+            .thenReturn(TestFixtures.createDeparturesResponseMapWithPresentation());
+
+        CallToolResult result = tripSearchTool.departures("Oslo S", 10, null, null, null, "en");
+
+        assertThat(textOf(result)).doesNotContain("presentation");
+        assertThat(textOf(result)).contains("expectedDepartureTime");
+        // stopPlace.id must survive extraction — departures-board.html reads it to build
+        // currentParams.stop for the poll-departures auto-refresh loop.
+        var stopPlaceNode = objectMapper.readTree(textOf(result)).at("/stopPlace/id");
+        assertThat(stopPlaceNode.asText()).isEqualTo("NSR:StopPlace:337");
+        assertThat(uiMetaOf(result)).containsKey(
+            "stopPlace.arrivals[].serviceJourney.line.presentation");
+        assertThat(uiMetaOf(result)).containsKey(
+            "stopPlace.departures[].serviceJourney.line.presentation");
+    }
+
+    @Test
+    @DisplayName("nearby-stops should keep line colours out but keep coordinates")
+    void nearbyStops_movesPresentationToMetaButKeepsCoords() throws Exception {
+        when(geocoderService.geocodeIfNeeded(anyString()))
+            .thenReturn(TestFixtures.createOsloLocation());
+        when(otpSearchService.handleNearbyStopsRequest(
+                anyDouble(), anyDouble(), anyInt(), anyInt(), any()))
+            .thenReturn(TestFixtures.createNearbyStopsResponseMapWithPresentation());
+
+        CallToolResult result = tripSearchTool.nearbyStops("Oslo S", 500, 10, null, "en");
+
+        assertThat(textOf(result)).doesNotContain("presentation");
+        // kept: model reasons about distance — assert the actual nested field, not a substring
+        // (the payload also carries a top-level query.latitude for the search origin, which
+        // would make a substring match pass even if place-level coordinates were stripped)
+        var placeNode = objectMapper.readTree(textOf(result)).at("/nearest/edges/0/node/place");
+        assertThat(placeNode.get("latitude").asDouble()).isEqualTo(59.911491);
+        assertThat(placeNode.get("longitude").asDouble()).isEqualTo(10.750500);
+        assertThat(uiMetaOf(result)).containsKey(
+            "nearest.edges[].node.place.estimatedCalls[].serviceJourney.line.presentation");
+    }
+
     // ==================== Trip Tool Error Handling Tests ====================
 
     @Test
     @DisplayName("Trip tool should return error response on ValidationException")
     void trip_withValidationException_shouldReturnErrorResponse() throws Exception {
         // Arrange
-        when(otpSearchService.handleTripRequest(anyString(), anyString(), any(), any(), any()))
+        when(otpSearchService.handleTripRequest(anyString(), anyString(), any(), any(), any(), any()))
             .thenThrow(new ValidationException("from", "from cannot be empty"));
 
         // Act
-        String result = tripSearchTool.trip("", "Asker", null, null, 3, "en");
+        String result = textOf(tripSearchTool.trip("", "Asker", null, null, 3, "en", null));
 
         // Assert
         assertThat(result).contains("VALIDATION_ERROR");
@@ -116,11 +180,11 @@ class TripSearchToolUnitTest {
     @DisplayName("Trip tool should return error response on GeocodingException")
     void trip_withGeocodingException_shouldReturnErrorResponse() throws Exception {
         // Arrange
-        when(otpSearchService.handleTripRequest(anyString(), anyString(), any(), any(), any()))
+        when(otpSearchService.handleTripRequest(anyString(), anyString(), any(), any(), any(), any()))
             .thenThrow(new GeocodingException("Unknown Place", "Location not found"));
 
         // Act
-        String result = tripSearchTool.trip("Unknown Place", "Asker", null, null, 3, "en");
+        String result = textOf(tripSearchTool.trip("Unknown Place", "Asker", null, null, 3, "en", null));
 
         // Assert
         assertThat(result).contains("GEOCODING_ERROR");
@@ -136,11 +200,11 @@ class TripSearchToolUnitTest {
     @DisplayName("Trip tool should return error response on TripPlanningException")
     void trip_withTripPlanningException_shouldReturnErrorResponse() throws Exception {
         // Arrange
-        when(otpSearchService.handleTripRequest(anyString(), anyString(), any(), any(), any()))
+        when(otpSearchService.handleTripRequest(anyString(), anyString(), any(), any(), any(), any()))
             .thenThrow(new TripPlanningException("API unavailable"));
 
         // Act
-        String result = tripSearchTool.trip("Oslo", "Asker", null, null, 3, "en");
+        String result = textOf(tripSearchTool.trip("Oslo", "Asker", null, null, 3, "en", null));
 
         // Assert
         assertThat(result).contains("TRIP_PLANNING_ERROR");
@@ -155,11 +219,11 @@ class TripSearchToolUnitTest {
     @DisplayName("Trip tool should return generic error on unexpected exception")
     void trip_withUnexpectedException_shouldReturnGenericError() throws Exception {
         // Arrange
-        when(otpSearchService.handleTripRequest(anyString(), anyString(), any(), any(), any()))
+        when(otpSearchService.handleTripRequest(anyString(), anyString(), any(), any(), any(), any()))
             .thenThrow(new RuntimeException("Unexpected error"));
 
         // Act
-        String result = tripSearchTool.trip("Oslo", "Asker", null, null, 3, "en");
+        String result = textOf(tripSearchTool.trip("Oslo", "Asker", null, null, 3, "en", null));
 
         // Assert
         assertThat(result).contains("ERROR");
@@ -267,10 +331,10 @@ class TripSearchToolUnitTest {
         // the mocked method, so we test with invalid input that passes to the service
 
         // Geocoding error
-        when(otpSearchService.handleTripRequest(anyString(), anyString(), any(), any(), any()))
+        when(otpSearchService.handleTripRequest(anyString(), anyString(), any(), any(), any(), any()))
             .thenThrow(new GeocodingException("test", "test message"));
 
-        String geocodingResult = tripSearchTool.trip("from", "to", null, null, 3, "en");
+        String geocodingResult = textOf(tripSearchTool.trip("from", "to", null, null, 3, "en", null));
         assertThatCode(() -> objectMapper.readValue(geocodingResult, Map.class))
             .doesNotThrowAnyException();
         assertThat(geocodingResult).contains("GEOCODING_ERROR");
@@ -279,10 +343,10 @@ class TripSearchToolUnitTest {
         reset(otpSearchService);
 
         // Trip planning error
-        when(otpSearchService.handleTripRequest(anyString(), anyString(), any(), any(), any()))
+        when(otpSearchService.handleTripRequest(anyString(), anyString(), any(), any(), any(), any()))
             .thenThrow(new TripPlanningException("test message"));
 
-        String tripResult = tripSearchTool.trip("from", "to", null, null, 3, "en");
+        String tripResult = textOf(tripSearchTool.trip("from", "to", null, null, 3, "en", null));
         assertThatCode(() -> objectMapper.readValue(tripResult, Map.class))
             .doesNotThrowAnyException();
         assertThat(tripResult).contains("TRIP_PLANNING_ERROR");
@@ -308,7 +372,7 @@ class TripSearchToolUnitTest {
             .thenReturn(mockResponse);
 
         // Act
-        String result = tripSearchTool.departures("Oslo S", 10, null, null, null, "en");
+        String result = textOf(tripSearchTool.departures("Oslo S", 10, null, null, null, "en"));
 
         // Assert
         assertThat(result).isNotNull();
@@ -338,7 +402,7 @@ class TripSearchToolUnitTest {
             .thenReturn(mockResponse);
 
         // Act
-        String result = tripSearchTool.departures("NSR:StopPlace:337", 10, null, null, null, "en");
+        String result = textOf(tripSearchTool.departures("NSR:StopPlace:337", 10, null, null, null, "en"));
 
         // Assert
         assertThat(result).isNotNull();
@@ -356,7 +420,7 @@ class TripSearchToolUnitTest {
             .thenThrow(new GeocodingException("Unknown Stop", "Location not found"));
 
         // Act
-        String result = tripSearchTool.departures("Unknown Stop", 10, null, null, null, "en");
+        String result = textOf(tripSearchTool.departures("Unknown Stop", 10, null, null, null, "en"));
 
         // Assert
         assertThat(result).contains("GEOCODING_ERROR");
@@ -376,7 +440,7 @@ class TripSearchToolUnitTest {
             .thenThrow(new ValidationException("stop", "stop cannot be null or empty"));
 
         // Act
-        String result = tripSearchTool.departures("", 10, null, null, null, "en");
+        String result = textOf(tripSearchTool.departures("", 10, null, null, null, "en"));
 
         // Assert
         assertThat(result).contains("VALIDATION_ERROR");
@@ -398,7 +462,7 @@ class TripSearchToolUnitTest {
             .thenThrow(new TripPlanningException("API unavailable"));
 
         // Act
-        String result = tripSearchTool.departures("Oslo S", 10, null, null, null, "en");
+        String result = textOf(tripSearchTool.departures("Oslo S", 10, null, null, null, "en"));
 
         // Assert
         assertThat(result).contains("TRIP_PLANNING_ERROR");
@@ -417,7 +481,7 @@ class TripSearchToolUnitTest {
             .thenThrow(new RuntimeException("Unexpected error"));
 
         // Act
-        String result = tripSearchTool.departures("Oslo S", 10, null, null, null, "en");
+        String result = textOf(tripSearchTool.departures("Oslo S", 10, null, null, null, "en"));
 
         // Assert
         assertThat(result).contains("ERROR");
@@ -510,7 +574,7 @@ class TripSearchToolUnitTest {
         when(otpSearchService.handleNearbyStopsRequest(59.911, 10.748, 500, 10, null))
             .thenReturn(Map.of("nearest", Map.of("edges", List.of())));
 
-        String result = tripSearchTool.nearbyStops("Oslo S", null, null, null, "en");
+        String result = textOf(tripSearchTool.nearbyStops("Oslo S", null, null, null, "en"));
 
         assertThat(result).contains("nearest");
         assertThat(result).contains("query");
@@ -525,7 +589,7 @@ class TripSearchToolUnitTest {
         when(otpSearchService.handleNearbyStopsRequest(anyDouble(), anyDouble(), anyInt(), anyInt(), any()))
             .thenReturn(Map.of("nearest", Map.of("edges", List.of())));
 
-        String result = tripSearchTool.nearbyStops("Oslo S", 300, null, null, "en");
+        String result = textOf(tripSearchTool.nearbyStops("Oslo S", 300, null, null, "en"));
 
         @SuppressWarnings("unchecked")
         Map<String, Object> parsed = objectMapper.readValue(result, Map.class);
@@ -544,7 +608,7 @@ class TripSearchToolUnitTest {
         when(geocoderService.geocodeIfNeeded("Unknown Place"))
             .thenThrow(new GeocodingException("Unknown Place", "Location not found"));
 
-        String result = tripSearchTool.nearbyStops("Unknown Place", null, null, null, "en");
+        String result = textOf(tripSearchTool.nearbyStops("Unknown Place", null, null, null, "en"));
 
         assertThat(result).contains("GEOCODING_ERROR");
         Map<String, Object> errorMap = objectMapper.readValue(result, Map.class);
@@ -560,7 +624,7 @@ class TripSearchToolUnitTest {
         when(otpSearchService.handleNearbyStopsRequest(anyDouble(), anyDouble(), anyInt(), anyInt(), any()))
             .thenThrow(new TripPlanningException("API unavailable"));
 
-        String result = tripSearchTool.nearbyStops("Oslo S", null, null, null, "en");
+        String result = textOf(tripSearchTool.nearbyStops("Oslo S", null, null, null, "en"));
 
         assertThat(result).contains("TRIP_PLANNING_ERROR");
         Map<String, Object> errorMap = objectMapper.readValue(result, Map.class);
@@ -571,7 +635,7 @@ class TripSearchToolUnitTest {
     @Test
     @DisplayName("nearby-stops tool should return VALIDATION_ERROR when location is blank")
     void nearbyStops_withBlankLocation_shouldReturnValidationError() throws Exception {
-        String result = tripSearchTool.nearbyStops("", null, null, null, "en");
+        String result = textOf(tripSearchTool.nearbyStops("", null, null, null, "en"));
 
         Map<String, Object> errorMap = objectMapper.readValue(result, Map.class);
         assertThat(errorMap).containsEntry("error", "VALIDATION_ERROR");
@@ -585,10 +649,10 @@ class TripSearchToolUnitTest {
     void trip_withValidLanguage_shouldIncludeLanguageInResponse() throws Exception {
         Map<String, Object> mockResponse = new HashMap<>();
         mockResponse.put("trip", Map.of("tripPatterns", List.of()));
-        when(otpSearchService.handleTripRequest(anyString(), anyString(), any(), any(), any()))
+        when(otpSearchService.handleTripRequest(anyString(), anyString(), any(), any(), any(), any()))
             .thenReturn(mockResponse);
 
-        String result = tripSearchTool.trip("Oslo S", "Asker", null, null, 3, "nb");
+        String result = textOf(tripSearchTool.trip("Oslo S", "Asker", null, null, 3, "nb", null));
 
         Map<String, Object> parsed = objectMapper.readValue(result, Map.class);
         assertThat(parsed).containsEntry("language", "nb");
@@ -599,10 +663,10 @@ class TripSearchToolUnitTest {
     void trip_withUnknownLanguage_shouldFallBackToEn() throws Exception {
         Map<String, Object> mockResponse = new HashMap<>();
         mockResponse.put("trip", Map.of("tripPatterns", List.of()));
-        when(otpSearchService.handleTripRequest(anyString(), anyString(), any(), any(), any()))
+        when(otpSearchService.handleTripRequest(anyString(), anyString(), any(), any(), any(), any()))
             .thenReturn(mockResponse);
 
-        String result = tripSearchTool.trip("Oslo S", "Asker", null, null, 3, "fr");
+        String result = textOf(tripSearchTool.trip("Oslo S", "Asker", null, null, 3, "fr", null));
 
         Map<String, Object> parsed = objectMapper.readValue(result, Map.class);
         assertThat(parsed).containsEntry("language", "en");
@@ -613,10 +677,10 @@ class TripSearchToolUnitTest {
     void trip_withNullLanguage_shouldFallBackToEn() throws Exception {
         Map<String, Object> mockResponse = new HashMap<>();
         mockResponse.put("trip", Map.of("tripPatterns", List.of()));
-        when(otpSearchService.handleTripRequest(anyString(), anyString(), any(), any(), any()))
+        when(otpSearchService.handleTripRequest(anyString(), anyString(), any(), any(), any(), any()))
             .thenReturn(mockResponse);
 
-        String result = tripSearchTool.trip("Oslo S", "Asker", null, null, 3, null);
+        String result = textOf(tripSearchTool.trip("Oslo S", "Asker", null, null, 3, null, null));
 
         Map<String, Object> parsed = objectMapper.readValue(result, Map.class);
         assertThat(parsed).containsEntry("language", "en");
@@ -631,7 +695,7 @@ class TripSearchToolUnitTest {
         when(otpSearchService.handleDepartureBoardRequest(anyString(), any(), any(), any(), any()))
             .thenReturn(mockResponse);
 
-        String result = tripSearchTool.departures("Oslo S", 10, null, null, null, "nb");
+        String result = textOf(tripSearchTool.departures("Oslo S", 10, null, null, null, "nb"));
 
         Map<String, Object> parsed = objectMapper.readValue(result, Map.class);
         assertThat(parsed).containsEntry("language", "nb");
@@ -645,7 +709,7 @@ class TripSearchToolUnitTest {
         when(otpSearchService.handleNearbyStopsRequest(anyDouble(), anyDouble(), anyInt(), anyInt(), any()))
             .thenReturn(Map.of("nearest", Map.of("edges", List.of())));
 
-        String result = tripSearchTool.nearbyStops("Oslo S", null, null, null, "nn");
+        String result = textOf(tripSearchTool.nearbyStops("Oslo S", null, null, null, "nn"));
 
         Map<String, Object> parsed = objectMapper.readValue(result, Map.class);
         assertThat(parsed).containsEntry("language", "nn");

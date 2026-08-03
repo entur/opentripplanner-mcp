@@ -74,7 +74,8 @@ public class TripPlannerRestController {
             request.getTo(),
             request.getDepartureTime(),
             request.getArrivalTime(),
-            request.getMaxResults()
+            request.getMaxResults(),
+            null
         );
 
         return ResponseEntity.ok(result);

@@ -2,6 +2,7 @@ package org.entur.mcp.tools;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import io.modelcontextprotocol.spec.McpSchema.CallToolResult;
 import org.entur.mcp.exception.GeocodingException;
 import org.entur.mcp.exception.MobilityException;
 import org.entur.mcp.exception.ValidationException;
@@ -74,7 +75,7 @@ public class MobilityTool {
                 """,
         metaProvider = MobilityTool.NearbyMobilityUiMeta.class
     )
-    public String nearbyMobility(
+    public CallToolResult nearbyMobility(
         @McpToolParam(
             description = "Search location — address, place name, or lat,lng coordinates",
             required = true
@@ -133,20 +134,22 @@ public class MobilityTool {
             wrapped.put("query", query);
             wrapped.put("language", LanguageUtil.normalize(language));
 
-            return objectMapper.writeValueAsString(wrapped);
+            return UiPayload.split(wrapped, objectMapper,
+                "vehicles[].rentalUris",
+                "stations[].rentalUris");
 
         } catch (ValidationException e) {
             log.warn("Validation error in nearby-mobility: {} - {}", e.getField(), e.getMessage());
-            return toErrorJson(ErrorResponse.validationError(e.getField(), e.getMessage()));
+            return UiPayload.text(toErrorJson(ErrorResponse.validationError(e.getField(), e.getMessage())));
         } catch (GeocodingException e) {
             log.warn("Geocoding error in nearby-mobility: {} - {}", e.getLocation(), e.getMessage());
-            return toErrorJson(ErrorResponse.geocodingError(e.getLocation(), e.getMessage()));
+            return UiPayload.text(toErrorJson(ErrorResponse.geocodingError(e.getLocation(), e.getMessage())));
         } catch (MobilityException e) {
             log.error("Mobility error: {}", e.getMessage());
-            return toErrorJson(ErrorResponse.mobilityError(e.getMessage()));
+            return UiPayload.text(toErrorJson(ErrorResponse.mobilityError(e.getMessage())));
         } catch (Exception e) {
             log.error("Unexpected error in nearby-mobility: {}", e.getMessage(), e);
-            return toErrorJson(ErrorResponse.genericError("An unexpected error occurred: " + e.getMessage()));
+            return UiPayload.text(toErrorJson(ErrorResponse.genericError("An unexpected error occurred: " + e.getMessage())));
         }
     }
 

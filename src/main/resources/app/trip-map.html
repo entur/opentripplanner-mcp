@@ -627,9 +627,13 @@
                 el.innerHTML = `<span class="badge" style="background:#2a2a2a;border:1px solid #444;color:#888;">${t('walk_m', mins)}</span>`;
             } else {
                 const code = esc(leg.line?.publicCode || leg.mode || "?");
-                const stops = (leg.intermediateEstimatedCalls || []).length + 1;
+                let stopsSuffix = "";
+                if (leg.intermediateEstimatedCalls !== undefined) {
+                    const stops = leg.intermediateEstimatedCalls.length + 1;
+                    stopsSuffix = ` <span style="color:#666;font-size:10px;">· ${stops} ${stops !== 1 ? t('stop_many') : t('stop_one')}</span>`;
+                }
                 el.innerHTML = `<span class="badge" style="background:${esc(legColor(leg))};color:${esc(legTextColor(leg))}">${code}</span>`
-                    + ` <span style="color:#666;font-size:10px;">· ${stops} ${stops !== 1 ? t('stop_many') : t('stop_one')}</span>`;
+                    + stopsSuffix;
             }
             strip.appendChild(el);
 
@@ -844,11 +848,37 @@
         selectPattern(0);
     }
 
+    // Grafts UI-only fields back onto the payload. The server strips them into
+    // _meta["org.entur/ui"] so they never reach the model. Keys are paths where a
+    // "[]" suffix means "iterate this list"; values gain one array level per [].
+    // Must stay identical across all four app HTML files.
+    function graftUiMeta(data, ui) {
+        if (!data || !ui) return data;
+        for (const path of Object.keys(ui)) {
+            applyUiPath(data, path.split("."), ui[path]);
+        }
+        return data;
+    }
+
+    function applyUiPath(node, segs, value) {
+        if (node == null || value == null) return;
+        const seg = segs[0];
+        if (segs.length === 1) { node[seg] = value; return; }
+        if (seg.endsWith("[]")) {
+            const list = node[seg.slice(0, -2)];
+            if (!Array.isArray(list) || !Array.isArray(value)) return;
+            list.forEach((item, i) => applyUiPath(item, segs.slice(1), value[i]));
+        } else {
+            applyUiPath(node[seg], segs.slice(1), value);
+        }
+    }
+
     function applyToolResult(result) {
         try {
             const text = result.content?.find(c => c.type === "text")?.text;
             if (!text) { replanBtn.disabled = false; replanBtn.textContent = t('replan'); return; }
             const data = JSON.parse(text);
+            graftUiMeta(data, result._meta?.["org.entur/ui"]);
             lang = data.language || lang;
             if (data.error) { replanBtn.disabled = false; replanBtn.textContent = t('replan'); showStatus(data.message || data.error); return; }
             currentQuery = data.query ? { ...data.query, language: lang } : null;

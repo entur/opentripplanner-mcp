@@ -38,7 +38,7 @@ class TripPlannerRestControllerTest {
         Map<String, Object> mockResponse = Map.of(
             "trip", Map.of("tripPatterns", List.of())
         );
-        when(otpSearchService.handleTripRequest(any(), any(), any(), any(), any()))
+        when(otpSearchService.handleTripRequest(any(), any(), any(), any(), any(), any()))
             .thenReturn(mockResponse);
 
         mockMvc.perform(get("/api/trips")
@@ -66,7 +66,7 @@ class TripPlannerRestControllerTest {
 
     @Test
     void planTrip_withServiceValidationException_shouldReturn400() throws Exception {
-        when(otpSearchService.handleTripRequest(any(), any(), any(), any(), any()))
+        when(otpSearchService.handleTripRequest(any(), any(), any(), any(), any(), any()))
             .thenThrow(new ValidationException("from", "Invalid location"));
 
         mockMvc.perform(get("/api/trips")
@@ -79,7 +79,7 @@ class TripPlannerRestControllerTest {
 
     @Test
     void planTrip_withGeocodingException_shouldReturn400() throws Exception {
-        when(otpSearchService.handleTripRequest(any(), any(), any(), any(), any()))
+        when(otpSearchService.handleTripRequest(any(), any(), any(), any(), any(), any()))
             .thenThrow(new GeocodingException("Unknown location", "Oslo S"));
 
         mockMvc.perform(get("/api/trips")
@@ -91,7 +91,7 @@ class TripPlannerRestControllerTest {
 
     @Test
     void planTrip_withTripPlanningException_shouldReturn500() throws Exception {
-        when(otpSearchService.handleTripRequest(any(), any(), any(), any(), any()))
+        when(otpSearchService.handleTripRequest(any(), any(), any(), any(), any(), any()))
             .thenThrow(new TripPlanningException("Service unavailable"));
 
         mockMvc.perform(get("/api/trips")

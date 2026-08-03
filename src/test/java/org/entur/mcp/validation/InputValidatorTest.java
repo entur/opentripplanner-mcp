@@ -370,4 +370,28 @@ class InputValidatorTest {
             .isInstanceOf(ValidationException.class)
             .hasMessageContaining("STEAM");
     }
+
+    // ==================== Transport Modes Validation Tests ====================
+
+    @Test
+    @DisplayName("Should accept valid transport modes and normalise case")
+    void validateTransportModes_acceptsValidValues() {
+        assertThat(InputValidator.validateTransportModes(List.of("rail", "BUS", " Tram ")))
+            .containsExactly("rail", "bus", "tram");
+    }
+
+    @Test
+    @DisplayName("Should pass through null and empty transport modes")
+    void validateTransportModes_passesThroughNullAndEmpty() {
+        assertThat(InputValidator.validateTransportModes(null)).isNull();
+        assertThat(InputValidator.validateTransportModes(List.of())).isEmpty();
+    }
+
+    @Test
+    @DisplayName("Should reject unknown transport modes")
+    void validateTransportModes_rejectsUnknownValues() {
+        assertThatThrownBy(() -> InputValidator.validateTransportModes(List.of("rail", "hovercraft")))
+            .isInstanceOf(ValidationException.class)
+            .hasMessageContaining("hovercraft");
+    }
 }

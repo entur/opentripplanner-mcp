@@ -290,10 +290,36 @@
             }
         }
 
+        // Grafts UI-only fields back onto the payload. The server strips them into
+        // _meta["org.entur/ui"] so they never reach the model. Keys are paths where a
+        // "[]" suffix means "iterate this list"; values gain one array level per [].
+        // Must stay identical across all four app HTML files.
+        function graftUiMeta(data, ui) {
+            if (!data || !ui) return data;
+            for (const path of Object.keys(ui)) {
+                applyUiPath(data, path.split("."), ui[path]);
+            }
+            return data;
+        }
+
+        function applyUiPath(node, segs, value) {
+            if (node == null || value == null) return;
+            const seg = segs[0];
+            if (segs.length === 1) { node[seg] = value; return; }
+            if (seg.endsWith("[]")) {
+                const list = node[seg.slice(0, -2)];
+                if (!Array.isArray(list) || !Array.isArray(value)) return;
+                list.forEach((item, i) => applyUiPath(item, segs.slice(1), value[i]));
+            } else {
+                applyUiPath(node[seg], segs.slice(1), value);
+            }
+        }
+
         app.ontoolresult = (result) => {
             try {
                 const text = result?.content?.find(c => c.type === "text")?.text;
                 const data = JSON.parse(text ?? '{}');
+                graftUiMeta(data, result?._meta?.["org.entur/ui"]);
                 if (data.error) {
                     lang = data.language || lang;
                     cardStripEl.innerHTML = '';

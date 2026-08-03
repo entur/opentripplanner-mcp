@@ -55,8 +55,15 @@ UI apps (src/main/resources/app/)
 - `poll-trip` — app-only re-plan for trip map
 
 **Key patterns:**
-- Tools return JSON text content (success data or serialized `ErrorResponse`)
-- `@McpTool` + `@McpResource` from `org.springframework.ai.mcp.annotation` (Spring AI 2.0.0-M6)
+- UI tools return `CallToolResult`: slim JSON in `content[0].text` for the model, UI-only fields in
+  `_meta["org.entur/ui"]` via `UiPayload.split()`. `geocode` and `alerts` still return plain `String`.
+- Each app HTML file carries an identical `graftUiMeta()` helper that puts the `_meta` fields back
+  before rendering, and degrades gracefully when `_meta` is absent (hosts may strip it)
+- `trip` accepts `transportModes`; when set, the OTP `modes:` block MUST also carry
+  `accessMode`/`egressMode`/`directMode: foot` or OTP returns zero trip patterns
+- `nearby-mobility` hoists repeated `system` objects into a top-level `systems` map keyed by system id;
+  items carry `systemId` instead of `system`
+- `@McpTool` + `@McpResource` from `org.springframework.ai.mcp.annotation` (Spring AI 2.0.0-M7)
 - `MetaProvider` inner classes set `_meta.ui` (resourceUri, csp, visibility)
 - App-only tools use `AppOnlyMeta` → `_meta.ui.visibility: ["app"]`
 - UI apps are plain HTML files served as classpath resources (no build step)

@@ -2,6 +2,8 @@ package org.entur.mcp.tools;
 
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import io.modelcontextprotocol.spec.McpSchema.CallToolResult;
+import org.entur.mcp.TestFixtures;
 import org.entur.mcp.exception.GeocodingException;
 import org.entur.mcp.exception.MobilityException;
 import org.entur.mcp.model.Location;
@@ -18,6 +20,8 @@ import java.util.List;
 import java.util.Map;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.entur.mcp.TestFixtures.textOf;
+import static org.entur.mcp.TestFixtures.uiMetaOf;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyDouble;
 import static org.mockito.ArgumentMatchers.anyInt;
@@ -58,7 +62,7 @@ class MobilityToolTest {
                 "stations", List.of()
             ));
 
-        String json = tool.nearbyMobility("Grünerløkka", null, null, null, null, null, "nb");
+        String json = textOf(tool.nearbyMobility("Grünerløkka", null, null, null, null, null, "nb"));
 
         Map<String, Object> result = objectMapper.readValue(json, new TypeReference<>() {});
         assertThat(result).containsKeys("vehicles", "stations", "query", "language");
@@ -81,7 +85,7 @@ class MobilityToolTest {
                 any(), any(), any(), anyInt()))
             .thenReturn(Map.of("vehicles", List.of(), "stations", List.of()));
 
-        String json = tool.nearbyMobility("59.91,10.75", null, null, null, null, null, "en");
+        String json = textOf(tool.nearbyMobility("59.91,10.75", null, null, null, null, null, "en"));
 
         assertThat(json).contains("\"vehicles\"");
     }
@@ -92,7 +96,7 @@ class MobilityToolTest {
         when(geocoderService.geocodeIfNeeded("nowhere"))
             .thenThrow(new GeocodingException("nowhere", "Location not found"));
 
-        String json = tool.nearbyMobility("nowhere", null, null, null, null, null, "en");
+        String json = textOf(tool.nearbyMobility("nowhere", null, null, null, null, null, "en"));
 
         Map<String, Object> result = objectMapper.readValue(json, new TypeReference<>() {});
         assertThat(result.get("error")).isEqualTo("GEOCODING_ERROR");
@@ -109,7 +113,7 @@ class MobilityToolTest {
                 any(), any(), any(), anyInt()))
             .thenThrow(new MobilityException("Upstream down"));
 
-        String json = tool.nearbyMobility("Oslo", null, null, null, null, null, "en");
+        String json = textOf(tool.nearbyMobility("Oslo", null, null, null, null, null, "en"));
 
         Map<String, Object> result = objectMapper.readValue(json, new TypeReference<>() {});
         assertThat(result.get("error")).isEqualTo("MOBILITY_ERROR");
@@ -119,7 +123,7 @@ class MobilityToolTest {
     @Test
     @DisplayName("Radius over 2000 returns validation_error")
     void nearbyMobility_radiusTooLarge_returnsValidationError() throws Exception {
-        String json = tool.nearbyMobility("Oslo", 5000, null, null, null, null, "en");
+        String json = textOf(tool.nearbyMobility("Oslo", 5000, null, null, null, null, "en"));
 
         Map<String, Object> result = objectMapper.readValue(json, new TypeReference<>() {});
         assertThat(result.get("error")).isEqualTo("VALIDATION_ERROR");
@@ -128,10 +132,26 @@ class MobilityToolTest {
     @Test
     @DisplayName("Invalid form factor returns validation_error")
     void nearbyMobility_invalidFormFactor_returnsValidationError() throws Exception {
-        String json = tool.nearbyMobility("Oslo", null, List.of("AIRPLANE"), null, null, null, "en");
+        String json = textOf(tool.nearbyMobility("Oslo", null, List.of("AIRPLANE"), null, null, null, "en"));
 
         Map<String, Object> result = objectMapper.readValue(json, new TypeReference<>() {});
         assertThat(result.get("error")).isEqualTo("VALIDATION_ERROR");
+    }
+
+    @Test
+    @DisplayName("nearby-mobility should keep rental URIs out of the model-facing content")
+    void nearbyMobility_movesRentalUrisToMeta() throws Exception {
+        when(geocoderService.geocodeIfNeeded(anyString()))
+            .thenReturn(TestFixtures.createOsloLocation());
+        when(mobilityService.findNearby(anyDouble(), anyDouble(), anyInt(), any(), any(), any(), anyInt()))
+            .thenReturn(TestFixtures.createMobilityResponseMapWithRentalUris());
+
+        CallToolResult result = tool.nearbyMobility(
+            "Oslo S", 500, null, null, null, 20, "en");
+
+        assertThat(textOf(result)).doesNotContain("rentalUris");
+        assertThat(textOf(result)).contains("currentRangeMeters");
+        assertThat(uiMetaOf(result)).containsKeys("vehicles[].rentalUris", "stations[].rentalUris");
     }
 
     @Test

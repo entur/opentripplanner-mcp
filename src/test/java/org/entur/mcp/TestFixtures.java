@@ -1,6 +1,14 @@
 package org.entur.mcp;
 
+import io.modelcontextprotocol.spec.McpSchema.CallToolResult;
+import io.modelcontextprotocol.spec.McpSchema.TextContent;
 import org.entur.mcp.model.Location;
+import org.entur.mcp.tools.UiPayload;
+
+import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
 
 /**
  * Test fixtures and utility methods for creating test data
@@ -390,5 +398,136 @@ public class TestFixtures {
                 }]
             }
             """, errorMessage);
+    }
+
+    /** Two vehicles from the same system — exercises the de-duplication hoist. */
+    public static String createMobilityVehiclesResponseTwoSameSystem() {
+        return """
+            {"data":{"vehicles":[
+              {"id":"YVO:Vehicle:1","lat":59.911,"lon":10.750,"isReserved":false,
+               "currentRangeMeters":8000,
+               "system":{"id":"YOS:System:voi",
+                         "name":{"translation":[{"language":"en","value":"Voi"}]},
+                         "operator":{"id":"YOS:Operator:voi",
+                                     "name":{"translation":[{"language":"en","value":"Voi"}]}}},
+               "rentalUris":{"android":"http://a/1","ios":"http://i/1","web":"http://w/1"}},
+              {"id":"YVO:Vehicle:2","lat":59.912,"lon":10.751,"isReserved":false,
+               "currentRangeMeters":6000,
+               "system":{"id":"YOS:System:voi",
+                         "name":{"translation":[{"language":"en","value":"Voi"}]},
+                         "operator":{"id":"YOS:Operator:voi",
+                                     "name":{"translation":[{"language":"en","value":"Voi"}]}}},
+               "rentalUris":{"android":"http://a/2","ios":"http://i/2","web":"http://w/2"}}
+            ]}}""";
+    }
+
+    public static String createMobilityStationsResponseEmpty() {
+        return "{\"data\":{\"stations\":[]}}";
+    }
+
+    /** findNearby-shaped map: one vehicle and one station, each carrying rentalUris. */
+    public static Map<String, Object> createMobilityResponseMapWithRentalUris() {
+        Map<String, Object> vehicle = new HashMap<>();
+        vehicle.put("id", "YVO:Vehicle:1");
+        vehicle.put("lat", 59.911);
+        vehicle.put("lon", 10.750);
+        vehicle.put("currentRangeMeters", 8000);
+        vehicle.put("systemId", "YOS:System:voi");
+        vehicle.put("rentalUris", new HashMap<>(Map.of("web", "http://w/1")));
+
+        Map<String, Object> station = new HashMap<>();
+        station.put("id", "YSB:Station:1");
+        station.put("lat", 59.913);
+        station.put("lon", 10.752);
+        station.put("numVehiclesAvailable", 4);
+        station.put("systemId", "YOS:System:bysykkel");
+        station.put("rentalUris", new HashMap<>(Map.of("web", "http://w/s1")));
+
+        Map<String, Object> root = new HashMap<>();
+        root.put("vehicles", new ArrayList<>(List.of(vehicle)));
+        root.put("stations", new ArrayList<>(List.of(station)));
+        root.put("systems", new HashMap<>());
+        return root;
+    }
+
+    /** Extracts the model-facing JSON text from a tool result. */
+    public static String textOf(CallToolResult result) {
+        return ((TextContent) result.content().get(0)).text();
+    }
+
+    /** Extracts the UI-only payload map, or null when the result carries no _meta. */
+    @SuppressWarnings("unchecked")
+    public static Map<String, Object> uiMetaOf(CallToolResult result) {
+        if (result.meta() == null) {
+            return null;
+        }
+        return (Map<String, Object>) result.meta().get(UiPayload.META_KEY);
+    }
+
+    /** OTP trip response shaped for split assertions: one pattern, one rail leg + one foot leg. */
+    public static Map<String, Object> createTripResponseMapWithGeometry() {
+        Map<String, Object> railLeg = new HashMap<>();
+        railLeg.put("mode", "rail");
+        railLeg.put("expectedStartTime", "2026-08-03T10:00:00+0200");
+        railLeg.put("pointsOnLink", new HashMap<>(Map.of("points", "abcdef")));
+        railLeg.put("intermediateEstimatedCalls",
+            new ArrayList<>(List.of(Map.of("quay", Map.of("latitude", 59.9, "longitude", 10.7)))));
+        railLeg.put("line", new HashMap<>(Map.of(
+            "publicCode", "R11",
+            "presentation", new HashMap<>(Map.of("colour", "FF0000", "textColour", "FFFFFF")))));
+        railLeg.put("serviceJourney", new HashMap<>(Map.of("id", "NSR:ServiceJourney:1")));
+
+        Map<String, Object> footLeg = new HashMap<>();
+        footLeg.put("mode", "foot");
+        footLeg.put("expectedStartTime", "2026-08-03T09:55:00+0200");
+
+        Map<String, Object> pattern = new HashMap<>();
+        pattern.put("duration", 1800);
+        pattern.put("legs", new ArrayList<>(List.of(footLeg, railLeg)));
+
+        Map<String, Object> root = new HashMap<>();
+        root.put("trip", new HashMap<>(Map.of(
+            "tripPatterns", new ArrayList<>(List.of(pattern)))));
+        return root;
+    }
+
+    /** Departure board response with one arrival and one departure, each carrying line colours. */
+    public static Map<String, Object> createDeparturesResponseMapWithPresentation() {
+        Map<String, Object> root = new HashMap<>();
+        root.put("stopPlace", new HashMap<>(Map.of(
+            "id", "NSR:StopPlace:337",
+            "name", "Oslo S",
+            "arrivals", new ArrayList<>(List.of(estimatedCallFixture("R11"))),
+            "departures", new ArrayList<>(List.of(estimatedCallFixture("L1"))))));
+        return root;
+    }
+
+    private static Map<String, Object> estimatedCallFixture(String publicCode) {
+        Map<String, Object> line = new HashMap<>();
+        line.put("publicCode", publicCode);
+        line.put("transportMode", "rail");
+        line.put("presentation", new HashMap<>(Map.of("colour", "FF0000", "textColour", "FFFFFF")));
+
+        Map<String, Object> call = new HashMap<>();
+        call.put("expectedDepartureTime", "2026-08-03T10:00:00+0200");
+        call.put("serviceJourney", new HashMap<>(Map.of(
+            "id", "NSR:ServiceJourney:1", "line", line)));
+        return call;
+    }
+
+    /** Nearest-stops response with one stop carrying coordinates and one call with line colours. */
+    public static Map<String, Object> createNearbyStopsResponseMapWithPresentation() {
+        Map<String, Object> place = new HashMap<>();
+        place.put("id", "NSR:StopPlace:337");
+        place.put("name", "Oslo S");
+        place.put("latitude", 59.911491);
+        place.put("longitude", 10.750500);
+        place.put("estimatedCalls", new ArrayList<>(List.of(estimatedCallFixture("R11"))));
+
+        Map<String, Object> node = new HashMap<>(Map.of("distance", 120.0, "place", place));
+        Map<String, Object> root = new HashMap<>();
+        root.put("nearest", new HashMap<>(Map.of(
+            "edges", new ArrayList<>(List.of(new HashMap<>(Map.of("node", node)))))));
+        return root;
     }
 }

@@ -1,5 +1,7 @@
 package org.entur.mcp.services;
 
+import com.fasterxml.jackson.databind.JsonNode;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import mockwebserver3.MockResponse;
 import mockwebserver3.MockWebServer;
 import mockwebserver3.RecordedRequest;
@@ -55,7 +57,7 @@ class OtpSearchServiceTest {
     @DisplayName("Should throw ValidationException when from is null")
     void handleTripRequest_withNullFrom_shouldThrowValidationException() {
         assertThatThrownBy(() ->
-            otpSearchService.handleTripRequest(null, "Asker", null, null, 3))
+            otpSearchService.handleTripRequest(null, "Asker", null, null, 3, null))
             .isInstanceOf(ValidationException.class)
             .hasMessageContaining("from cannot be null or empty");
     }
@@ -64,7 +66,7 @@ class OtpSearchServiceTest {
     @DisplayName("Should throw ValidationException when to is null")
     void handleTripRequest_withNullTo_shouldThrowValidationException() {
         assertThatThrownBy(() ->
-            otpSearchService.handleTripRequest("Oslo", null, null, null, 3))
+            otpSearchService.handleTripRequest("Oslo", null, null, null, 3, null))
             .isInstanceOf(ValidationException.class)
             .hasMessageContaining("to cannot be null or empty");
     }
@@ -74,7 +76,7 @@ class OtpSearchServiceTest {
     void handleTripRequest_withBothDateTimes_shouldThrowValidationException() {
         assertThatThrownBy(() ->
             otpSearchService.handleTripRequest("Oslo", "Asker",
-                "2023-05-26T10:00:00", "2023-05-26T14:00:00", 3))
+                "2023-05-26T10:00:00", "2023-05-26T14:00:00", 3, null))
             .isInstanceOf(ValidationException.class)
             .hasMessageContaining("Cannot specify both departureTime and arrivalTime");
     }
@@ -96,7 +98,7 @@ class OtpSearchServiceTest {
 
         // Act
         Map<String, Object> result = otpSearchService.handleTripRequest(
-            "Oslo S", "Asker", null, null, 3);
+            "Oslo S", "Asker", null, null, 3, null);
 
         // Assert
         assertThat(result).isNotNull();
@@ -118,7 +120,7 @@ class OtpSearchServiceTest {
             .body(TestFixtures.createOtpTripResponse()).build());
 
         // Act
-        otpSearchService.handleTripRequest("Oslo", "Asker", "2023-05-26T10:00:00", null, 3);
+        otpSearchService.handleTripRequest("Oslo", "Asker", "2023-05-26T10:00:00", null, 3, null);
 
         // Assert
         RecordedRequest request = mockWebServer.takeRequest();
@@ -141,7 +143,7 @@ class OtpSearchServiceTest {
             .body(TestFixtures.createOtpTripResponse()).build());
 
         // Act
-        otpSearchService.handleTripRequest("Oslo", "Asker", null, "2023-05-26T14:00:00", 3);
+        otpSearchService.handleTripRequest("Oslo", "Asker", null, "2023-05-26T14:00:00", 3, null);
 
         // Assert
         RecordedRequest request = mockWebServer.takeRequest();
@@ -164,7 +166,7 @@ class OtpSearchServiceTest {
             .body(TestFixtures.createOtpTripResponse()).build());
 
         // Act
-        otpSearchService.handleTripRequest("Oslo", "Asker", null, null, null);
+        otpSearchService.handleTripRequest("Oslo", "Asker", null, null, null, null);
 
         // Assert
         RecordedRequest request = mockWebServer.takeRequest();
@@ -185,7 +187,7 @@ class OtpSearchServiceTest {
 
         // Act & Assert
         assertThatThrownBy(() ->
-            otpSearchService.handleTripRequest("Oslo", "Asker", null, null, 3))
+            otpSearchService.handleTripRequest("Oslo", "Asker", null, null, 3, null))
             .isInstanceOf(TripPlanningException.class)
             .hasMessageContaining("Failed to geocode location");
     }
@@ -201,7 +203,7 @@ class OtpSearchServiceTest {
 
         // Act & Assert
         assertThatThrownBy(() ->
-            otpSearchService.handleTripRequest("Oslo", "Asker", null, null, 3))
+            otpSearchService.handleTripRequest("Oslo", "Asker", null, null, 3, null))
             .isInstanceOf(TripPlanningException.class)
             .hasMessageContaining("Failed to geocode location");
     }
@@ -219,7 +221,7 @@ class OtpSearchServiceTest {
 
         // Act & Assert
         assertThatThrownBy(() ->
-            otpSearchService.handleTripRequest("Oslo", "Asker", null, null, 3))
+            otpSearchService.handleTripRequest("Oslo", "Asker", null, null, 3, null))
             .isInstanceOf(TripPlanningException.class)
             .hasMessageContaining("status 500");
     }
@@ -237,7 +239,7 @@ class OtpSearchServiceTest {
 
         // Act & Assert
         assertThatThrownBy(() ->
-            otpSearchService.handleTripRequest("Oslo", "Asker", null, null, 3))
+            otpSearchService.handleTripRequest("Oslo", "Asker", null, null, 3, null))
             .isInstanceOf(TripPlanningException.class)
             .hasMessageContaining("Trip planning query failed");
     }
@@ -255,7 +257,7 @@ class OtpSearchServiceTest {
 
         // Act & Assert
         assertThatThrownBy(() ->
-            otpSearchService.handleTripRequest("Oslo", "Asker", null, null, 3))
+            otpSearchService.handleTripRequest("Oslo", "Asker", null, null, 3, null))
             .isInstanceOf(TripPlanningException.class)
             .hasMessageContaining("No trip data returned from API");
     }
@@ -273,7 +275,7 @@ class OtpSearchServiceTest {
 
         // Act & Assert
         assertThatThrownBy(() ->
-            otpSearchService.handleTripRequest("Oslo", "Asker", null, null, 3))
+            otpSearchService.handleTripRequest("Oslo", "Asker", null, null, 3, null))
             .isInstanceOf(TripPlanningException.class)
             .hasMessageContaining("Invalid response format");
     }
@@ -290,7 +292,7 @@ class OtpSearchServiceTest {
             .body(TestFixtures.createOtpTripResponse()).build());
 
         // Act
-        otpSearchService.handleTripRequest("Oslo", "Asker", null, null, 3);
+        otpSearchService.handleTripRequest("Oslo", "Asker", null, null, 3, null);
 
         // Assert
         RecordedRequest request = mockWebServer.takeRequest();
@@ -313,7 +315,7 @@ class OtpSearchServiceTest {
             .body(TestFixtures.createOtpTripResponse()).build());
 
         // Act
-        otpSearchService.handleTripRequest("Oslo S", "Asker", null, null, 3);
+        otpSearchService.handleTripRequest("Oslo S", "Asker", null, null, 3, null);
 
         // Assert
         RecordedRequest request = mockWebServer.takeRequest();
@@ -338,7 +340,7 @@ class OtpSearchServiceTest {
             .body(TestFixtures.createOtpTripResponse()).build());
 
         // Act
-        otpSearchService.handleTripRequest("Oslo", "Asker", null, null, 3);
+        otpSearchService.handleTripRequest("Oslo", "Asker", null, null, 3, null);
 
         // Assert
         RecordedRequest request = mockWebServer.takeRequest();
@@ -363,7 +365,7 @@ class OtpSearchServiceTest {
             .body(TestFixtures.createOtpTripResponse()).build());
 
         // Act
-        otpSearchService.handleTripRequest("Oslo", "Asker", null, null, 3);
+        otpSearchService.handleTripRequest("Oslo", "Asker", null, null, 3, null);
 
         // Assert
         RecordedRequest request = mockWebServer.takeRequest();
@@ -386,7 +388,7 @@ class OtpSearchServiceTest {
             .body(TestFixtures.createOtpTripResponse()).build());
 
         // Act
-        otpSearchService.handleTripRequest("Oslo", "Asker", null, null, 3);
+        otpSearchService.handleTripRequest("Oslo", "Asker", null, null, 3, null);
 
         // Assert
         RecordedRequest request = mockWebServer.takeRequest();
@@ -428,6 +430,16 @@ class OtpSearchServiceTest {
         assertThat(requestBody).contains("departures:");
         assertThat(requestBody).contains("arrivalDeparture: arrivals");
         assertThat(requestBody).contains("arrivalDeparture: departures");
+    }
+
+    @Test
+    @DisplayName("Should reject an invalid transport mode before calling OTP")
+    void handleDepartureBoardRequest_withInvalidMode_shouldThrowValidationException() {
+        assertThatThrownBy(() ->
+            otpSearchService.handleDepartureBoardRequest(
+                "NSR:StopPlace:337", 10, null, 60, List.of("hovercraft")))
+            .isInstanceOf(ValidationException.class)
+            .hasMessageContaining("hovercraft");
     }
 
     // ==================== Situations Tests ====================
@@ -555,6 +567,15 @@ class OtpSearchServiceTest {
     }
 
     @Test
+    @DisplayName("Should reject an invalid transport mode before calling OTP")
+    void handleNearbyStopsRequest_withInvalidMode_shouldThrowValidationException() {
+        assertThatThrownBy(() ->
+            otpSearchService.handleNearbyStopsRequest(59.911, 10.748, 500, 10, List.of("hovercraft")))
+            .isInstanceOf(ValidationException.class)
+            .hasMessageContaining("hovercraft");
+    }
+
+    @Test
     @DisplayName("Should include estimatedCalls in the query")
     void handleNearbyStopsRequest_queryIncludesEstimatedCalls() throws Exception {
         mockWebServer.enqueue(new MockResponse.Builder()
@@ -594,7 +615,7 @@ class OtpSearchServiceTest {
             .code(200)
             .body(TestFixtures.createOtpTripResponse()).build());
 
-        otpSearchService.handleTripRequest("Oslo", "Asker", null, null, 1);
+        otpSearchService.handleTripRequest("Oslo", "Asker", null, null, 1, null);
 
         RecordedRequest request = mockWebServer.takeRequest();
         assert request.getBody() != null;
@@ -640,5 +661,92 @@ class OtpSearchServiceTest {
         assertThat(requestBody).contains("empiricalDelay");
         assertThat(requestBody).contains("p50");
         assertThat(requestBody).contains("p90");
+    }
+
+    // ==================== Transport Modes Filter Tests ====================
+
+    @Test
+    @DisplayName("Should emit no modes block when transportModes is null")
+    void handleTripRequest_withoutModes_emitsNoModesBlock() throws Exception {
+        when(geocoderService.geocodeIfNeeded(anyString()))
+            .thenReturn(TestFixtures.createOsloLocation());
+        mockWebServer.enqueue(new MockResponse.Builder()
+            .code(200).body(TestFixtures.createOtpTripResponse()).build());
+
+        otpSearchService.handleTripRequest("Oslo", "Asker", null, null, 3, null);
+
+        RecordedRequest request = mockWebServer.takeRequest();
+        assert request.getBody() != null;
+        assertThat(request.getBody().utf8()).doesNotContain("modes:");
+    }
+
+    @Test
+    @DisplayName("Should render exactly one blank line for the optional-params placeholder when unfiltered")
+    void handleTripRequest_withoutOptionalParams_rendersExactlyOneBlankLine() throws Exception {
+        // Pins the unfiltered query shape at the whitespace level: a substring check like
+        // doesNotContain("modes:") cannot see an extra blank line introduced by a second
+        // %s placeholder. Before this filter existed, an unfiltered request (no dateTime,
+        // no transportModes) rendered exactly one blank (whitespace-only) line where the
+        // single optional-params placeholder sat empty. That must still hold.
+        when(geocoderService.geocodeIfNeeded(anyString()))
+            .thenReturn(TestFixtures.createOsloLocation());
+        mockWebServer.enqueue(new MockResponse.Builder()
+            .code(200).body(TestFixtures.createOtpTripResponse()).build());
+
+        otpSearchService.handleTripRequest("Oslo", "Asker", null, null, 3, null);
+
+        RecordedRequest request = mockWebServer.takeRequest();
+        assert request.getBody() != null;
+        JsonNode requestJson = new ObjectMapper().readTree(request.getBody().utf8());
+        String query = requestJson.get("query").asText();
+
+        long blankLines = query.lines().filter(String::isBlank).count();
+        assertThat(blankLines).isEqualTo(1);
+    }
+
+    @Test
+    @DisplayName("Should emit all four mode fields when transportModes is provided")
+    void handleTripRequest_withModes_emitsStreetModesAndTransportModes() throws Exception {
+        when(geocoderService.geocodeIfNeeded(anyString()))
+            .thenReturn(TestFixtures.createOsloLocation());
+        mockWebServer.enqueue(new MockResponse.Builder()
+            .code(200).body(TestFixtures.createOtpTripResponse()).build());
+
+        otpSearchService.handleTripRequest("Oslo", "Asker", null, null, 3, List.of("rail"));
+
+        RecordedRequest request = mockWebServer.takeRequest();
+        assert request.getBody() != null;
+        String body = request.getBody().utf8();
+
+        // All four are mandatory: omitting the street modes returns zero trip patterns.
+        assertThat(body).contains("accessMode: foot");
+        assertThat(body).contains("egressMode: foot");
+        assertThat(body).contains("directMode: foot");
+        assertThat(body).contains("transportModes: [{transportMode: rail}]");
+    }
+
+    @Test
+    @DisplayName("Should emit multiple transport modes as separate entries")
+    void handleTripRequest_withMultipleModes_emitsEachEntry() throws Exception {
+        when(geocoderService.geocodeIfNeeded(anyString()))
+            .thenReturn(TestFixtures.createOsloLocation());
+        mockWebServer.enqueue(new MockResponse.Builder()
+            .code(200).body(TestFixtures.createOtpTripResponse()).build());
+
+        otpSearchService.handleTripRequest("Oslo", "Asker", null, null, 3, List.of("rail", "bus"));
+
+        RecordedRequest request = mockWebServer.takeRequest();
+        assert request.getBody() != null;
+        assertThat(request.getBody().utf8())
+            .contains("transportModes: [{transportMode: rail}, {transportMode: bus}]");
+    }
+
+    @Test
+    @DisplayName("Should reject an invalid transport mode before calling OTP")
+    void handleTripRequest_withInvalidMode_shouldThrowValidationException() {
+        assertThatThrownBy(() ->
+            otpSearchService.handleTripRequest("Oslo", "Asker", null, null, 3, List.of("hovercraft")))
+            .isInstanceOf(ValidationException.class)
+            .hasMessageContaining("hovercraft");
     }
 }

@@ -23,6 +23,10 @@ public class InputValidator {
         "HUMAN", "ELECTRIC_ASSIST", "ELECTRIC", "COMBUSTION",
         "COMBUSTION_DIESEL", "HYBRID", "PLUG_IN_HYBRID", "HYDROGEN_FUEL_CELL"
     );
+    private static final Set<String> VALID_TRANSPORT_MODES = Set.of(
+        "air", "bus", "cableway", "water", "funicular", "lift", "rail",
+        "metro", "taxi", "tram", "trolleybus", "monorail", "coach", "unknown"
+    );
     private static final int MIN_RESULTS = 1;
     private static final int MAX_TIME_RANGE_MINUTES = 1440; // 24 hours
     private static final int MIN_TIME_RANGE_MINUTES = 1;
@@ -141,6 +145,26 @@ public class InputValidator {
         if (!invalid.isEmpty()) {
             throw new ValidationException(fieldName,
                 String.format("Invalid %s values: %s. Valid values: %s", fieldName, invalid, allowed));
+        }
+        return normalized;
+    }
+
+    public static List<String> validateTransportModes(List<String> transportModes) {
+        if (transportModes == null) return null;
+        if (transportModes.isEmpty()) return transportModes;
+
+        List<String> normalized = transportModes.stream()
+            .map(v -> v == null ? "" : v.trim().toLowerCase())
+            .collect(Collectors.toList());
+
+        List<String> invalid = normalized.stream()
+            .filter(v -> !VALID_TRANSPORT_MODES.contains(v))
+            .collect(Collectors.toList());
+
+        if (!invalid.isEmpty()) {
+            throw new ValidationException("transportModes",
+                String.format("Invalid transportModes values: %s. Valid values: %s",
+                    invalid, VALID_TRANSPORT_MODES));
         }
         return normalized;
     }
