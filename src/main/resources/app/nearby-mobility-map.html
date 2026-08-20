@@ -3,33 +3,68 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="color-scheme" content="light dark">
     <title>Nearby Mobility</title>
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
+    <!--ENTUR_TOKENS-->
     <style>
         * { margin: 0; padding: 0; box-sizing: border-box; }
-        body { font-family: inherit; font-size: 14px; display: flex; flex-direction: column; height: 100vh; overflow: hidden; background: #12121e; color: #e0e0e0; }
+        body { font-family: Arial, Helvetica, sans-serif; font-size: var(--font-sizes-medium);
+               display: flex; flex-direction: column; height: 100vh; overflow: hidden;
+               background: var(--basecolors-frame-default); color: var(--basecolors-text-accent); }
         #map { height: clamp(260px, 55vh, 600px); flex-shrink: 0; position: relative; }
-        #card-strip { flex: 1; background: #1a1a2e; display: flex; overflow-x: auto; border-top: 2px solid #0f3460; scrollbar-width: thin; scrollbar-color: #0f3460 #1a1a2e; }
-        .mob-card { min-width: 220px; flex-shrink: 0; padding: 12px 14px; border-right: 1px solid #0f3460; display: flex; flex-direction: column; gap: 4px; cursor: pointer; transition: background 0.1s; }
-        .mob-card:hover { background: #16213e; }
-        .mob-card.active { background: #1e2a4a; }
+        #card-strip { flex: 1; background: var(--basecolors-frame-tint); display: flex; overflow-x: auto;
+                      border-top: var(--border-widths-medium) solid var(--basecolors-stroke-subdued);
+                      scrollbar-width: thin;
+                      scrollbar-color: var(--basecolors-shape-subdued) var(--basecolors-frame-tint); }
+        .mob-card { min-width: 220px; flex-shrink: 0; padding: 12px 14px;
+                    border-right: var(--border-widths-small) solid var(--basecolors-stroke-subdued);
+                    display: flex; flex-direction: column; gap: 4px; cursor: pointer;
+                    transition: background var(--timings-fast); }
+        .mob-card:hover { background: var(--basecolors-frame-subdued); }
+        .mob-card.active { background: var(--basecolors-frame-subdued);
+                           box-shadow: inset var(--border-widths-large) 0 0 0 var(--basecolors-shape-highlight); }
+        .mob-card:focus-visible { outline: none; box-shadow: var(--shadows-focus); }
         .mob-card-header { display: flex; align-items: center; gap: 6px; }
         .mob-icon { width: 18px; height: 18px; border-radius: 50%; flex-shrink: 0; }
-        .mob-icon.bike { background: #27ae60; }
-        .mob-icon.scooter { background: #e67e22; }
-        .mob-icon.car { background: #3498db; }
-        .mob-icon.moped { background: #9b59b6; }
-        .mob-icon.station { background: #16a085; border: 2px solid #fff; }
-        .mob-icon.other { background: #7f8c8d; }
-        .mob-name { font-weight: 700; color: #fff; font-size: 12px; flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-        .mob-distance { color: #888; font-size: 10px; flex-shrink: 0; }
-        .mob-operator { color: #aaa; font-size: 11px; }
-        .mob-range { color: #ddd; font-size: 11px; }
-        .mob-availability { color: #ddd; font-size: 11px; }
-        .mob-rental-link { display: inline-block; margin-top: 4px; font-size: 11px; color: #4aa3ff; text-decoration: underline; cursor: pointer; }
-        .map-overlay { position: absolute; z-index: 1000; background: rgba(22,33,62,0.92); color: #fff; padding: 5px 10px; border-radius: 5px; font-size: 11px; pointer-events: none; }
-        .status-card { min-width: 220px; padding: 12px 14px; color: #888; font-size: 12px; display: flex; align-items: center; }
+        /* Shared mobility is one brand colour in Linje; stations get a ring to set them apart. */
+        .mob-icon.bike,
+        .mob-icon.scooter,
+        .mob-icon.moped { background: var(--basecolors-shape-mobility-default); }
+        .mob-icon.car { background: var(--basecolors-shape-taxi-default); }
+        .mob-icon.station { background: var(--basecolors-shape-mobility-default);
+                            border: var(--border-widths-medium) solid var(--basecolors-stroke-light); }
+        .mob-icon.other { background: var(--basecolors-shape-subdued); }
+        .mob-name { font-weight: 700; color: var(--basecolors-text-accent); font-size: var(--font-sizes-small);
+                    flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+        .mob-distance { color: var(--basecolors-text-subdued); font-size: var(--font-sizes-extra-small); flex-shrink: 0; }
+        .mob-operator { color: var(--basecolors-text-subdued); font-size: var(--font-sizes-small); }
+        .mob-range { color: var(--basecolors-text-accent); font-size: var(--font-sizes-small); }
+        .mob-availability { color: var(--basecolors-text-accent); font-size: var(--font-sizes-small); }
+        .mob-rental-link { display: inline-block; margin-top: 4px; font-size: var(--font-sizes-small);
+                           color: var(--basecolors-text-highlight); text-decoration: underline; cursor: pointer; }
+        .mob-rental-link:focus-visible { outline: none; box-shadow: var(--shadows-focus); }
+        .map-overlay { position: absolute; z-index: var(--z-indexes-popover);
+                       background: var(--basecolors-frame-elevated); color: var(--basecolors-text-accent);
+                       padding: 5px 10px; border-radius: var(--border-radiuses-medium);
+                       box-shadow: var(--shadows-card-shadow);
+                       font-size: var(--font-sizes-small); pointer-events: none; }
+        .status-card { min-width: 220px; padding: 12px 14px; color: var(--basecolors-text-subdued);
+                       font-size: var(--font-sizes-small); display: flex; align-items: center; }
         .leaflet-popup-content { min-width: 160px; }
+
+        /* Leaflet renders its own light-themed surfaces; pull them onto the token palette. */
+        .leaflet-popup-content-wrapper, .leaflet-popup-tip,
+        .leaflet-control-zoom a, .leaflet-control-attribution {
+            background: var(--basecolors-frame-elevated); color: var(--basecolors-text-accent);
+        }
+        .leaflet-control-zoom a { border-color: var(--basecolors-stroke-subdued); }
+        .leaflet-control-attribution a { color: var(--basecolors-text-subdued); }
+        /* OSM raster tiles have no dark variant; damp them so markers stay readable. */
+        :root[data-color-mode="dark"] .leaflet-tile-pane { filter: invert(1) hue-rotate(180deg) brightness(0.85) contrast(0.9); }
+        @media (prefers-color-scheme: dark) {
+            :root:not([data-color-mode="light"]) .leaflet-tile-pane { filter: invert(1) hue-rotate(180deg) brightness(0.85) contrast(0.9); }
+        }
     </style>
 </head>
 <body>
@@ -41,6 +76,29 @@
         import { App } from "https://unpkg.com/@modelcontextprotocol/ext-apps@0.4.2/dist/src/app-with-deps.js";
 
         const app = new App({ name: "nearby-mobility", version: "1.0.0" });
+
+        // --- Entur colour mode ------------------------------------------------
+        // Linje tokens key off data-color-mode on <html>. With the attribute absent the
+        // prefers-color-scheme block in entur-tokens.css decides, so the app is themed
+        // correctly before the host has reported anything.
+        function applyColorMode(theme) {
+            const root = document.documentElement;
+            if (theme === 'dark' || theme === 'light') root.setAttribute('data-color-mode', theme);
+            else root.removeAttribute('data-color-mode');
+        }
+
+        // Leaflet writes colours into SVG presentation attributes, which do not accept
+        // var(), so vector layers need the token resolved to a concrete value.
+        function cssVar(name) {
+            return getComputedStyle(document.documentElement).getPropertyValue(name).trim();
+        }
+
+        // Leaflet layers bake in resolved colours, so a colour-mode change needs a re-render.
+        let lastResult = null;
+        function onColorModeChange() {
+            if (lastResult) applyToolResult(lastResult);
+        }
+        matchMedia('(prefers-color-scheme: dark)').addEventListener('change', onColorModeChange);
         let leafletMap = null;
         let originMarker = null;
         let radiusCircle = null;
@@ -137,11 +195,23 @@
             return 'other';
         }
 
+        // Shared mobility is a single transport colour in Linje, so vehicle classes share it
+        // and shape (ring, size) carries the vehicle/station distinction instead.
+        const ICON_TOKENS = {
+            bike: '--basecolors-shape-mobility-default',
+            scooter: '--basecolors-shape-mobility-default',
+            moped: '--basecolors-shape-mobility-default',
+            station: '--basecolors-shape-mobility-default',
+            car: '--basecolors-shape-taxi-default',
+            other: '--basecolors-shape-subdued',
+        };
+
         function colorForIcon(cls) {
-            return ({
-                bike: '#27ae60', scooter: '#e67e22', car: '#3498db',
-                moped: '#9b59b6', station: '#16a085', other: '#7f8c8d',
-            })[cls] || '#7f8c8d';
+            return `var(${ICON_TOKENS[cls] || ICON_TOKENS.other})`;
+        }
+
+        function resolvedColorForIcon(cls) {
+            return cssVar(ICON_TOKENS[cls] || ICON_TOKENS.other);
         }
 
         function translatedString(ts, fallback) {
@@ -174,10 +244,11 @@
             if (radiusCircle) leafletMap.removeLayer(radiusCircle);
 
             originMarker = L.circleMarker([originLat, originLon], {
-                radius: 7, color: '#e74c3c', fillColor: '#e74c3c', fillOpacity: 1, weight: 2,
+                radius: 7, color: cssVar('--basecolors-shape-highlight'),
+                fillColor: cssVar('--basecolors-shape-highlight'), fillOpacity: 1, weight: 2,
             }).bindPopup(t('origin') + ': ' + originName).addTo(leafletMap);
             radiusCircle = L.circle([originLat, originLon], {
-                radius, color: '#0f3460', weight: 1, dashArray: '4 6', fillOpacity: 0.05,
+                radius, color: cssVar('--basecolors-shape-accent'), weight: 1, dashArray: '4 6', fillOpacity: 0.05,
             }).addTo(leafletMap);
 
             const bounds = L.latLngBounds([[originLat, originLon]]);
@@ -185,7 +256,7 @@
             vehicles.forEach(v => {
                 const cls = iconClassForFormFactor(v?.vehicleType?.formFactor);
                 const m = L.circleMarker([v.lat, v.lon], {
-                    radius: 6, color: colorForIcon(cls), fillColor: colorForIcon(cls),
+                    radius: 6, color: resolvedColorForIcon(cls), fillColor: resolvedColorForIcon(cls),
                     fillOpacity: 0.9, weight: 1,
                 }).addTo(leafletMap);
                 markers.push(m);
@@ -195,7 +266,7 @@
             stations.forEach(s => {
                 const cls = iconClassForFormFactor(dominantFormFactor(s));
                 const m = L.circleMarker([s.lat, s.lon], {
-                    radius: 9, color: '#fff', fillColor: colorForIcon(cls),
+                    radius: 9, color: cssVar('--basecolors-stroke-light'), fillColor: resolvedColorForIcon(cls),
                     fillOpacity: 0.95, weight: 2,
                 }).addTo(leafletMap);
                 markers.push(m);
@@ -277,7 +348,7 @@
                     const url = rentalUrl(item.data.rentalUris);
                     card.innerHTML = `
                         <div class="mob-card-header">
-                            <span class="mob-icon ${iconCls}" style="background:${colorForIcon(iconClassForFormFactor(ff))}; border-color:#fff;"></span>
+                            <span class="mob-icon ${iconCls}" style="background:${colorForIcon(iconClassForFormFactor(ff))}; border-color:var(--basecolors-stroke-light);"></span>
                             <span class="mob-name">${name}</span>
                             <span class="mob-distance">${item.data.distanceMeters ?? 0}m</span>
                         </div>
@@ -319,7 +390,7 @@
             }
         }
 
-        app.ontoolresult = (result) => {
+        function applyToolResult(result) {
             try {
                 const raw = result?.content?.find(c => c.type === "text")?.text;
                 if (!raw) return;
@@ -346,9 +417,22 @@
             } catch (err) {
                 showError(t('parse_error', err.message || String(err)));
             }
+        }
+
+        app.ontoolresult = (result) => {
+            lastResult = result;
+            applyToolResult(result);
+        };
+
+        app.onhostcontextchanged = (ctx) => {
+            if (ctx && 'theme' in ctx) {
+                applyColorMode(ctx.theme);
+                onColorModeChange();
+            }
         };
 
         await app.connect();
+        applyColorMode(app.getHostContext()?.theme);
     </script>
 </body>
 </html>

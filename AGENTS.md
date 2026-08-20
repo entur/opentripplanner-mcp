@@ -41,7 +41,10 @@ UI apps (src/main/resources/app/)
     ├── departures-board.html     → departure board (served via @McpResource)
     ├── trip-map.html             → trip options viewer (served via @McpResource)
     ├── nearby-stops-map.html     → nearby stops viewer (served via @McpResource)
-    └── nearby-mobility-map.html  → shared-mobility viewer (served via @McpResource)
+    ├── nearby-mobility-map.html  → shared-mobility viewer (served via @McpResource)
+    ├── entur-tokens.css          → vendored Entur Linje design tokens (generated)
+    └── entur-travel.css          → vendored Entur Linje travel components (generated)
+AppHtmlLoader.java                → inlines the vendored CSS into each app at serve time
 ```
 
 **Eight MCP tools** (6 model-visible + 2 app-only):
@@ -67,6 +70,53 @@ UI apps (src/main/resources/app/)
 - `MetaProvider` inner classes set `_meta.ui` (resourceUri, csp, visibility)
 - App-only tools use `AppOnlyMeta` → `_meta.ui.visibility: ["app"]`
 - UI apps are plain HTML files served as classpath resources (no build step)
+- **Design tokens:** the apps style against Entur Linje tokens (https://linje.entur.no). Only
+  `@entur/tokens` is vendored — plain CSS custom properties, framework-agnostic. The React
+  `@entur/*` component packages are deliberately NOT used; there is no build step to consume them.
+- `@entur/travel` is also vendored, giving `trip` and `departures` the real TravelHeader,
+  TravelTag and LegBone rather than hand-rolled lookalikes. Its `.eds-*` class names are an
+  implementation detail, not a public API, so the version is pinned and an upgrade needs the
+  rendered output checked. Colour is passed through the components' own `--background-color` /
+  `--text-color` custom properties, which is the stable half of the contract.
+- Both files are **generated — do not hand-edit**. Regenerate with `scripts/update-entur-css.py`,
+  which inlines the packages' bare-specifier `@import`s (browsers cannot resolve them), derives a
+  `prefers-color-scheme` fallback, strips each component package's duplicated copy of the base
+  tokens, and adds an `--app-feedback-*` layer for the mode-aware surfaces Linje only ships in
+  `@entur/alert`.
+- Stylesheets are inlined by `AppHtmlLoader` at markers in each app's `<head>`:
+  `<!--ENTUR_TOKENS-->` in all four, `<!--ENTUR_TRAVEL-->` in `trip-map` and `departures-board`.
+  A relative `<link>` cannot be used: the host renders the app in a sandboxed iframe with no origin
+  to resolve against.
+- `scripts/preview-apps.py` renders the apps in a normal browser (light and dark) using real tool
+  results pulled over `/mcp`, which is the only practical way to eyeball UI changes.
+- **Colour mode:** apps set `data-color-mode` on `<html>` from `app.getHostContext()?.theme` and keep
+  it current via `app.onhostcontextchanged`. With no attribute, the generated `prefers-color-scheme`
+  block decides, so theming works before the host reports anything and without JS.
+- Token rules worth knowing, all enforced by `EnturCssTest`:
+  - Only `--basecolors-*` are mode-aware. `--colors-validation-*` and its `-tint`/`-contrast`
+    variants are fixed light-mode values — use `--app-feedback-*-fill` / `--app-feedback-*-text`.
+  - Transport fills are saturated in light mode and pastel in dark, so labels on them use
+    `--basecolors-frame-default` (inverts with the surface), never `--basecolors-text-light`.
+  - Leaflet writes colours into SVG presentation attributes, which do not accept `var()`. Vector
+    layers resolve tokens through the local `cssVar()` helper and re-render on colour-mode change.
+  - TravelTag fills are named after OTP's own mode strings
+    (`--components-travel-traveltag-standard-fill-{bus,rail,water,air,…}`), so most of the mode
+    mapping is a pass-through; `coach`→`bus`, `subway`→`metro`, `foot`→`walk`.
+- An empty `trip` result carries a top-level `noTripsFound` advisory telling the model the
+  query was valid and that repeating it changes nothing. Without it the model sees a bare empty
+  array, re-issues the same search, and each retry renders another UI card. The apps set no
+  `min-height` for the same reason: the host sizes the iframe from the content, so a no-results
+  answer collapses to a line rather than a screenful.
+- When a search with a `departureTime` finds nothing, `OtpSearchService` re-asks once with an
+  explicit `searchWindow: 1440` and reports `nextDepartureTime`. OTP's default window is short
+  and adaptive, so an overnight gap simply returns nothing; a day-long window finds the far side
+  of it. Deliberately a second request rather than a wider first one, which would slow the
+  common case that already has results. It is best-effort: a failure there must not turn a valid
+  empty result into an error. The trip UI offers the time as a button that re-plans via
+  `poll-trip`.
+- `trip` renders service disruptions: a banner per affected leg in the expanded card and a count on
+  every option. OTP returns each summary in all languages and repeats a disruption across every leg
+  it touches, so the app picks by `language` and de-duplicates on `situationNumber`.
 - Client-side `App` from `@modelcontextprotocol/ext-apps@0.4.2` (unpkg) handles `ontoolresult`, `callServerTool`
 - `resolveStopId()` passes through `NSR:StopPlace:*`/`NSR:Quay:*` IDs, geocodes everything else
 - `geocodeIfNeeded()` parses `"lat,lng"` coordinates or falls back to geocoder API

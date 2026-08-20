@@ -23,10 +23,10 @@ import org.springframework.core.io.Resource;
 import org.springframework.stereotype.Component;
 
 import java.io.IOException;
-import java.nio.charset.Charset;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 
 @Component
 public class TripSearchTool {
@@ -44,6 +44,7 @@ public class TripSearchTool {
 
     private final OtpSearchService otpSearchService;
     private final GeocoderService geocoderService;
+    private final AppHtmlLoader appHtmlLoader;
     private final String vehiclesWsUrl;
 
     public static final class DeparturesUiMeta implements MetaProvider {
@@ -107,10 +108,12 @@ public class TripSearchTool {
     public TripSearchTool(
             @Autowired OtpSearchService otpSearchService,
             @Autowired GeocoderService geocoderService,
+            @Autowired AppHtmlLoader appHtmlLoader,
             @Value("${org.entur.vehicles.ws.url}") String vehiclesWsUrl
     ) {
         this.otpSearchService = otpSearchService;
         this.geocoderService = geocoderService;
+        this.appHtmlLoader = appHtmlLoader;
         this.vehiclesWsUrl = vehiclesWsUrl;
     }
 
@@ -148,6 +151,8 @@ public class TripSearchTool {
             wrapped.put("query", query);
             wrapped.put("vehiclesWsUrl", vehiclesWsUrl);
             wrapped.put("language", LanguageUtil.normalize(language));
+            noTripsAdvice(response, departureTime, arrivalTime)
+                .ifPresent(advice -> wrapped.put("noTripsFound", advice));
             return UiPayload.split(wrapped, objectMapper,
                 "trip.tripPatterns[].legs[].pointsOnLink",
                 "trip.tripPatterns[].legs[].intermediateEstimatedCalls",
@@ -403,7 +408,7 @@ public class TripSearchTool {
         metaProvider = TripSearchTool.DeparturesCspMeta.class
     )
     public String getDeparturesBoardResource() throws IOException {
-        return departuresBoardHtml.getContentAsString(Charset.defaultCharset());
+        return appHtmlLoader.load(departuresBoardHtml);
     }
 
     @McpTool(
@@ -429,7 +434,7 @@ public class TripSearchTool {
         metaProvider = TripSearchTool.TripCspMeta.class
     )
     public String getTripMapResource() throws IOException {
-        return tripMapHtml.getContentAsString(Charset.defaultCharset());
+        return appHtmlLoader.load(tripMapHtml);
     }
 
     @McpResource(
@@ -439,7 +444,7 @@ public class TripSearchTool {
         metaProvider = TripSearchTool.NearbyStopsCspMeta.class
     )
     public String getNearbyStopsMapResource() throws IOException {
-        return nearbyStopsMapHtml.getContentAsString(Charset.defaultCharset());
+        return appHtmlLoader.load(nearbyStopsMapHtml);
     }
 
     @McpTool(
@@ -462,6 +467,62 @@ public class TripSearchTool {
     /**
      * Helper method to convert ErrorResponse to JSON string
      */
+    /**
+     * Advice for the model when a search returns no trips.
+     *
+     * <p>An empty result is a valid answer, not an error, but on its own it is an empty
+     * array with no explanation - so the model cannot tell a badly formed query from a
+     * time when nothing runs, and re-issues the same search. Each retry renders another
+     * empty UI card. Saying plainly that the query was understood and that repeating it
+     * changes nothing is what stops the loop.
+     *
+     * @return the advice, or empty when the search did in fact return trips
+     */
+    @SuppressWarnings("unchecked")
+    private static Optional<Map<String, Object>> noTripsAdvice(
+            Map<String, Object> response, String departureTime, String arrivalTime) {
+
+        Object trip = response.get("trip");
+        if (!(trip instanceof Map<?, ?> tripMap)) {
+            return Optional.empty();
+        }
+        Object patterns = ((Map<String, Object>) tripMap).get("tripPatterns");
+        if (!(patterns instanceof List<?> list) || !list.isEmpty()) {
+            return Optional.empty();
+        }
+
+        boolean timed = (departureTime != null && !departureTime.isEmpty())
+            || (arrivalTime != null && !arrivalTime.isEmpty());
+        Object nextDeparture = response.get("nextDepartureTime");
+
+        String advice;
+        if (nextDeparture instanceof String next) {
+            advice = "No trips were found for the requested time, but service resumes at "
+                + next + ". Repeating this search returns the same result: tell the user "
+                + "nothing runs at the time they asked for and give them that next "
+                + "departure, or search again with it as the departure time.";
+        } else if (timed) {
+            advice = "No trips were found for the requested time, and none were found within "
+                + "the following 24 hours either. The locations resolved and the query was "
+                + "valid. Repeating this search returns the same result: tell the user, and "
+                + "consider whether the locations are served by public transport or whether "
+                + "a transport mode filter was too narrow.";
+        } else {
+            advice = "No trips were found. The locations resolved and the query was valid, so "
+                + "no route appears to exist between them. Repeating this search returns the "
+                + "same result: tell the user, and consider whether the locations are served "
+                + "by public transport or whether a transport mode filter was too narrow.";
+        }
+
+        Map<String, Object> result = new HashMap<>();
+        result.put("retryWillNotHelp", true);
+        result.put("advice", advice);
+        if (nextDeparture instanceof String next) {
+            result.put("nextDepartureTime", next);
+        }
+        return Optional.of(result);
+    }
+
     private String toErrorJson(ErrorResponse errorResponse) {
         try {
             return objectMapper.writeValueAsString(errorResponse);

@@ -1,0 +1,1391 @@
+/*
+ * Entur Linje travel components (TravelHeader, TravelTag, LegBone) - VENDORED, DO NOT EDIT BY HAND.
+ *
+ * Generated from @entur/travel@8.0.2 by scripts/update-entur-css.py
+ * Source: https://linje.entur.no/komponenter
+ *
+ * Load AFTER entur-tokens.css. The package ships its own resolved copy of the base
+ * tokens; that copy is stripped here so entur-tokens.css stays the single source of
+ * truth, leaving the --components-* layer and the component rules.
+ *
+ * These are .eds-* class names. Unlike the tokens they are an implementation detail
+ * rather than a public API, so the version above is pinned and an upgrade needs the
+ * rendered output checked (scripts/preview-apps.py).
+ *
+ * Unresolved by design - these belong to component packages this project does
+ * not vendor, and are only referenced by variants the apps do not use:
+ *   --components-form-feedbacktext-information-contrast-icon-fill
+ *   --components-form-feedbacktext-information-contrast-stroke
+ *   --components-form-feedbacktext-information-standard-icon-fill
+ *   --components-form-feedbacktext-information-standard-stroke
+ *   --components-form-feedbacktext-negative-contrast-icon-fill
+ *   --components-form-feedbacktext-negative-standard-icon-fill
+ *   --components-form-feedbacktext-warning-contrast-icon-fill
+ *   --components-form-feedbacktext-warning-standard-icon-fill
+ *   --components-form-feedbacktext-warning-standard-icon-symbol
+ */
+
+[data-color-mode=light],
+:root{
+  --components-travel-legline-stroke-line:#ff5959;
+  --components-travel-travelheader-contrast-stroke-line:#ff5959;
+  --components-travel-travelheader-contrast-text:#ffffff;
+  --components-travel-travelheader-standard-stroke-line:#ff5959;
+  --components-travel-travelheader-standard-text:#181c56;
+  --components-travel-travelleg-contrast-air:#fbafea;
+  --components-travel-travelleg-contrast-airportlinkbus:#fbafea;
+  --components-travel-travelleg-contrast-airportlinkrail:#fbafea;
+  --components-travel-travelleg-contrast-bicycle:#00dbb6;
+  --components-travel-travelleg-contrast-bulletborder:#181c56;
+  --components-travel-travelleg-contrast-bus:#ff6392;
+  --components-travel-travelleg-contrast-bus-regional:#b8db48;
+  --components-travel-travelleg-contrast-cableway:#b482fb;
+  --components-travel-travelleg-contrast-carferry:#6fdfff;
+  --components-travel-travelleg-contrast-citybike:#00dbb6;
+  --components-travel-travelleg-contrast-ferry:#6fdfff;
+  --components-travel-travelleg-contrast-funicular:#b482fb;
+  --components-travel-travelleg-contrast-helicopter:#fbafea;
+  --components-travel-travelleg-contrast-metro:#f08901;
+  --components-travel-travelleg-contrast-mobility:#00dbb6;
+  --components-travel-travelleg-contrast-plane:#fbafea;
+  --components-travel-travelleg-contrast-rail:#42a5f5;
+  --components-travel-travelleg-contrast-snowcoach:#ffe082;
+  --components-travel-travelleg-contrast-taxi:#ffe082;
+  --components-travel-travelleg-contrast-train:#42a5f5;
+  --components-travel-travelleg-contrast-tram:#b482fb;
+  --components-travel-travelleg-contrast-walk:#9ea0bd;
+  --components-travel-travelleg-contrast-water:#6fdfff;
+  --components-travel-travelleg-standard-air:#800664;
+  --components-travel-travelleg-standard-airportlinkbus:#800664;
+  --components-travel-travelleg-standard-airportlinkrail:#800664;
+  --components-travel-travelleg-standard-bicycle:#0d827e;
+  --components-travel-travelleg-standard-bulletborder:#ffffff;
+  --components-travel-travelleg-standard-bus:#c5044e;
+  --components-travel-travelleg-standard-bus-regional:#427500;
+  --components-travel-travelleg-standard-cableway:#78469a;
+  --components-travel-travelleg-standard-carferry:#0c6693;
+  --components-travel-travelleg-standard-citybike:#0d827e;
+  --components-travel-travelleg-standard-ferry:#0c6693;
+  --components-travel-travelleg-standard-funicular:#78469a;
+  --components-travel-travelleg-standard-helicopter:#800664;
+  --components-travel-travelleg-standard-metro:#bf5826;
+  --components-travel-travelleg-standard-mobility:#0d827e;
+  --components-travel-travelleg-standard-plane:#800664;
+  --components-travel-travelleg-standard-rail:#00367f;
+  --components-travel-travelleg-standard-snowcoach:#3d3e40;
+  --components-travel-travelleg-standard-taxi:#3d3e40;
+  --components-travel-travelleg-standard-train:#00367f;
+  --components-travel-travelleg-standard-tram:#78469a;
+  --components-travel-travelleg-standard-walk:#8d8e9c;
+  --components-travel-travelleg-standard-water:#0c6693;
+  --components-travel-travelswitch-contrast-backgroundfalse:#626493;
+  --components-travel-travelswitch-contrast-backgroundtrue-air:#fbafea;
+  --components-travel-travelswitch-contrast-backgroundtrue-bicycle:#00dbb6;
+  --components-travel-travelswitch-contrast-backgroundtrue-bus:#ff6392;
+  --components-travel-travelswitch-contrast-backgroundtrue-cableway:#b482fb;
+  --components-travel-travelswitch-contrast-backgroundtrue-carferry:#6fdfff;
+  --components-travel-travelswitch-contrast-backgroundtrue-citybike:#00dbb6;
+  --components-travel-travelswitch-contrast-backgroundtrue-ferry:#6fdfff;
+  --components-travel-travelswitch-contrast-backgroundtrue-funicular:#b482fb;
+  --components-travel-travelswitch-contrast-backgroundtrue-helicopter:#fbafea;
+  --components-travel-travelswitch-contrast-backgroundtrue-metro:#f08901;
+  --components-travel-travelswitch-contrast-backgroundtrue-mobility:#00dbb6;
+  --components-travel-travelswitch-contrast-backgroundtrue-plane:#fbafea;
+  --components-travel-travelswitch-contrast-backgroundtrue-rail:#42a5f5;
+  --components-travel-travelswitch-contrast-backgroundtrue-regional-bus:#b8db48;
+  --components-travel-travelswitch-contrast-backgroundtrue-snowcoach:#ffe082;
+  --components-travel-travelswitch-contrast-backgroundtrue-taxi:#ffe082;
+  --components-travel-travelswitch-contrast-backgroundtrue-train:#42a5f5;
+  --components-travel-travelswitch-contrast-backgroundtrue-tram:#b482fb;
+  --components-travel-travelswitch-contrast-backgroundtrue-walk:#9ea0bd;
+  --components-travel-travelswitch-contrast-backgroundtrue-water:#6fdfff;
+  --components-travel-travelswitch-contrast-backgroundtrue-airportlinkbus:#fbafea;
+  --components-travel-travelswitch-contrast-backgroundtrue-airportlinkrail:#fbafea;
+  --components-travel-travelswitch-contrast-iconfalse:#626493;
+  --components-travel-travelswitch-contrast-icontrue-bicycle:#0d827e;
+  --components-travel-travelswitch-contrast-icontrue-bus:#c5044e;
+  --components-travel-travelswitch-contrast-icontrue-bus-regional:#427500;
+  --components-travel-travelswitch-contrast-icontrue-cableway:#78469a;
+  --components-travel-travelswitch-contrast-icontrue-carferry:#0c6693;
+  --components-travel-travelswitch-contrast-icontrue-citybike:#0d827e;
+  --components-travel-travelswitch-contrast-icontrue-ferry:#0c6693;
+  --components-travel-travelswitch-contrast-icontrue-funicular:#78469a;
+  --components-travel-travelswitch-contrast-icontrue-helicopter:#800664;
+  --components-travel-travelswitch-contrast-icontrue-metro:#bf5826;
+  --components-travel-travelswitch-contrast-icontrue-mobility:#0d827e;
+  --components-travel-travelswitch-contrast-icontrue-plane:#800664;
+  --components-travel-travelswitch-contrast-icontrue-snowcoach:#3d3e40;
+  --components-travel-travelswitch-contrast-icontrue-taxi:#3d3e40;
+  --components-travel-travelswitch-contrast-icontrue-train:#00367f;
+  --components-travel-travelswitch-contrast-icontrue-tram:#78469a;
+  --components-travel-travelswitch-contrast-icontrue-walk:#9ea0bd;
+  --components-travel-travelswitch-contrast-icontrue-airportlinkbus:#800664;
+  --components-travel-travelswitch-contrast-icontrue-airportlinkrail:#800664;
+  --components-travel-travelswitch-contrast-switchfill-false:#ffffff;
+  --components-travel-travelswitch-contrast-switchfill-true:#ffffff;
+  --components-travel-travelswitch-contrast-text:#ffffff;
+  --components-travel-travelswitch-standard-backgroundfalse:#949699;
+  --components-travel-travelswitch-standard-backgroundtrue-air:#800664;
+  --components-travel-travelswitch-standard-backgroundtrue-bicycle:#0d827e;
+  --components-travel-travelswitch-standard-backgroundtrue-bus:#c5044e;
+  --components-travel-travelswitch-standard-backgroundtrue-bus-regional:#427500;
+  --components-travel-travelswitch-standard-backgroundtrue-cableway:#78469a;
+  --components-travel-travelswitch-standard-backgroundtrue-carferry:#0c6693;
+  --components-travel-travelswitch-standard-backgroundtrue-citybike:#0d827e;
+  --components-travel-travelswitch-standard-backgroundtrue-ferry:#0c6693;
+  --components-travel-travelswitch-standard-backgroundtrue-funicular:#78469a;
+  --components-travel-travelswitch-standard-backgroundtrue-helicopter:#800664;
+  --components-travel-travelswitch-standard-backgroundtrue-metro:#bf5826;
+  --components-travel-travelswitch-standard-backgroundtrue-mobility:#0d827e;
+  --components-travel-travelswitch-standard-backgroundtrue-plane:#800664;
+  --components-travel-travelswitch-standard-backgroundtrue-rail:#00367f;
+  --components-travel-travelswitch-standard-backgroundtrue-snowcoach:#3d3e40;
+  --components-travel-travelswitch-standard-backgroundtrue-taxi:#3d3e40;
+  --components-travel-travelswitch-standard-backgroundtrue-train:#00367f;
+  --components-travel-travelswitch-standard-backgroundtrue-tram:#78469a;
+  --components-travel-travelswitch-standard-backgroundtrue-walk:#8d8e9c;
+  --components-travel-travelswitch-standard-backgroundtrue-water:#0c6693;
+  --components-travel-travelswitch-standard-backgroundtrue-airportlinkbus:#800664;
+  --components-travel-travelswitch-standard-backgroundtrue-airportlinkrail:#800664;
+  --components-travel-travelswitch-standard-iconfalse:#6e6f73;
+  --components-travel-travelswitch-standard-icontrue-bicycle:#0d827e;
+  --components-travel-travelswitch-standard-icontrue-bus:#c5044e;
+  --components-travel-travelswitch-standard-icontrue-cableway:#78469a;
+  --components-travel-travelswitch-standard-icontrue-carferry:#0c6693;
+  --components-travel-travelswitch-standard-icontrue-citybike:#0d827e;
+  --components-travel-travelswitch-standard-icontrue-ferry:#0c6693;
+  --components-travel-travelswitch-standard-icontrue-funicular:#78469a;
+  --components-travel-travelswitch-standard-icontrue-helicopter:#800664;
+  --components-travel-travelswitch-standard-icontrue-metro:#bf5826;
+  --components-travel-travelswitch-standard-icontrue-mobility:#0d827e;
+  --components-travel-travelswitch-standard-icontrue-plane:#800664;
+  --components-travel-travelswitch-standard-icontrue-rail:#00367f;
+  --components-travel-travelswitch-standard-icontrue-regional-bus:#427500;
+  --components-travel-travelswitch-standard-icontrue-snowcoach:#3d3e40;
+  --components-travel-travelswitch-standard-icontrue-taxi:#3d3e40;
+  --components-travel-travelswitch-standard-icontrue-train:#00367f;
+  --components-travel-travelswitch-standard-icontrue-tram:#78469a;
+  --components-travel-travelswitch-standard-icontrue-walk:#8d8e9c;
+  --components-travel-travelswitch-standard-icontrue-water:#0c6693;
+  --components-travel-travelswitch-standard-icontrue-airportlinkbus:#800664;
+  --components-travel-travelswitch-standard-icontrue-airportlinkbus2:#800664;
+  --components-travel-travelswitch-standard-icontrue-airportlinkrail:#800664;
+  --components-travel-travelswitch-standard-switchfill-false:#ffffff;
+  --components-travel-travelswitch-standard-switchfill-true:#ffffff;
+  --components-travel-travelswitch-standard-text:#181c56;
+  --components-travel-traveltag-contrast-fill-air:#fbafea;
+  --components-travel-traveltag-contrast-fill-aircancelled:rgba(251, 175, 234, 0.1490196078);
+  --components-travel-traveltag-contrast-fill-bicycle:#00dbb6;
+  --components-travel-traveltag-contrast-fill-bus:#ff6392;
+  --components-travel-traveltag-contrast-fill-bus-cancelled:rgba(255, 99, 146, 0.1490196078);
+  --components-travel-traveltag-contrast-fill-bus-regional:#b8db48;
+  --components-travel-traveltag-contrast-fill-bus-regional-cancelled:rgba(184, 219, 72, 0.1490196078);
+  --components-travel-traveltag-contrast-fill-cableway:#b482fb;
+  --components-travel-traveltag-contrast-fill-cableway-cancelled:rgba(180, 130, 251, 0.1490196078);
+  --components-travel-traveltag-contrast-fill-carferry:#6fdfff;
+  --components-travel-traveltag-contrast-fill-carferry-cancelled:rgba(111, 223, 255, 0.1490196078);
+  --components-travel-traveltag-contrast-fill-citybike:#00dbb6;
+  --components-travel-traveltag-contrast-fill-details:#ffffff;
+  --components-travel-traveltag-contrast-fill-details-cancelled:#181c56;
+  --components-travel-traveltag-contrast-fill-ferry:#6fdfff;
+  --components-travel-traveltag-contrast-fill-ferry-cancelled:rgba(111, 223, 255, 0.1490196078);
+  --components-travel-traveltag-contrast-fill-funicular:#b482fb;
+  --components-travel-traveltag-contrast-fill-helicopter:#fbafea;
+  --components-travel-traveltag-contrast-fill-helicopter-cancelled:rgba(251, 175, 234, 0.1490196078);
+  --components-travel-traveltag-contrast-fill-metro:#f08901;
+  --components-travel-traveltag-contrast-fill-metro-cancelled:rgba(240, 137, 1, 0.1490196078);
+  --components-travel-traveltag-contrast-fill-mobility:#00dbb6;
+  --components-travel-traveltag-contrast-fill-plane:#fbafea;
+  --components-travel-traveltag-contrast-fill-plane-cancelled:rgba(251, 175, 234, 0.1490196078);
+  --components-travel-traveltag-contrast-fill-rail:#42a5f5;
+  --components-travel-traveltag-contrast-fill-rail-cancelled:rgba(66, 165, 245, 0.1490196078);
+  --components-travel-traveltag-contrast-fill-snowcoach:#ffe082;
+  --components-travel-traveltag-contrast-fill-snowcoach-cancelled:rgba(255, 224, 130, 0.1490196078);
+  --components-travel-traveltag-contrast-fill-tag-funicular-cancelled:rgba(180, 130, 251, 0.1490196078);
+  --components-travel-traveltag-contrast-fill-taxi:#ffe082;
+  --components-travel-traveltag-contrast-fill-taxi-cancelled:rgba(255, 224, 130, 0.1490196078);
+  --components-travel-traveltag-contrast-fill-train:#42a5f5;
+  --components-travel-traveltag-contrast-fill-train-cancelled:rgba(66, 165, 245, 0.1490196078);
+  --components-travel-traveltag-contrast-fill-tram:#b482fb;
+  --components-travel-traveltag-contrast-fill-tram-cancelled:rgba(180, 130, 251, 0.1490196078);
+  --components-travel-traveltag-contrast-fill-walk:#9ea0bd;
+  --components-travel-traveltag-contrast-fill-water:#6fdfff;
+  --components-travel-traveltag-contrast-fill-water-cancelled:rgba(111, 223, 255, 0.1490196078);
+  --components-travel-traveltag-contrast-fill-airportlinkbus-cancelled:rgba(251, 175, 234, 0.1490196078);
+  --components-travel-traveltag-contrast-fill-airportlinkrail:#fbafea;
+  --components-travel-traveltag-contrast-fill-airportlinkrail-cancelled:rgba(251, 175, 234, 0.1490196078);
+  --components-travel-traveltag-contrast-fill-airportlinkbus:#fbafea;
+  --components-travel-traveltag-contrast-icon-airportlinkbus-cancelled:#fbafea;
+  --components-travel-traveltag-contrast-icon-airportlinkrail-cancelled:#fbafea;
+  --components-travel-traveltag-contrast-icon-bus-cancelled:#ff6392;
+  --components-travel-traveltag-contrast-icon-bus-regional-cancelled:#b8db48;
+  --components-travel-traveltag-contrast-icon-cableway-cancelled:#b482fb;
+  --components-travel-traveltag-contrast-icon-carferry-cancelled:#6fdfff;
+  --components-travel-traveltag-contrast-icon-default:#181c56;
+  --components-travel-traveltag-contrast-icon-ferry-cancelled:#6fdfff;
+  --components-travel-traveltag-contrast-icon-funicular-cancelled:#b482fb;
+  --components-travel-traveltag-contrast-icon-helicopter-cancelled:#fbafea;
+  --components-travel-traveltag-contrast-icon-metro-cancelled:#f08901;
+  --components-travel-traveltag-contrast-icon-plane-cancelled:#fbafea;
+  --components-travel-traveltag-contrast-icon-snowcoach-cancelled:#ffe082;
+  --components-travel-traveltag-contrast-icon-taxi-cancelled:#ffe082;
+  --components-travel-traveltag-contrast-icon-train-cancelled:#42a5f5;
+  --components-travel-traveltag-contrast-icon-tram-cancelled:#b482fb;
+  --components-travel-traveltag-contrast-icon-walk:#181c56;
+  --components-travel-traveltag-contrast-stroke-details:rgba(255, 255, 255, 0);
+  --components-travel-traveltag-contrast-stroke-details-cancelled:#54568c;
+  --components-travel-traveltag-contrast-stroke-icon-validation:#181c56;
+  --components-travel-traveltag-contrast-text-cancelled:#b6b8ba;
+  --components-travel-traveltag-contrast-text-default:#181c56;
+  --components-travel-traveltag-contrast-text-details:#181c56;
+  --components-travel-traveltag-contrast-text-label:#ffffff;
+  --components-travel-traveltag-contrast-text-line-bus-cancelled:#ff6392;
+  --components-travel-traveltag-contrast-text-line-bus-regional-cancelled:#b8db48;
+  --components-travel-traveltag-contrast-text-line-cableway-cancelled:#b482fb;
+  --components-travel-traveltag-contrast-text-line-carferry-cancelled:#6fdfff;
+  --components-travel-traveltag-contrast-text-line-ferry-cancelled:#6fdfff;
+  --components-travel-traveltag-contrast-text-line-funicular-cancelled:#b482fb;
+  --components-travel-traveltag-contrast-text-line-helicopter-cancelled:#fbafea;
+  --components-travel-traveltag-contrast-text-line-metro-cancelled:#f08901;
+  --components-travel-traveltag-contrast-text-line-plane-cancelled:#fbafea;
+  --components-travel-traveltag-contrast-text-line-snowcoach-cancelled:#ffe082;
+  --components-travel-traveltag-contrast-text-line-taxi-cancelled:#ffe082;
+  --components-travel-traveltag-contrast-text-line-train-cancelled:#42a5f5;
+  --components-travel-traveltag-contrast-text-line-tram-cancelled:#b482fb;
+  --components-travel-traveltag-contrast-text-line-walk:#181c56;
+  --components-travel-traveltag-contrast-text-line-airportlinkbus-cancelled:#fbafea;
+  --components-travel-traveltag-contrast-text-line-airportlinkrail-cancelled:#fbafea;
+  --components-travel-traveltag-contrast-text-newtime:#ff9494;
+  --components-travel-traveltag-standard-fill-air:#800664;
+  --components-travel-traveltag-standard-fill-air-cancelled:rgba(128, 6, 100, 0.1490196078);
+  --components-travel-traveltag-standard-fill-airportlinkbus:#800664;
+  --components-travel-traveltag-standard-fill-airportlinkbus-cancelled:rgba(128, 6, 100, 0.1490196078);
+  --components-travel-traveltag-standard-fill-airportlinkrail:#800664;
+  --components-travel-traveltag-standard-fill-airportlinkrail-cancelled:rgba(128, 6, 100, 0.1490196078);
+  --components-travel-traveltag-standard-fill-bicycle:#0d827e;
+  --components-travel-traveltag-standard-fill-bus:#c5044e;
+  --components-travel-traveltag-standard-fill-bus-cancelled:rgba(197, 4, 78, 0.1490196078);
+  --components-travel-traveltag-standard-fill-bus-regional:#427500;
+  --components-travel-traveltag-standard-fill-bus-regional-cancelled:rgba(66, 117, 0, 0.1490196078);
+  --components-travel-traveltag-standard-fill-cableway:#78469a;
+  --components-travel-traveltag-standard-fill-cableway-cancelled:rgba(120, 70, 154, 0.1490196078);
+  --components-travel-traveltag-standard-fill-carferry:#0c6693;
+  --components-travel-traveltag-standard-fill-carferry-cancelled:rgba(12, 102, 147, 0.1490196078);
+  --components-travel-traveltag-standard-fill-citybike:#0d827e;
+  --components-travel-traveltag-standard-fill-details:#ffffff;
+  --components-travel-traveltag-standard-fill-details-cancelled:#ffffff;
+  --components-travel-traveltag-standard-fill-ferry:#0c6693;
+  --components-travel-traveltag-standard-fill-ferry-cancelled:rgba(12, 102, 147, 0.1490196078);
+  --components-travel-traveltag-standard-fill-funicular:#78469a;
+  --components-travel-traveltag-standard-fill-funicular-cancelled:rgba(120, 70, 154, 0.1490196078);
+  --components-travel-traveltag-standard-fill-helicopter:#800664;
+  --components-travel-traveltag-standard-fill-helicopter-cancelled:rgba(128, 6, 100, 0.1490196078);
+  --components-travel-traveltag-standard-fill-metro:#bf5826;
+  --components-travel-traveltag-standard-fill-metro-cancelled:rgba(191, 88, 38, 0.1490196078);
+  --components-travel-traveltag-standard-fill-mobility:#0d827e;
+  --components-travel-traveltag-standard-fill-plane:#800664;
+  --components-travel-traveltag-standard-fill-plane-cancelled:rgba(128, 6, 100, 0.1490196078);
+  --components-travel-traveltag-standard-fill-rail:#00367f;
+  --components-travel-traveltag-standard-fill-rail-cancelled:rgba(0, 54, 127, 0.1490196078);
+  --components-travel-traveltag-standard-fill-snowcoach:#3d3e40;
+  --components-travel-traveltag-standard-fill-snowcoach-cancelled:rgba(61, 62, 64, 0.1490196078);
+  --components-travel-traveltag-standard-fill-taxi:#3d3e40;
+  --components-travel-traveltag-standard-fill-taxi-cancelled:rgba(61, 62, 64, 0.1490196078);
+  --components-travel-traveltag-standard-fill-train:#00367f;
+  --components-travel-traveltag-standard-fill-train-cancelled:rgba(0, 54, 127, 0.1490196078);
+  --components-travel-traveltag-standard-fill-tram:#78469a;
+  --components-travel-traveltag-standard-fill-tram-cancelled:rgba(120, 70, 154, 0.1490196078);
+  --components-travel-traveltag-standard-fill-walk:#e3e6e8;
+  --components-travel-traveltag-standard-fill-water:#0c6693;
+  --components-travel-traveltag-standard-fill-water-cancelled:rgba(12, 102, 147, 0.1490196078);
+  --components-travel-traveltag-standard-icon-airportlinkbus-cancelled:#800664;
+  --components-travel-traveltag-standard-icon-airportlinkrail-cancelled:#800664;
+  --components-travel-traveltag-standard-icon-bus-cancelled:#c5044e;
+  --components-travel-traveltag-standard-icon-bus-regional-cancelled:#427500;
+  --components-travel-traveltag-standard-icon-cableway-cancelled:#78469a;
+  --components-travel-traveltag-standard-icon-carferry-cancelled:#0c6693;
+  --components-travel-traveltag-standard-icon-default:#ffffff;
+  --components-travel-traveltag-standard-icon-ferry-cancelled:#0c6693;
+  --components-travel-traveltag-standard-icon-funicular-cancelled:#78469a;
+  --components-travel-traveltag-standard-icon-helicopter-cancelled:#800664;
+  --components-travel-traveltag-standard-icon-metro-cancelled:#bf5826;
+  --components-travel-traveltag-standard-icon-plane-cancelled:#800664;
+  --components-travel-traveltag-standard-icon-snowcoach-cancelled:#3d3e40;
+  --components-travel-traveltag-standard-icon-taxi-cancelled:#3d3e40;
+  --components-travel-traveltag-standard-icon-train-cancelled:#00367f;
+  --components-travel-traveltag-standard-icon-tram-cancelled:#78469a;
+  --components-travel-traveltag-standard-icon-walk:#181c56;
+  --components-travel-traveltag-standard-stroke-details:#8284ab;
+  --components-travel-traveltag-standard-stroke-details-cancelled:#e3e6e8;
+  --components-travel-traveltag-standard-stroke-icon-validation:#ffffff;
+  --components-travel-traveltag-standard-text-cancelled:#6e6f73;
+  --components-travel-traveltag-standard-text-default:#ffffff;
+  --components-travel-traveltag-standard-text-details:#181c56;
+  --components-travel-traveltag-standard-text-label:#181c56;
+  --components-travel-traveltag-standard-text-line-bus-cancelled:#c5044e;
+  --components-travel-traveltag-standard-text-line-cableway-cancelled:#78469a;
+  --components-travel-traveltag-standard-text-line-carferry-cancelled:#0c6693;
+  --components-travel-traveltag-standard-text-line-ferry-cancelled:#0c6693;
+  --components-travel-traveltag-standard-text-line-funicular-cancelled:#78469a;
+  --components-travel-traveltag-standard-text-line-helicopter-cancelled:#800664;
+  --components-travel-traveltag-standard-text-line-metro-cancelled:#a2532f;
+  --components-travel-traveltag-standard-text-line-plane-cancelled:#800664;
+  --components-travel-traveltag-standard-text-line-snowcoach-cancelled:#3d3e40;
+  --components-travel-traveltag-standard-text-line-taxi-cancelled:#3d3e40;
+  --components-travel-traveltag-standard-text-line-train-cancelled:#00367f;
+  --components-travel-traveltag-standard-text-line-tram-cancelled:#78469a;
+  --components-travel-traveltag-standard-text-line-walk:#181c56;
+  --components-travel-traveltag-standard-text-line-airportlinkbus-cancelled:#800664;
+  --components-travel-traveltag-standard-text-line-airportlinkrail-cancelled:#800664;
+  --components-travel-traveltag-standard-text-line-regional-bus-cancelled:#427500;
+  --components-travel-traveltag-standard-text-newtime:#d31b1b;
+}
+[data-color-mode=dark]{
+  --components-travel-legline-stroke-line:#ff5959;
+  --components-travel-travelheader-contrast-stroke-line:#ff5959;
+  --components-travel-travelheader-contrast-text:#e5e5e9;
+  --components-travel-travelheader-standard-stroke-line:#ff5959;
+  --components-travel-travelheader-standard-text:#e5e5e9;
+  --components-travel-travelleg-contrast-air:#f2b8e5;
+  --components-travel-travelleg-contrast-airportlinkbus:#f2b8e5;
+  --components-travel-travelleg-contrast-airportlinkrail:#f2b8e5;
+  --components-travel-travelleg-contrast-bicycle:#4db2a1;
+  --components-travel-travelleg-contrast-bulletborder:#08091c;
+  --components-travel-travelleg-contrast-bus:#ef7398;
+  --components-travel-travelleg-contrast-bus-regional:#a4bf4d;
+  --components-travel-travelleg-contrast-cableway:#b898e5;
+  --components-travel-travelleg-contrast-carferry:#8ccfe2;
+  --components-travel-travelleg-contrast-citybike:#4db2a1;
+  --components-travel-travelleg-contrast-ferry:#8ccfe2;
+  --components-travel-travelleg-contrast-funicular:#b898e5;
+  --components-travel-travelleg-contrast-helicopter:#f2b8e5;
+  --components-travel-travelleg-contrast-metro:#dd973c;
+  --components-travel-travelleg-contrast-mobility:#4db2a1;
+  --components-travel-travelleg-contrast-plane:#f2b8e5;
+  --components-travel-travelleg-contrast-rail:#60a2d7;
+  --components-travel-travelleg-contrast-snowcoach:#ffe082;
+  --components-travel-travelleg-contrast-taxi:#ffe082;
+  --components-travel-travelleg-contrast-train:#60a2d7;
+  --components-travel-travelleg-contrast-tram:#b898e5;
+  --components-travel-travelleg-contrast-walk:#8d8e9c;
+  --components-travel-travelleg-contrast-water:#8ccfe2;
+  --components-travel-travelleg-standard-air:#f2b8e5;
+  --components-travel-travelleg-standard-airportlinkbus:#f2b8e5;
+  --components-travel-travelleg-standard-airportlinkrail:#f2b8e5;
+  --components-travel-travelleg-standard-bicycle:#4db2a1;
+  --components-travel-travelleg-standard-bulletborder:#08091c;
+  --components-travel-travelleg-standard-bus:#ef7398;
+  --components-travel-travelleg-standard-bus-regional:#a4bf4d;
+  --components-travel-travelleg-standard-cableway:#b898e5;
+  --components-travel-travelleg-standard-carferry:#8ccfe2;
+  --components-travel-travelleg-standard-citybike:#4db2a1;
+  --components-travel-travelleg-standard-ferry:#8ccfe2;
+  --components-travel-travelleg-standard-funicular:#b898e5;
+  --components-travel-travelleg-standard-helicopter:#f2b8e5;
+  --components-travel-travelleg-standard-metro:#dd973c;
+  --components-travel-travelleg-standard-mobility:#4db2a1;
+  --components-travel-travelleg-standard-plane:#f2b8e5;
+  --components-travel-travelleg-standard-rail:#60a2d7;
+  --components-travel-travelleg-standard-snowcoach:#ffe082;
+  --components-travel-travelleg-standard-taxi:#ffe082;
+  --components-travel-travelleg-standard-train:#60a2d7;
+  --components-travel-travelleg-standard-tram:#b898e5;
+  --components-travel-travelleg-standard-walk:#8d8e9c;
+  --components-travel-travelleg-standard-water:#8ccfe2;
+  --components-travel-travelswitch-contrast-backgroundfalse:rgba(229, 229, 233, 0.3490196078);
+  --components-travel-travelswitch-contrast-backgroundtrue-air:#f2b8e5;
+  --components-travel-travelswitch-contrast-backgroundtrue-bicycle:#4db2a1;
+  --components-travel-travelswitch-contrast-backgroundtrue-bus:#ef7398;
+  --components-travel-travelswitch-contrast-backgroundtrue-cableway:#b898e5;
+  --components-travel-travelswitch-contrast-backgroundtrue-carferry:#8ccfe2;
+  --components-travel-travelswitch-contrast-backgroundtrue-citybike:#4db2a1;
+  --components-travel-travelswitch-contrast-backgroundtrue-ferry:#8ccfe2;
+  --components-travel-travelswitch-contrast-backgroundtrue-funicular:#b898e5;
+  --components-travel-travelswitch-contrast-backgroundtrue-helicopter:#f2b8e5;
+  --components-travel-travelswitch-contrast-backgroundtrue-metro:#dd973c;
+  --components-travel-travelswitch-contrast-backgroundtrue-mobility:#4db2a1;
+  --components-travel-travelswitch-contrast-backgroundtrue-plane:#f2b8e5;
+  --components-travel-travelswitch-contrast-backgroundtrue-rail:#60a2d7;
+  --components-travel-travelswitch-contrast-backgroundtrue-regional-bus:#a4bf4d;
+  --components-travel-travelswitch-contrast-backgroundtrue-snowcoach:#ffe082;
+  --components-travel-travelswitch-contrast-backgroundtrue-taxi:#ffe082;
+  --components-travel-travelswitch-contrast-backgroundtrue-train:#60a2d7;
+  --components-travel-travelswitch-contrast-backgroundtrue-tram:#b898e5;
+  --components-travel-travelswitch-contrast-backgroundtrue-walk:#8d8e9c;
+  --components-travel-travelswitch-contrast-backgroundtrue-water:#8ccfe2;
+  --components-travel-travelswitch-contrast-backgroundtrue-airportlinkbus:#f2b8e5;
+  --components-travel-travelswitch-contrast-backgroundtrue-airportlinkrail:#f2b8e5;
+  --components-travel-travelswitch-contrast-iconfalse:#b3b4bd;
+  --components-travel-travelswitch-contrast-icontrue-bicycle:#4db2a1;
+  --components-travel-travelswitch-contrast-icontrue-bus:#ef7398;
+  --components-travel-travelswitch-contrast-icontrue-bus-regional:#a4bf4d;
+  --components-travel-travelswitch-contrast-icontrue-cableway:#b898e5;
+  --components-travel-travelswitch-contrast-icontrue-carferry:#8ccfe2;
+  --components-travel-travelswitch-contrast-icontrue-citybike:#4db2a1;
+  --components-travel-travelswitch-contrast-icontrue-ferry:#8ccfe2;
+  --components-travel-travelswitch-contrast-icontrue-funicular:#b898e5;
+  --components-travel-travelswitch-contrast-icontrue-helicopter:#f2b8e5;
+  --components-travel-travelswitch-contrast-icontrue-metro:#dd973c;
+  --components-travel-travelswitch-contrast-icontrue-mobility:#4db2a1;
+  --components-travel-travelswitch-contrast-icontrue-plane:#f2b8e5;
+  --components-travel-travelswitch-contrast-icontrue-snowcoach:#ffe082;
+  --components-travel-travelswitch-contrast-icontrue-taxi:#ffe082;
+  --components-travel-travelswitch-contrast-icontrue-train:#60a2d7;
+  --components-travel-travelswitch-contrast-icontrue-tram:#b898e5;
+  --components-travel-travelswitch-contrast-icontrue-walk:#8d8e9c;
+  --components-travel-travelswitch-contrast-icontrue-airportlinkbus:#f2b8e5;
+  --components-travel-travelswitch-contrast-icontrue-airportlinkrail:#f2b8e5;
+  --components-travel-travelswitch-contrast-switchfill-false:#08091c;
+  --components-travel-travelswitch-contrast-switchfill-true:#08091c;
+  --components-travel-travelswitch-contrast-text:#e5e5e9;
+  --components-travel-travelswitch-standard-backgroundfalse:rgba(229, 229, 233, 0.3490196078);
+  --components-travel-travelswitch-standard-backgroundtrue-air:#f2b8e5;
+  --components-travel-travelswitch-standard-backgroundtrue-bicycle:#4db2a1;
+  --components-travel-travelswitch-standard-backgroundtrue-bus:#ef7398;
+  --components-travel-travelswitch-standard-backgroundtrue-bus-regional:#a4bf4d;
+  --components-travel-travelswitch-standard-backgroundtrue-cableway:#b898e5;
+  --components-travel-travelswitch-standard-backgroundtrue-carferry:#8ccfe2;
+  --components-travel-travelswitch-standard-backgroundtrue-citybike:#4db2a1;
+  --components-travel-travelswitch-standard-backgroundtrue-ferry:#8ccfe2;
+  --components-travel-travelswitch-standard-backgroundtrue-funicular:#b898e5;
+  --components-travel-travelswitch-standard-backgroundtrue-helicopter:#f2b8e5;
+  --components-travel-travelswitch-standard-backgroundtrue-metro:#dd973c;
+  --components-travel-travelswitch-standard-backgroundtrue-mobility:#4db2a1;
+  --components-travel-travelswitch-standard-backgroundtrue-plane:#f2b8e5;
+  --components-travel-travelswitch-standard-backgroundtrue-rail:#60a2d7;
+  --components-travel-travelswitch-standard-backgroundtrue-snowcoach:#ffe082;
+  --components-travel-travelswitch-standard-backgroundtrue-taxi:#ffe082;
+  --components-travel-travelswitch-standard-backgroundtrue-train:#60a2d7;
+  --components-travel-travelswitch-standard-backgroundtrue-tram:#b898e5;
+  --components-travel-travelswitch-standard-backgroundtrue-walk:#8d8e9c;
+  --components-travel-travelswitch-standard-backgroundtrue-water:#8ccfe2;
+  --components-travel-travelswitch-standard-backgroundtrue-airportlinkbus:#f2b8e5;
+  --components-travel-travelswitch-standard-backgroundtrue-airportlinkrail:#f2b8e5;
+  --components-travel-travelswitch-standard-iconfalse:#b3b4bd;
+  --components-travel-travelswitch-standard-icontrue-bicycle:#00dbb6;
+  --components-travel-travelswitch-standard-icontrue-bus:#ef7398;
+  --components-travel-travelswitch-standard-icontrue-cableway:#b898e5;
+  --components-travel-travelswitch-standard-icontrue-carferry:#8ccfe2;
+  --components-travel-travelswitch-standard-icontrue-citybike:#00dbb6;
+  --components-travel-travelswitch-standard-icontrue-ferry:#8ccfe2;
+  --components-travel-travelswitch-standard-icontrue-funicular:#b898e5;
+  --components-travel-travelswitch-standard-icontrue-helicopter:#f2b8e5;
+  --components-travel-travelswitch-standard-icontrue-metro:#dd973c;
+  --components-travel-travelswitch-standard-icontrue-mobility:#00dbb6;
+  --components-travel-travelswitch-standard-icontrue-plane:#f2b8e5;
+  --components-travel-travelswitch-standard-icontrue-rail:#60a2d7;
+  --components-travel-travelswitch-standard-icontrue-regional-bus:#a4bf4d;
+  --components-travel-travelswitch-standard-icontrue-snowcoach:#ffe082;
+  --components-travel-travelswitch-standard-icontrue-taxi:#ffe082;
+  --components-travel-travelswitch-standard-icontrue-train:#60a2d7;
+  --components-travel-travelswitch-standard-icontrue-tram:#b898e5;
+  --components-travel-travelswitch-standard-icontrue-walk:#8d8e9c;
+  --components-travel-travelswitch-standard-icontrue-water:#8ccfe2;
+  --components-travel-travelswitch-standard-icontrue-airportlinkbus:#f2b8e5;
+  --components-travel-travelswitch-standard-icontrue-airportlinkbus2:#f2b8e5;
+  --components-travel-travelswitch-standard-icontrue-airportlinkrail:#f2b8e5;
+  --components-travel-travelswitch-standard-switchfill-false:#08091c;
+  --components-travel-travelswitch-standard-switchfill-true:#08091c;
+  --components-travel-travelswitch-standard-text:#e5e5e9;
+  --components-travel-traveltag-contrast-fill-air:#f2b8e5;
+  --components-travel-traveltag-contrast-fill-aircancelled:rgba(242, 184, 229, 0.1490196078);
+  --components-travel-traveltag-contrast-fill-bicycle:#4db2a1;
+  --components-travel-traveltag-contrast-fill-bus:#ef7398;
+  --components-travel-traveltag-contrast-fill-bus-cancelled:rgba(239, 115, 152, 0.1490196078);
+  --components-travel-traveltag-contrast-fill-bus-regional:#a4bf4d;
+  --components-travel-traveltag-contrast-fill-bus-regional-cancelled:rgba(164, 191, 77, 0.1490196078);
+  --components-travel-traveltag-contrast-fill-cableway:#b898e5;
+  --components-travel-traveltag-contrast-fill-cableway-cancelled:rgba(184, 152, 229, 0.1490196078);
+  --components-travel-traveltag-contrast-fill-carferry:#8ccfe2;
+  --components-travel-traveltag-contrast-fill-carferry-cancelled:rgba(140, 207, 226, 0.1490196078);
+  --components-travel-traveltag-contrast-fill-citybike:#4db2a1;
+  --components-travel-traveltag-contrast-fill-details:#212233;
+  --components-travel-traveltag-contrast-fill-details-cancelled:#08091c;
+  --components-travel-traveltag-contrast-fill-ferry:#8ccfe2;
+  --components-travel-traveltag-contrast-fill-ferry-cancelled:rgba(140, 207, 226, 0.1490196078);
+  --components-travel-traveltag-contrast-fill-funicular:#b898e5;
+  --components-travel-traveltag-contrast-fill-helicopter:#f2b8e5;
+  --components-travel-traveltag-contrast-fill-helicopter-cancelled:rgba(242, 184, 229, 0.1490196078);
+  --components-travel-traveltag-contrast-fill-metro:#dd973c;
+  --components-travel-traveltag-contrast-fill-metro-cancelled:rgba(221, 151, 60, 0.1490196078);
+  --components-travel-traveltag-contrast-fill-mobility:#4db2a1;
+  --components-travel-traveltag-contrast-fill-plane:#f2b8e5;
+  --components-travel-traveltag-contrast-fill-plane-cancelled:rgba(242, 184, 229, 0.1490196078);
+  --components-travel-traveltag-contrast-fill-rail:#60a2d7;
+  --components-travel-traveltag-contrast-fill-rail-cancelled:rgba(96, 162, 215, 0.1490196078);
+  --components-travel-traveltag-contrast-fill-snowcoach:#ffe082;
+  --components-travel-traveltag-contrast-fill-snowcoach-cancelled:rgba(255,224,130,0.14902);
+  --components-travel-traveltag-contrast-fill-tag-funicular-cancelled:rgba(184, 152, 229, 0.1490196078);
+  --components-travel-traveltag-contrast-fill-taxi:#ffe082;
+  --components-travel-traveltag-contrast-fill-taxi-cancelled:rgba(255,224,130,0.14902);
+  --components-travel-traveltag-contrast-fill-train:#60a2d7;
+  --components-travel-traveltag-contrast-fill-train-cancelled:rgba(96, 162, 215, 0.1490196078);
+  --components-travel-traveltag-contrast-fill-tram:#b898e5;
+  --components-travel-traveltag-contrast-fill-tram-cancelled:rgba(184, 152, 229, 0.1490196078);
+  --components-travel-traveltag-contrast-fill-walk:#8d8e9c;
+  --components-travel-traveltag-contrast-fill-water:#8ccfe2;
+  --components-travel-traveltag-contrast-fill-water-cancelled:rgba(140, 207, 226, 0.1490196078);
+  --components-travel-traveltag-contrast-fill-airportlinkbus-cancelled:rgba(242, 184, 229, 0.1490196078);
+  --components-travel-traveltag-contrast-fill-airportlinkrail:#f2b8e5;
+  --components-travel-traveltag-contrast-fill-airportlinkrail-cancelled:rgba(242, 184, 229, 0.1490196078);
+  --components-travel-traveltag-contrast-fill-airportlinkbus:#f2b8e5;
+  --components-travel-traveltag-contrast-icon-airportlinkbus-cancelled:#f2b8e5;
+  --components-travel-traveltag-contrast-icon-airportlinkrail-cancelled:#f2b8e5;
+  --components-travel-traveltag-contrast-icon-bus-cancelled:#ef7398;
+  --components-travel-traveltag-contrast-icon-bus-regional-cancelled:#a4bf4d;
+  --components-travel-traveltag-contrast-icon-cableway-cancelled:#b898e5;
+  --components-travel-traveltag-contrast-icon-carferry-cancelled:#8ccfe2;
+  --components-travel-traveltag-contrast-icon-default:#08091c;
+  --components-travel-traveltag-contrast-icon-ferry-cancelled:#8ccfe2;
+  --components-travel-traveltag-contrast-icon-funicular-cancelled:#b898e5;
+  --components-travel-traveltag-contrast-icon-helicopter-cancelled:#f2b8e5;
+  --components-travel-traveltag-contrast-icon-metro-cancelled:#dd973c;
+  --components-travel-traveltag-contrast-icon-plane-cancelled:#f2b8e5;
+  --components-travel-traveltag-contrast-icon-snowcoach-cancelled:#ffe082;
+  --components-travel-traveltag-contrast-icon-taxi-cancelled:#ffe082;
+  --components-travel-traveltag-contrast-icon-train-cancelled:#60a2d7;
+  --components-travel-traveltag-contrast-icon-tram-cancelled:#b898e5;
+  --components-travel-traveltag-contrast-icon-walk:#e5e5e9;
+  --components-travel-traveltag-contrast-stroke-details:#81828f;
+  --components-travel-traveltag-contrast-stroke-details-cancelled:rgba(229, 229, 233, 0.2509803922);
+  --components-travel-traveltag-contrast-stroke-icon-validation:#08091c;
+  --components-travel-traveltag-contrast-text-cancelled:#b6b8ba;
+  --components-travel-traveltag-contrast-text-default:#08091c;
+  --components-travel-traveltag-contrast-text-details:#ffffff;
+  --components-travel-traveltag-contrast-text-label:#e5e5e9;
+  --components-travel-traveltag-contrast-text-line-bus-cancelled:#ef7398;
+  --components-travel-traveltag-contrast-text-line-bus-regional-cancelled:#a4bf4d;
+  --components-travel-traveltag-contrast-text-line-cableway-cancelled:#b898e5;
+  --components-travel-traveltag-contrast-text-line-carferry-cancelled:#8ccfe2;
+  --components-travel-traveltag-contrast-text-line-ferry-cancelled:#8ccfe2;
+  --components-travel-traveltag-contrast-text-line-funicular-cancelled:#b898e5;
+  --components-travel-traveltag-contrast-text-line-helicopter-cancelled:#f2b8e5;
+  --components-travel-traveltag-contrast-text-line-metro-cancelled:#dd973c;
+  --components-travel-traveltag-contrast-text-line-plane-cancelled:#f2b8e5;
+  --components-travel-traveltag-contrast-text-line-snowcoach-cancelled:#ffe082;
+  --components-travel-traveltag-contrast-text-line-taxi-cancelled:#ffe082;
+  --components-travel-traveltag-contrast-text-line-train-cancelled:#60a2d7;
+  --components-travel-traveltag-contrast-text-line-tram-cancelled:#b898e5;
+  --components-travel-traveltag-contrast-text-line-walk:#e5e5e9;
+  --components-travel-traveltag-contrast-text-line-airportlinkbus-cancelled:#f2b8e5;
+  --components-travel-traveltag-contrast-text-line-airportlinkrail-cancelled:#f2b8e5;
+  --components-travel-traveltag-contrast-text-newtime:#ff9494;
+  --components-travel-traveltag-standard-fill-air:#f2b8e5;
+  --components-travel-traveltag-standard-fill-air-cancelled:rgba(242, 184, 229, 0.1490196078);
+  --components-travel-traveltag-standard-fill-airportlinkbus:#f2b8e5;
+  --components-travel-traveltag-standard-fill-airportlinkbus-cancelled:rgba(242, 184, 229, 0.1490196078);
+  --components-travel-traveltag-standard-fill-airportlinkrail:#f2b8e5;
+  --components-travel-traveltag-standard-fill-airportlinkrail-cancelled:rgba(242, 184, 229, 0.1490196078);
+  --components-travel-traveltag-standard-fill-bicycle:#4db2a1;
+  --components-travel-traveltag-standard-fill-bus:#ef7398;
+  --components-travel-traveltag-standard-fill-bus-cancelled:rgba(239, 115, 152, 0.1490196078);
+  --components-travel-traveltag-standard-fill-bus-regional:#a4bf4d;
+  --components-travel-traveltag-standard-fill-bus-regional-cancelled:rgba(164, 191, 77, 0.1490196078);
+  --components-travel-traveltag-standard-fill-cableway:#b898e5;
+  --components-travel-traveltag-standard-fill-cableway-cancelled:rgba(180, 130, 251, 0.1490196078);
+  --components-travel-traveltag-standard-fill-carferry:#8ccfe2;
+  --components-travel-traveltag-standard-fill-carferry-cancelled:rgba(140, 207, 226, 0.1490196078);
+  --components-travel-traveltag-standard-fill-citybike:#4db2a1;
+  --components-travel-traveltag-standard-fill-details:#212233;
+  --components-travel-traveltag-standard-fill-details-cancelled:#08091c;
+  --components-travel-traveltag-standard-fill-ferry:#8ccfe2;
+  --components-travel-traveltag-standard-fill-ferry-cancelled:rgba(140, 207, 226, 0.1490196078);
+  --components-travel-traveltag-standard-fill-funicular:#b898e5;
+  --components-travel-traveltag-standard-fill-funicular-cancelled:rgba(184, 152, 229, 0.1490196078);
+  --components-travel-traveltag-standard-fill-helicopter:#f2b8e5;
+  --components-travel-traveltag-standard-fill-helicopter-cancelled:rgba(242, 184, 229, 0.1490196078);
+  --components-travel-traveltag-standard-fill-metro:#dd973c;
+  --components-travel-traveltag-standard-fill-metro-cancelled:rgba(221, 151, 60, 0.1490196078);
+  --components-travel-traveltag-standard-fill-mobility:#4db2a1;
+  --components-travel-traveltag-standard-fill-plane:#f2b8e5;
+  --components-travel-traveltag-standard-fill-plane-cancelled:rgba(242, 184, 229, 0.1490196078);
+  --components-travel-traveltag-standard-fill-rail:#60a2d7;
+  --components-travel-traveltag-standard-fill-rail-cancelled:rgba(96, 162, 215, 0.1490196078);
+  --components-travel-traveltag-standard-fill-snowcoach:#ffe082;
+  --components-travel-traveltag-standard-fill-snowcoach-cancelled:rgba(255, 224, 130, 0.1490196078);
+  --components-travel-traveltag-standard-fill-taxi:#ffe082;
+  --components-travel-traveltag-standard-fill-taxi-cancelled:rgba(255, 224, 130, 0.1490196078);
+  --components-travel-traveltag-standard-fill-train:#60a2d7;
+  --components-travel-traveltag-standard-fill-train-cancelled:rgba(96, 162, 215, 0.1490196078);
+  --components-travel-traveltag-standard-fill-tram:#b898e5;
+  --components-travel-traveltag-standard-fill-tram-cancelled:rgba(184, 152, 229, 0.1490196078);
+  --components-travel-traveltag-standard-fill-walk:#8d8e9c;
+  --components-travel-traveltag-standard-fill-water:#8ccfe2;
+  --components-travel-traveltag-standard-fill-water-cancelled:rgba(140, 207, 226, 0.1490196078);
+  --components-travel-traveltag-standard-icon-airportlinkbus-cancelled:#f2b8e5;
+  --components-travel-traveltag-standard-icon-airportlinkrail-cancelled:#f2b8e5;
+  --components-travel-traveltag-standard-icon-bus-cancelled:#ef7398;
+  --components-travel-traveltag-standard-icon-bus-regional-cancelled:#a4bf4d;
+  --components-travel-traveltag-standard-icon-cableway-cancelled:#b898e5;
+  --components-travel-traveltag-standard-icon-carferry-cancelled:#8ccfe2;
+  --components-travel-traveltag-standard-icon-default:#08091c;
+  --components-travel-traveltag-standard-icon-ferry-cancelled:#8ccfe2;
+  --components-travel-traveltag-standard-icon-funicular-cancelled:#b898e5;
+  --components-travel-traveltag-standard-icon-helicopter-cancelled:#f2b8e5;
+  --components-travel-traveltag-standard-icon-metro-cancelled:#dd973c;
+  --components-travel-traveltag-standard-icon-plane-cancelled:#f2b8e5;
+  --components-travel-traveltag-standard-icon-snowcoach-cancelled:#ffe082;
+  --components-travel-traveltag-standard-icon-taxi-cancelled:#ffe082;
+  --components-travel-traveltag-standard-icon-train-cancelled:#60a2d7;
+  --components-travel-traveltag-standard-icon-tram-cancelled:#b898e5;
+  --components-travel-traveltag-standard-icon-walk:#08091c;
+  --components-travel-traveltag-standard-stroke-details:#81828f;
+  --components-travel-traveltag-standard-stroke-details-cancelled:rgba(229, 229, 233, 0.2509803922);
+  --components-travel-traveltag-standard-stroke-icon-validation:#08091c;
+  --components-travel-traveltag-standard-text-cancelled:#b6b8ba;
+  --components-travel-traveltag-standard-text-default:#08091c;
+  --components-travel-traveltag-standard-text-details:#ffffff;
+  --components-travel-traveltag-standard-text-label:#e5e5e9;
+  --components-travel-traveltag-standard-text-line-bus-cancelled:#ef7398;
+  --components-travel-traveltag-standard-text-line-cableway-cancelled:#b898e5;
+  --components-travel-traveltag-standard-text-line-carferry-cancelled:#8ccfe2;
+  --components-travel-traveltag-standard-text-line-ferry-cancelled:#8ccfe2;
+  --components-travel-traveltag-standard-text-line-funicular-cancelled:#b898e5;
+  --components-travel-traveltag-standard-text-line-helicopter-cancelled:#f2b8e5;
+  --components-travel-traveltag-standard-text-line-metro-cancelled:#dd973c;
+  --components-travel-traveltag-standard-text-line-plane-cancelled:#f2b8e5;
+  --components-travel-traveltag-standard-text-line-snowcoach-cancelled:#ffe082;
+  --components-travel-traveltag-standard-text-line-taxi-cancelled:#ffe082;
+  --components-travel-traveltag-standard-text-line-train-cancelled:#60a2d7;
+  --components-travel-traveltag-standard-text-line-tram-cancelled:#b898e5;
+  --components-travel-traveltag-standard-text-line-walk:#08091c;
+  --components-travel-traveltag-standard-text-line-airportlinkbus-cancelled:#f2b8e5;
+  --components-travel-traveltag-standard-text-line-airportlinkrail-cancelled:#f2b8e5;
+  --components-travel-traveltag-standard-text-line-regional-bus-cancelled:#a4bf4d;
+  --components-travel-traveltag-standard-text-newtime:#ff9494;
+}
+[data-view-mode=standard],
+:root{
+  --components-travel-travelheader-border-small:0.125rem;
+  --components-travel-travelheader-border-large:0.25rem;
+  --components-travel-travelheader-border-medium:0.25rem;
+  --components-travel-travelheader-gap-small:0.5rem;
+  --components-travel-travelheader-gap-medium:0.75rem;
+  --components-travel-travelheader-gap-large:1rem;
+  --components-travel-travelheader-spacing-large:0.5rem;
+  --components-travel-travelheader-spacing-medium:0.5rem;
+  --components-travel-travelheader-spacing-small:0.5rem;
+  --components-travel-travelheader-width-small:1.5rem;
+  --components-travel-travelheader-width-medium:2rem;
+  --components-travel-travelheader-width-large:2.5rem;
+}
+[data-view-mode=compact]{
+  --components-travel-travelheader-border-small:0.125rem;
+  --components-travel-travelheader-border-large:0.25rem;
+  --components-travel-travelheader-border-medium:0.25rem;
+  --components-travel-travelheader-gap-medium:0.5rem;
+  --components-travel-travelheader-gap-small:0.5rem;
+  --components-travel-travelheader-gap-large:0.75rem;
+  --components-travel-travelheader-spacing-large:0.5rem;
+  --components-travel-travelheader-spacing-medium:0.5rem;
+  --components-travel-travelheader-spacing-small:0.5rem;
+  --components-travel-travelheader-width-small:1.25rem;
+  --components-travel-travelheader-width-medium:1.75rem;
+  --components-travel-travelheader-width-large:2rem;
+}
+[data-view-mode=display]{
+  --components-travel-travelheader-border-small:0.25rem;
+  --components-travel-travelheader-border-medium:0.375rem;
+  --components-travel-travelheader-border-large:0.5rem;
+  --components-travel-travelheader-gap-small:0.75rem;
+  --components-travel-travelheader-gap-medium:1rem;
+  --components-travel-travelheader-gap-large:1.5rem;
+  --components-travel-travelheader-spacing-small:0.5rem;
+  --components-travel-travelheader-spacing-medium:0.75rem;
+  --components-travel-travelheader-spacing-large:1rem;
+  --components-travel-travelheader-width-small:2.5rem;
+  --components-travel-travelheader-width-medium:3.5rem;
+  --components-travel-travelheader-width-large:4.5rem;
+}
+:root{
+  --eds-travel:1;
+}.eds-travel-header{
+  color:var(--components-travel-travelheader-standard-text);
+  display:-webkit-box;
+  display:-webkit-flex;
+  display:-moz-box;
+  display:flex;
+  -webkit-box-orient:vertical;
+  -webkit-box-direction:normal;
+  -webkit-flex-direction:column;
+     -moz-box-orient:vertical;
+     -moz-box-direction:normal;
+          flex-direction:column;
+  font-weight:600;
+  line-height:1.5;
+  max-width:100%;
+}
+.eds-contrast .eds-travel-header{
+  color:var(--components-travel-travelheader-contrast-text);
+}
+.eds-travel-header--large{
+  font-size:1.5rem;
+}
+.eds-travel-header--medium{
+  font-size:1rem;
+}
+.eds-travel-header--no-wrap{
+  -webkit-box-orient:horizontal;
+  -webkit-box-direction:normal;
+  -webkit-flex-direction:row;
+     -moz-box-orient:horizontal;
+     -moz-box-direction:normal;
+          flex-direction:row;
+}
+.eds-travel-header__from, .eds-travel-header__to{
+  min-width:0;
+  overflow:hidden;
+  -o-text-overflow:ellipsis;
+     text-overflow:ellipsis;
+  white-space:nowrap;
+}
+.eds-travel-header--no-wrap .eds-travel-header__from{
+  margin-right:0.5em;
+}
+.eds-travel-header__to{
+  padding-left:1.8333333333em;
+  position:relative;
+}
+.eds-travel-header__to::before{
+  background-color:var(--components-travel-travelheader-standard-stroke-line);
+  content:"";
+  display:block;
+  height:0.1666666667em;
+  left:0;
+  position:absolute;
+  top:0.65em;
+  width:1.3333333333em;
+}
+.eds-contrast .eds-travel-header__to::before{
+  background-color:var(--components-travel-travelheader-contrast-stroke-line);
+}.eds-travel-tag{
+  --background-color:var(--components-travel-traveltag-standard-fill-walk);
+  --text-color:var(--components-travel-traveltag-standard-text-default);
+  display:-webkit-inline-box;
+  display:-webkit-inline-flex;
+  display:-moz-inline-box;
+  display:inline-flex;
+  position:relative;
+  white-space:nowrap;
+  padding:0.25rem 0.5rem;
+  height:2rem;
+  min-width:2rem;
+  font-size:0.875rem;
+  line-height:1.5rem;
+  -webkit-border-radius:0.25rem;
+     -moz-border-radius:0.25rem;
+          border-radius:0.25rem;
+  background-color:var(--background-color);
+  color:var(--text-color);
+}
+:where(.eds-contrast) .eds-travel-tag{
+  --background-color:var(--components-travel-traveltag-contrast-fill-walk);
+  --text-color:var(--components-travel-traveltag-contrast-text-default);
+}
+.eds-travel-tag--alert{
+  padding-right:0.75rem;
+}
+.eds-travel-tag--alert--error{
+  background-color:var(--background-color);
+  color:var(--text-color);
+}
+:where(.eds-contrast) .eds-travel-tag--alert--error:where(.eds-travel-tag){
+  background-color:var(--background-color);
+  color:var(--text-color);
+}
+.eds-travel-tag--type-duration{
+  -webkit-box-align:end;
+  -webkit-align-items:flex-end;
+     -moz-box-align:end;
+          align-items:flex-end;
+  font-size:0.625rem;
+  line-height:1;
+}
+.eds-travel-tag--icon-and-text > :where(.eds-icon){
+  margin-right:0.5rem;
+}
+.eds-travel-tag > :where(.eds-icon){
+  font-size:1.5rem;
+  color:var(--text-color);
+}
+.eds-travel-tag__alert{
+  -webkit-border-radius:50%;
+     -moz-border-radius:50%;
+          border-radius:50%;
+  display:-webkit-box;
+  display:-webkit-flex;
+  display:-moz-box;
+  display:flex;
+  -webkit-box-align:center;
+  -webkit-align-items:center;
+     -moz-box-align:center;
+          align-items:center;
+  -webkit-box-pack:center;
+  -webkit-justify-content:center;
+     -moz-box-pack:center;
+          justify-content:center;
+  font-size:1rem;
+  height:1.125rem;
+  width:1.125rem;
+  position:absolute;
+  top:0.4375rem;
+  right:-0.6875rem;
+  background:var(--components-form-feedbacktext-information-standard-stroke);
+}
+:where(.eds-contrast) .eds-travel-tag__alert{
+  background:var(--components-form-feedbacktext-information-contrast-stroke);
+}
+.eds-travel-tag__alert-exclamation-icon{
+  color:var(--components-form-feedbacktext-warning-standard-icon-fill);
+}
+.eds-travel-tag__alert-exclamation-icon :where(.svg-validation-circlefilled-exclamation){
+  fill:var(--components-form-feedbacktext-warning-standard-icon-symbol);
+}
+:where(.eds-contrast) .eds-travel-tag__alert-exclamation-icon{
+  color:var(--components-form-feedbacktext-warning-contrast-icon-fill);
+}
+.eds-travel-tag__alert-error-icon{
+  font-size:0.875rem;
+  color:var(--components-form-feedbacktext-negative-standard-icon-fill);
+}
+:where(.eds-contrast) .eds-travel-tag__alert-error-icon{
+  color:var(--components-form-feedbacktext-negative-contrast-icon-fill);
+}
+.eds-travel-tag__alert-info-icon{
+  color:var(--components-form-feedbacktext-information-standard-icon-fill);
+}
+:where(.eds-contrast) .eds-travel-tag__alert-info-icon{
+  color:var(--components-form-feedbacktext-information-contrast-icon-fill);
+}
+.eds-travel-tag__wrapper{
+  display:-webkit-inline-box;
+  display:-webkit-inline-flex;
+  display:-moz-inline-box;
+  display:inline-flex;
+}
+.eds-travel-tag__wrapper--label-position-right{
+  -webkit-box-orient:horizontal;
+  -webkit-box-direction:normal;
+  -webkit-flex-direction:row;
+     -moz-box-orient:horizontal;
+     -moz-box-direction:normal;
+          flex-direction:row;
+  -webkit-box-align:center;
+  -webkit-align-items:center;
+     -moz-box-align:center;
+          align-items:center;
+}
+.eds-travel-tag__wrapper--label-position-bottom{
+  -webkit-box-orient:vertical;
+  -webkit-box-direction:normal;
+  -webkit-flex-direction:column;
+     -moz-box-orient:vertical;
+     -moz-box-direction:normal;
+          flex-direction:column;
+  -webkit-box-align:start;
+  -webkit-align-items:flex-start;
+     -moz-box-align:start;
+          align-items:flex-start;
+}
+.eds-travel-tag__label{
+  color:var(--components-travel-traveltag-standard-text-label);
+  font-size:1rem;
+}
+:where(.eds-contrast) .eds-travel-tag__label{
+  color:var(--components-travel-traveltag-contrast-text-label);
+}
+.eds-travel-tag__label--right{
+  margin-left:0.5rem;
+}
+.eds-travel-tag__label--right--with-alert{
+  margin-left:1rem;
+}
+.eds-travel-tag__label--bottom{
+  margin-top:0.125rem;
+  font-size:0.875rem;
+}
+.eds-travel-tag__details{
+  display:-webkit-box;
+  display:-webkit-flex;
+  display:-moz-box;
+  display:flex;
+  -webkit-box-align:center;
+  -webkit-align-items:center;
+     -moz-box-align:center;
+          align-items:center;
+  -webkit-box-pack:center;
+  -webkit-justify-content:center;
+     -moz-box-pack:center;
+          justify-content:center;
+  white-space:nowrap;
+  min-width:1.5rem;
+  height:-webkit-calc(100% + 0.5rem);
+  height:-moz-calc(100% + 0.5rem);
+  height:calc(100% + 0.5rem);
+  margin-block:-0.25rem;
+  margin-left:0.5rem;
+  margin-right:-0.75rem;
+  padding-inline:0.5rem;
+  background-color:var(--components-travel-traveltag-standard-fill-details);
+  color:var(--components-travel-traveltag-standard-text-details);
+  border:0.0625rem solid var(--components-travel-traveltag-standard-stroke-details);
+  border-left:none;
+  -webkit-border-radius:0 0.25rem 0.25rem 0;
+     -moz-border-radius:0 0.25rem 0.25rem 0;
+          border-radius:0 0.25rem 0.25rem 0;
+  font-weight:500;
+  font-size:0.875rem;
+  line-height:1.5rem;
+}
+:where(.eds-contrast) .eds-travel-tag__details{
+  background-color:var(--components-travel-traveltag-contrast-fill-details);
+  color:var(--components-travel-traveltag-contrast-text-details);
+  border-color:var(--components-travel-traveltag-contrast-stroke-details);
+}
+:where(.eds-travel-tag--alert--error) .eds-travel-tag__details{
+  border-color:var(--components-travel-traveltag-standard-stroke-details-cancelled);
+  background-color:var(--components-travel-traveltag-standard-fill-details-cancelled);
+  color:var(--components-travel-traveltag-standard-text-cancelled);
+}
+:where(.eds-contrast) :where(.eds-travel-tag--alert--error) .eds-travel-tag__details{
+  border-color:var(--components-travel-traveltag-contrast-stroke-details-cancelled);
+  background-color:var(--components-travel-traveltag-contrast-fill-details-cancelled);
+  color:var(--components-travel-traveltag-contrast-text-cancelled);
+}
+.eds-travel-tag__close-button{
+  -webkit-appearance:none;
+     -moz-appearance:none;
+          appearance:none;
+  background:none;
+  border:none;
+  -webkit-border-radius:50%;
+     -moz-border-radius:50%;
+          border-radius:50%;
+  cursor:pointer;
+  margin:0 -0.25rem 0 0.25rem;
+  padding:0;
+  height:1.5rem;
+  width:1.5rem;
+  font-size:1rem;
+}
+.eds-travel-tag__close-button :where(.eds-icon){
+  color:var(--text-color);
+  font-size:0.875rem;
+}
+.eds-travel-tag__close-button:has(:where(:focus-visible)){
+  outline-offset:0.125rem;
+  outline:2px solid #ffffff;
+}.eds-leg-line{
+  -webkit-box-flex:1;
+  -webkit-flex-grow:1;
+     -moz-box-flex:1;
+          flex-grow:1;
+  -webkit-mask-image:url("data:image/svg+xml,%3csvg%20width='4'%20height='4'%20role='presentation'%20xmlns='http://www.w3.org/2000/svg'%20xmlns:xlink='http://www.w3.org/1999/xlink'%3e%3crect%20fill='%23000'%20x='0'%20y='0'%20width='4'%20height='4'%20/%3e%3c/svg%3e");
+          mask-image:url("data:image/svg+xml,%3csvg%20width='4'%20height='4'%20role='presentation'%20xmlns='http://www.w3.org/2000/svg'%20xmlns:xlink='http://www.w3.org/1999/xlink'%3e%3crect%20fill='%23000'%20x='0'%20y='0'%20width='4'%20height='4'%20/%3e%3c/svg%3e");
+  -webkit-mask-position:center;
+          mask-position:center;
+}
+.eds-leg-line--dotted{
+  -webkit-mask-image:url("data:image/svg+xml,%3csvg%20width='8'%20height='8'%20role='presentation'%20xmlns='http://www.w3.org/2000/svg'%20xmlns:xlink='http://www.w3.org/1999/xlink'%3e%3ccircle%20fill='%23000'%20cx='4'%20cy='4'%20r='2'%20/%3e%3c/svg%3e");
+          mask-image:url("data:image/svg+xml,%3csvg%20width='8'%20height='8'%20role='presentation'%20xmlns='http://www.w3.org/2000/svg'%20xmlns:xlink='http://www.w3.org/1999/xlink'%3e%3ccircle%20fill='%23000'%20cx='4'%20cy='4'%20r='2'%20/%3e%3c/svg%3e");
+}
+.eds-leg-line--vertical{
+  -webkit-mask-repeat:repeat-y;
+          mask-repeat:repeat-y;
+  width:1rem;
+}
+.eds-leg-line--vertical.eds-leg-line--dashed{
+  -webkit-mask-image:url("data:image/svg+xml,%3csvg%20width='4'%20height='16'%20role='presentation'%20xmlns='http://www.w3.org/2000/svg'%20xmlns:xlink='http://www.w3.org/1999/xlink'%3e%3crect%20fill='%23000'%20x='0'%20y='3'%20width='4'%20height='10'%20/%3e%3c/svg%3e");
+          mask-image:url("data:image/svg+xml,%3csvg%20width='4'%20height='16'%20role='presentation'%20xmlns='http://www.w3.org/2000/svg'%20xmlns:xlink='http://www.w3.org/1999/xlink'%3e%3crect%20fill='%23000'%20x='0'%20y='3'%20width='4'%20height='10'%20/%3e%3c/svg%3e");
+}
+.eds-leg-line--vertical.eds-leg-line--wave{
+  -webkit-mask-image:url("data:image/svg+xml,%3csvg%20xmlns='http://www.w3.org/2000/svg'%20role='presentation'%20width='16'%20height='16'%3e%3cpath%20fill='none'%20stroke='%23000'%20stroke-width='4'%20d='M7.6%200c0%204%202.096%204%202.096%208S7.6%2012%207.6%2016'/%3e%3c/svg%3e");
+          mask-image:url("data:image/svg+xml,%3csvg%20xmlns='http://www.w3.org/2000/svg'%20role='presentation'%20width='16'%20height='16'%3e%3cpath%20fill='none'%20stroke='%23000'%20stroke-width='4'%20d='M7.6%200c0%204%202.096%204%202.096%208S7.6%2012%207.6%2016'/%3e%3c/svg%3e");
+}
+.eds-leg-line--horizontal{
+  height:1rem;
+  -webkit-mask-repeat:repeat-x;
+          mask-repeat:repeat-x;
+  min-width:6.25rem;
+}
+.eds-leg-line--horizontal.eds-leg-line--dashed{
+  -webkit-mask-image:url("data:image/svg+xml,%3csvg%20width='16'%20height='4'%20role='presentation'%20xmlns='http://www.w3.org/2000/svg'%20xmlns:xlink='http://www.w3.org/1999/xlink'%3e%3crect%20fill='%23000'%20x='3'%20y='0'%20width='10'%20height='4'%20/%3e%3c/svg%3e");
+          mask-image:url("data:image/svg+xml,%3csvg%20width='16'%20height='4'%20role='presentation'%20xmlns='http://www.w3.org/2000/svg'%20xmlns:xlink='http://www.w3.org/1999/xlink'%3e%3crect%20fill='%23000'%20x='3'%20y='0'%20width='10'%20height='4'%20/%3e%3c/svg%3e");
+}
+.eds-leg-line--horizontal.eds-leg-line--wave{
+  -webkit-mask-image:url("data:image/svg+xml,%3csvg%20xmlns='http://www.w3.org/2000/svg'%20role='presentation'%20width='16'%20height='16'%3e%3cpath%20fill='none'%20stroke='%23000'%20stroke-width='4'%20d='M0%209.048c4%200%204-2.096%208-2.096s4%202.096%208%202.096'/%3e%3c/svg%3e");
+          mask-image:url("data:image/svg+xml,%3csvg%20xmlns='http://www.w3.org/2000/svg'%20role='presentation'%20width='16'%20height='16'%3e%3cpath%20fill='none'%20stroke='%23000'%20stroke-width='4'%20d='M0%209.048c4%200%204-2.096%208-2.096s4%202.096%208%202.096'/%3e%3c/svg%3e");
+}.eds-leg-bone{
+  -webkit-box-align:center;
+  -webkit-align-items:center;
+     -moz-box-align:center;
+          align-items:center;
+  display:-webkit-box;
+  display:-webkit-flex;
+  display:-moz-box;
+  display:flex;
+  -webkit-box-pack:justify;
+  -webkit-justify-content:space-between;
+     -moz-box-pack:justify;
+          justify-content:space-between;
+}
+.eds-leg-bone__start, .eds-leg-bone__stop{
+  -webkit-border-radius:50%;
+     -moz-border-radius:50%;
+          border-radius:50%;
+  height:1rem;
+  width:1rem;
+}
+.eds-leg-bone__line{
+  -webkit-box-flex:1;
+  -webkit-flex-grow:1;
+     -moz-box-flex:1;
+          flex-grow:1;
+}
+.eds-leg-bone--vertical{
+  -webkit-box-orient:vertical;
+  -webkit-box-direction:normal;
+  -webkit-flex-direction:column;
+     -moz-box-orient:vertical;
+     -moz-box-direction:normal;
+          flex-direction:column;
+  width:1rem;
+}
+.eds-leg-bone--vertical .eds-leg-bone__start{
+  margin-bottom:0.125rem;
+}
+.eds-leg-bone--vertical .eds-leg-bone__stop{
+  margin-top:0.125rem;
+}
+.eds-leg-bone--horizontal{
+  -webkit-box-orient:horizontal;
+  -webkit-box-direction:normal;
+  -webkit-flex-direction:row;
+     -moz-box-orient:horizontal;
+     -moz-box-direction:normal;
+          flex-direction:row;
+  height:1rem;
+}
+.eds-leg-bone--horizontal .eds-leg-bone__start{
+  margin-right:0.125rem;
+}
+.eds-leg-bone--horizontal .eds-leg-bone__stop{
+  margin-left:0.125rem;
+}
+
+/* ---- prefers-color-scheme fallback (generated) ---- */
+@media (prefers-color-scheme: dark) {
+  :root:not([data-color-mode='light']) {
+  --components-travel-legline-stroke-line:#ff5959;
+  --components-travel-travelheader-contrast-stroke-line:#ff5959;
+  --components-travel-travelheader-contrast-text:#e5e5e9;
+  --components-travel-travelheader-standard-stroke-line:#ff5959;
+  --components-travel-travelheader-standard-text:#e5e5e9;
+  --components-travel-travelleg-contrast-air:#f2b8e5;
+  --components-travel-travelleg-contrast-airportlinkbus:#f2b8e5;
+  --components-travel-travelleg-contrast-airportlinkrail:#f2b8e5;
+  --components-travel-travelleg-contrast-bicycle:#4db2a1;
+  --components-travel-travelleg-contrast-bulletborder:#08091c;
+  --components-travel-travelleg-contrast-bus:#ef7398;
+  --components-travel-travelleg-contrast-bus-regional:#a4bf4d;
+  --components-travel-travelleg-contrast-cableway:#b898e5;
+  --components-travel-travelleg-contrast-carferry:#8ccfe2;
+  --components-travel-travelleg-contrast-citybike:#4db2a1;
+  --components-travel-travelleg-contrast-ferry:#8ccfe2;
+  --components-travel-travelleg-contrast-funicular:#b898e5;
+  --components-travel-travelleg-contrast-helicopter:#f2b8e5;
+  --components-travel-travelleg-contrast-metro:#dd973c;
+  --components-travel-travelleg-contrast-mobility:#4db2a1;
+  --components-travel-travelleg-contrast-plane:#f2b8e5;
+  --components-travel-travelleg-contrast-rail:#60a2d7;
+  --components-travel-travelleg-contrast-snowcoach:#ffe082;
+  --components-travel-travelleg-contrast-taxi:#ffe082;
+  --components-travel-travelleg-contrast-train:#60a2d7;
+  --components-travel-travelleg-contrast-tram:#b898e5;
+  --components-travel-travelleg-contrast-walk:#8d8e9c;
+  --components-travel-travelleg-contrast-water:#8ccfe2;
+  --components-travel-travelleg-standard-air:#f2b8e5;
+  --components-travel-travelleg-standard-airportlinkbus:#f2b8e5;
+  --components-travel-travelleg-standard-airportlinkrail:#f2b8e5;
+  --components-travel-travelleg-standard-bicycle:#4db2a1;
+  --components-travel-travelleg-standard-bulletborder:#08091c;
+  --components-travel-travelleg-standard-bus:#ef7398;
+  --components-travel-travelleg-standard-bus-regional:#a4bf4d;
+  --components-travel-travelleg-standard-cableway:#b898e5;
+  --components-travel-travelleg-standard-carferry:#8ccfe2;
+  --components-travel-travelleg-standard-citybike:#4db2a1;
+  --components-travel-travelleg-standard-ferry:#8ccfe2;
+  --components-travel-travelleg-standard-funicular:#b898e5;
+  --components-travel-travelleg-standard-helicopter:#f2b8e5;
+  --components-travel-travelleg-standard-metro:#dd973c;
+  --components-travel-travelleg-standard-mobility:#4db2a1;
+  --components-travel-travelleg-standard-plane:#f2b8e5;
+  --components-travel-travelleg-standard-rail:#60a2d7;
+  --components-travel-travelleg-standard-snowcoach:#ffe082;
+  --components-travel-travelleg-standard-taxi:#ffe082;
+  --components-travel-travelleg-standard-train:#60a2d7;
+  --components-travel-travelleg-standard-tram:#b898e5;
+  --components-travel-travelleg-standard-walk:#8d8e9c;
+  --components-travel-travelleg-standard-water:#8ccfe2;
+  --components-travel-travelswitch-contrast-backgroundfalse:rgba(229, 229, 233, 0.3490196078);
+  --components-travel-travelswitch-contrast-backgroundtrue-air:#f2b8e5;
+  --components-travel-travelswitch-contrast-backgroundtrue-bicycle:#4db2a1;
+  --components-travel-travelswitch-contrast-backgroundtrue-bus:#ef7398;
+  --components-travel-travelswitch-contrast-backgroundtrue-cableway:#b898e5;
+  --components-travel-travelswitch-contrast-backgroundtrue-carferry:#8ccfe2;
+  --components-travel-travelswitch-contrast-backgroundtrue-citybike:#4db2a1;
+  --components-travel-travelswitch-contrast-backgroundtrue-ferry:#8ccfe2;
+  --components-travel-travelswitch-contrast-backgroundtrue-funicular:#b898e5;
+  --components-travel-travelswitch-contrast-backgroundtrue-helicopter:#f2b8e5;
+  --components-travel-travelswitch-contrast-backgroundtrue-metro:#dd973c;
+  --components-travel-travelswitch-contrast-backgroundtrue-mobility:#4db2a1;
+  --components-travel-travelswitch-contrast-backgroundtrue-plane:#f2b8e5;
+  --components-travel-travelswitch-contrast-backgroundtrue-rail:#60a2d7;
+  --components-travel-travelswitch-contrast-backgroundtrue-regional-bus:#a4bf4d;
+  --components-travel-travelswitch-contrast-backgroundtrue-snowcoach:#ffe082;
+  --components-travel-travelswitch-contrast-backgroundtrue-taxi:#ffe082;
+  --components-travel-travelswitch-contrast-backgroundtrue-train:#60a2d7;
+  --components-travel-travelswitch-contrast-backgroundtrue-tram:#b898e5;
+  --components-travel-travelswitch-contrast-backgroundtrue-walk:#8d8e9c;
+  --components-travel-travelswitch-contrast-backgroundtrue-water:#8ccfe2;
+  --components-travel-travelswitch-contrast-backgroundtrue-airportlinkbus:#f2b8e5;
+  --components-travel-travelswitch-contrast-backgroundtrue-airportlinkrail:#f2b8e5;
+  --components-travel-travelswitch-contrast-iconfalse:#b3b4bd;
+  --components-travel-travelswitch-contrast-icontrue-bicycle:#4db2a1;
+  --components-travel-travelswitch-contrast-icontrue-bus:#ef7398;
+  --components-travel-travelswitch-contrast-icontrue-bus-regional:#a4bf4d;
+  --components-travel-travelswitch-contrast-icontrue-cableway:#b898e5;
+  --components-travel-travelswitch-contrast-icontrue-carferry:#8ccfe2;
+  --components-travel-travelswitch-contrast-icontrue-citybike:#4db2a1;
+  --components-travel-travelswitch-contrast-icontrue-ferry:#8ccfe2;
+  --components-travel-travelswitch-contrast-icontrue-funicular:#b898e5;
+  --components-travel-travelswitch-contrast-icontrue-helicopter:#f2b8e5;
+  --components-travel-travelswitch-contrast-icontrue-metro:#dd973c;
+  --components-travel-travelswitch-contrast-icontrue-mobility:#4db2a1;
+  --components-travel-travelswitch-contrast-icontrue-plane:#f2b8e5;
+  --components-travel-travelswitch-contrast-icontrue-snowcoach:#ffe082;
+  --components-travel-travelswitch-contrast-icontrue-taxi:#ffe082;
+  --components-travel-travelswitch-contrast-icontrue-train:#60a2d7;
+  --components-travel-travelswitch-contrast-icontrue-tram:#b898e5;
+  --components-travel-travelswitch-contrast-icontrue-walk:#8d8e9c;
+  --components-travel-travelswitch-contrast-icontrue-airportlinkbus:#f2b8e5;
+  --components-travel-travelswitch-contrast-icontrue-airportlinkrail:#f2b8e5;
+  --components-travel-travelswitch-contrast-switchfill-false:#08091c;
+  --components-travel-travelswitch-contrast-switchfill-true:#08091c;
+  --components-travel-travelswitch-contrast-text:#e5e5e9;
+  --components-travel-travelswitch-standard-backgroundfalse:rgba(229, 229, 233, 0.3490196078);
+  --components-travel-travelswitch-standard-backgroundtrue-air:#f2b8e5;
+  --components-travel-travelswitch-standard-backgroundtrue-bicycle:#4db2a1;
+  --components-travel-travelswitch-standard-backgroundtrue-bus:#ef7398;
+  --components-travel-travelswitch-standard-backgroundtrue-bus-regional:#a4bf4d;
+  --components-travel-travelswitch-standard-backgroundtrue-cableway:#b898e5;
+  --components-travel-travelswitch-standard-backgroundtrue-carferry:#8ccfe2;
+  --components-travel-travelswitch-standard-backgroundtrue-citybike:#4db2a1;
+  --components-travel-travelswitch-standard-backgroundtrue-ferry:#8ccfe2;
+  --components-travel-travelswitch-standard-backgroundtrue-funicular:#b898e5;
+  --components-travel-travelswitch-standard-backgroundtrue-helicopter:#f2b8e5;
+  --components-travel-travelswitch-standard-backgroundtrue-metro:#dd973c;
+  --components-travel-travelswitch-standard-backgroundtrue-mobility:#4db2a1;
+  --components-travel-travelswitch-standard-backgroundtrue-plane:#f2b8e5;
+  --components-travel-travelswitch-standard-backgroundtrue-rail:#60a2d7;
+  --components-travel-travelswitch-standard-backgroundtrue-snowcoach:#ffe082;
+  --components-travel-travelswitch-standard-backgroundtrue-taxi:#ffe082;
+  --components-travel-travelswitch-standard-backgroundtrue-train:#60a2d7;
+  --components-travel-travelswitch-standard-backgroundtrue-tram:#b898e5;
+  --components-travel-travelswitch-standard-backgroundtrue-walk:#8d8e9c;
+  --components-travel-travelswitch-standard-backgroundtrue-water:#8ccfe2;
+  --components-travel-travelswitch-standard-backgroundtrue-airportlinkbus:#f2b8e5;
+  --components-travel-travelswitch-standard-backgroundtrue-airportlinkrail:#f2b8e5;
+  --components-travel-travelswitch-standard-iconfalse:#b3b4bd;
+  --components-travel-travelswitch-standard-icontrue-bicycle:#00dbb6;
+  --components-travel-travelswitch-standard-icontrue-bus:#ef7398;
+  --components-travel-travelswitch-standard-icontrue-cableway:#b898e5;
+  --components-travel-travelswitch-standard-icontrue-carferry:#8ccfe2;
+  --components-travel-travelswitch-standard-icontrue-citybike:#00dbb6;
+  --components-travel-travelswitch-standard-icontrue-ferry:#8ccfe2;
+  --components-travel-travelswitch-standard-icontrue-funicular:#b898e5;
+  --components-travel-travelswitch-standard-icontrue-helicopter:#f2b8e5;
+  --components-travel-travelswitch-standard-icontrue-metro:#dd973c;
+  --components-travel-travelswitch-standard-icontrue-mobility:#00dbb6;
+  --components-travel-travelswitch-standard-icontrue-plane:#f2b8e5;
+  --components-travel-travelswitch-standard-icontrue-rail:#60a2d7;
+  --components-travel-travelswitch-standard-icontrue-regional-bus:#a4bf4d;
+  --components-travel-travelswitch-standard-icontrue-snowcoach:#ffe082;
+  --components-travel-travelswitch-standard-icontrue-taxi:#ffe082;
+  --components-travel-travelswitch-standard-icontrue-train:#60a2d7;
+  --components-travel-travelswitch-standard-icontrue-tram:#b898e5;
+  --components-travel-travelswitch-standard-icontrue-walk:#8d8e9c;
+  --components-travel-travelswitch-standard-icontrue-water:#8ccfe2;
+  --components-travel-travelswitch-standard-icontrue-airportlinkbus:#f2b8e5;
+  --components-travel-travelswitch-standard-icontrue-airportlinkbus2:#f2b8e5;
+  --components-travel-travelswitch-standard-icontrue-airportlinkrail:#f2b8e5;
+  --components-travel-travelswitch-standard-switchfill-false:#08091c;
+  --components-travel-travelswitch-standard-switchfill-true:#08091c;
+  --components-travel-travelswitch-standard-text:#e5e5e9;
+  --components-travel-traveltag-contrast-fill-air:#f2b8e5;
+  --components-travel-traveltag-contrast-fill-aircancelled:rgba(242, 184, 229, 0.1490196078);
+  --components-travel-traveltag-contrast-fill-bicycle:#4db2a1;
+  --components-travel-traveltag-contrast-fill-bus:#ef7398;
+  --components-travel-traveltag-contrast-fill-bus-cancelled:rgba(239, 115, 152, 0.1490196078);
+  --components-travel-traveltag-contrast-fill-bus-regional:#a4bf4d;
+  --components-travel-traveltag-contrast-fill-bus-regional-cancelled:rgba(164, 191, 77, 0.1490196078);
+  --components-travel-traveltag-contrast-fill-cableway:#b898e5;
+  --components-travel-traveltag-contrast-fill-cableway-cancelled:rgba(184, 152, 229, 0.1490196078);
+  --components-travel-traveltag-contrast-fill-carferry:#8ccfe2;
+  --components-travel-traveltag-contrast-fill-carferry-cancelled:rgba(140, 207, 226, 0.1490196078);
+  --components-travel-traveltag-contrast-fill-citybike:#4db2a1;
+  --components-travel-traveltag-contrast-fill-details:#212233;
+  --components-travel-traveltag-contrast-fill-details-cancelled:#08091c;
+  --components-travel-traveltag-contrast-fill-ferry:#8ccfe2;
+  --components-travel-traveltag-contrast-fill-ferry-cancelled:rgba(140, 207, 226, 0.1490196078);
+  --components-travel-traveltag-contrast-fill-funicular:#b898e5;
+  --components-travel-traveltag-contrast-fill-helicopter:#f2b8e5;
+  --components-travel-traveltag-contrast-fill-helicopter-cancelled:rgba(242, 184, 229, 0.1490196078);
+  --components-travel-traveltag-contrast-fill-metro:#dd973c;
+  --components-travel-traveltag-contrast-fill-metro-cancelled:rgba(221, 151, 60, 0.1490196078);
+  --components-travel-traveltag-contrast-fill-mobility:#4db2a1;
+  --components-travel-traveltag-contrast-fill-plane:#f2b8e5;
+  --components-travel-traveltag-contrast-fill-plane-cancelled:rgba(242, 184, 229, 0.1490196078);
+  --components-travel-traveltag-contrast-fill-rail:#60a2d7;
+  --components-travel-traveltag-contrast-fill-rail-cancelled:rgba(96, 162, 215, 0.1490196078);
+  --components-travel-traveltag-contrast-fill-snowcoach:#ffe082;
+  --components-travel-traveltag-contrast-fill-snowcoach-cancelled:rgba(255,224,130,0.14902);
+  --components-travel-traveltag-contrast-fill-tag-funicular-cancelled:rgba(184, 152, 229, 0.1490196078);
+  --components-travel-traveltag-contrast-fill-taxi:#ffe082;
+  --components-travel-traveltag-contrast-fill-taxi-cancelled:rgba(255,224,130,0.14902);
+  --components-travel-traveltag-contrast-fill-train:#60a2d7;
+  --components-travel-traveltag-contrast-fill-train-cancelled:rgba(96, 162, 215, 0.1490196078);
+  --components-travel-traveltag-contrast-fill-tram:#b898e5;
+  --components-travel-traveltag-contrast-fill-tram-cancelled:rgba(184, 152, 229, 0.1490196078);
+  --components-travel-traveltag-contrast-fill-walk:#8d8e9c;
+  --components-travel-traveltag-contrast-fill-water:#8ccfe2;
+  --components-travel-traveltag-contrast-fill-water-cancelled:rgba(140, 207, 226, 0.1490196078);
+  --components-travel-traveltag-contrast-fill-airportlinkbus-cancelled:rgba(242, 184, 229, 0.1490196078);
+  --components-travel-traveltag-contrast-fill-airportlinkrail:#f2b8e5;
+  --components-travel-traveltag-contrast-fill-airportlinkrail-cancelled:rgba(242, 184, 229, 0.1490196078);
+  --components-travel-traveltag-contrast-fill-airportlinkbus:#f2b8e5;
+  --components-travel-traveltag-contrast-icon-airportlinkbus-cancelled:#f2b8e5;
+  --components-travel-traveltag-contrast-icon-airportlinkrail-cancelled:#f2b8e5;
+  --components-travel-traveltag-contrast-icon-bus-cancelled:#ef7398;
+  --components-travel-traveltag-contrast-icon-bus-regional-cancelled:#a4bf4d;
+  --components-travel-traveltag-contrast-icon-cableway-cancelled:#b898e5;
+  --components-travel-traveltag-contrast-icon-carferry-cancelled:#8ccfe2;
+  --components-travel-traveltag-contrast-icon-default:#08091c;
+  --components-travel-traveltag-contrast-icon-ferry-cancelled:#8ccfe2;
+  --components-travel-traveltag-contrast-icon-funicular-cancelled:#b898e5;
+  --components-travel-traveltag-contrast-icon-helicopter-cancelled:#f2b8e5;
+  --components-travel-traveltag-contrast-icon-metro-cancelled:#dd973c;
+  --components-travel-traveltag-contrast-icon-plane-cancelled:#f2b8e5;
+  --components-travel-traveltag-contrast-icon-snowcoach-cancelled:#ffe082;
+  --components-travel-traveltag-contrast-icon-taxi-cancelled:#ffe082;
+  --components-travel-traveltag-contrast-icon-train-cancelled:#60a2d7;
+  --components-travel-traveltag-contrast-icon-tram-cancelled:#b898e5;
+  --components-travel-traveltag-contrast-icon-walk:#e5e5e9;
+  --components-travel-traveltag-contrast-stroke-details:#81828f;
+  --components-travel-traveltag-contrast-stroke-details-cancelled:rgba(229, 229, 233, 0.2509803922);
+  --components-travel-traveltag-contrast-stroke-icon-validation:#08091c;
+  --components-travel-traveltag-contrast-text-cancelled:#b6b8ba;
+  --components-travel-traveltag-contrast-text-default:#08091c;
+  --components-travel-traveltag-contrast-text-details:#ffffff;
+  --components-travel-traveltag-contrast-text-label:#e5e5e9;
+  --components-travel-traveltag-contrast-text-line-bus-cancelled:#ef7398;
+  --components-travel-traveltag-contrast-text-line-bus-regional-cancelled:#a4bf4d;
+  --components-travel-traveltag-contrast-text-line-cableway-cancelled:#b898e5;
+  --components-travel-traveltag-contrast-text-line-carferry-cancelled:#8ccfe2;
+  --components-travel-traveltag-contrast-text-line-ferry-cancelled:#8ccfe2;
+  --components-travel-traveltag-contrast-text-line-funicular-cancelled:#b898e5;
+  --components-travel-traveltag-contrast-text-line-helicopter-cancelled:#f2b8e5;
+  --components-travel-traveltag-contrast-text-line-metro-cancelled:#dd973c;
+  --components-travel-traveltag-contrast-text-line-plane-cancelled:#f2b8e5;
+  --components-travel-traveltag-contrast-text-line-snowcoach-cancelled:#ffe082;
+  --components-travel-traveltag-contrast-text-line-taxi-cancelled:#ffe082;
+  --components-travel-traveltag-contrast-text-line-train-cancelled:#60a2d7;
+  --components-travel-traveltag-contrast-text-line-tram-cancelled:#b898e5;
+  --components-travel-traveltag-contrast-text-line-walk:#e5e5e9;
+  --components-travel-traveltag-contrast-text-line-airportlinkbus-cancelled:#f2b8e5;
+  --components-travel-traveltag-contrast-text-line-airportlinkrail-cancelled:#f2b8e5;
+  --components-travel-traveltag-contrast-text-newtime:#ff9494;
+  --components-travel-traveltag-standard-fill-air:#f2b8e5;
+  --components-travel-traveltag-standard-fill-air-cancelled:rgba(242, 184, 229, 0.1490196078);
+  --components-travel-traveltag-standard-fill-airportlinkbus:#f2b8e5;
+  --components-travel-traveltag-standard-fill-airportlinkbus-cancelled:rgba(242, 184, 229, 0.1490196078);
+  --components-travel-traveltag-standard-fill-airportlinkrail:#f2b8e5;
+  --components-travel-traveltag-standard-fill-airportlinkrail-cancelled:rgba(242, 184, 229, 0.1490196078);
+  --components-travel-traveltag-standard-fill-bicycle:#4db2a1;
+  --components-travel-traveltag-standard-fill-bus:#ef7398;
+  --components-travel-traveltag-standard-fill-bus-cancelled:rgba(239, 115, 152, 0.1490196078);
+  --components-travel-traveltag-standard-fill-bus-regional:#a4bf4d;
+  --components-travel-traveltag-standard-fill-bus-regional-cancelled:rgba(164, 191, 77, 0.1490196078);
+  --components-travel-traveltag-standard-fill-cableway:#b898e5;
+  --components-travel-traveltag-standard-fill-cableway-cancelled:rgba(180, 130, 251, 0.1490196078);
+  --components-travel-traveltag-standard-fill-carferry:#8ccfe2;
+  --components-travel-traveltag-standard-fill-carferry-cancelled:rgba(140, 207, 226, 0.1490196078);
+  --components-travel-traveltag-standard-fill-citybike:#4db2a1;
+  --components-travel-traveltag-standard-fill-details:#212233;
+  --components-travel-traveltag-standard-fill-details-cancelled:#08091c;
+  --components-travel-traveltag-standard-fill-ferry:#8ccfe2;
+  --components-travel-traveltag-standard-fill-ferry-cancelled:rgba(140, 207, 226, 0.1490196078);
+  --components-travel-traveltag-standard-fill-funicular:#b898e5;
+  --components-travel-traveltag-standard-fill-funicular-cancelled:rgba(184, 152, 229, 0.1490196078);
+  --components-travel-traveltag-standard-fill-helicopter:#f2b8e5;
+  --components-travel-traveltag-standard-fill-helicopter-cancelled:rgba(242, 184, 229, 0.1490196078);
+  --components-travel-traveltag-standard-fill-metro:#dd973c;
+  --components-travel-traveltag-standard-fill-metro-cancelled:rgba(221, 151, 60, 0.1490196078);
+  --components-travel-traveltag-standard-fill-mobility:#4db2a1;
+  --components-travel-traveltag-standard-fill-plane:#f2b8e5;
+  --components-travel-traveltag-standard-fill-plane-cancelled:rgba(242, 184, 229, 0.1490196078);
+  --components-travel-traveltag-standard-fill-rail:#60a2d7;
+  --components-travel-traveltag-standard-fill-rail-cancelled:rgba(96, 162, 215, 0.1490196078);
+  --components-travel-traveltag-standard-fill-snowcoach:#ffe082;
+  --components-travel-traveltag-standard-fill-snowcoach-cancelled:rgba(255, 224, 130, 0.1490196078);
+  --components-travel-traveltag-standard-fill-taxi:#ffe082;
+  --components-travel-traveltag-standard-fill-taxi-cancelled:rgba(255, 224, 130, 0.1490196078);
+  --components-travel-traveltag-standard-fill-train:#60a2d7;
+  --components-travel-traveltag-standard-fill-train-cancelled:rgba(96, 162, 215, 0.1490196078);
+  --components-travel-traveltag-standard-fill-tram:#b898e5;
+  --components-travel-traveltag-standard-fill-tram-cancelled:rgba(184, 152, 229, 0.1490196078);
+  --components-travel-traveltag-standard-fill-walk:#8d8e9c;
+  --components-travel-traveltag-standard-fill-water:#8ccfe2;
+  --components-travel-traveltag-standard-fill-water-cancelled:rgba(140, 207, 226, 0.1490196078);
+  --components-travel-traveltag-standard-icon-airportlinkbus-cancelled:#f2b8e5;
+  --components-travel-traveltag-standard-icon-airportlinkrail-cancelled:#f2b8e5;
+  --components-travel-traveltag-standard-icon-bus-cancelled:#ef7398;
+  --components-travel-traveltag-standard-icon-bus-regional-cancelled:#a4bf4d;
+  --components-travel-traveltag-standard-icon-cableway-cancelled:#b898e5;
+  --components-travel-traveltag-standard-icon-carferry-cancelled:#8ccfe2;
+  --components-travel-traveltag-standard-icon-default:#08091c;
+  --components-travel-traveltag-standard-icon-ferry-cancelled:#8ccfe2;
+  --components-travel-traveltag-standard-icon-funicular-cancelled:#b898e5;
+  --components-travel-traveltag-standard-icon-helicopter-cancelled:#f2b8e5;
+  --components-travel-traveltag-standard-icon-metro-cancelled:#dd973c;
+  --components-travel-traveltag-standard-icon-plane-cancelled:#f2b8e5;
+  --components-travel-traveltag-standard-icon-snowcoach-cancelled:#ffe082;
+  --components-travel-traveltag-standard-icon-taxi-cancelled:#ffe082;
+  --components-travel-traveltag-standard-icon-train-cancelled:#60a2d7;
+  --components-travel-traveltag-standard-icon-tram-cancelled:#b898e5;
+  --components-travel-traveltag-standard-icon-walk:#08091c;
+  --components-travel-traveltag-standard-stroke-details:#81828f;
+  --components-travel-traveltag-standard-stroke-details-cancelled:rgba(229, 229, 233, 0.2509803922);
+  --components-travel-traveltag-standard-stroke-icon-validation:#08091c;
+  --components-travel-traveltag-standard-text-cancelled:#b6b8ba;
+  --components-travel-traveltag-standard-text-default:#08091c;
+  --components-travel-traveltag-standard-text-details:#ffffff;
+  --components-travel-traveltag-standard-text-label:#e5e5e9;
+  --components-travel-traveltag-standard-text-line-bus-cancelled:#ef7398;
+  --components-travel-traveltag-standard-text-line-cableway-cancelled:#b898e5;
+  --components-travel-traveltag-standard-text-line-carferry-cancelled:#8ccfe2;
+  --components-travel-traveltag-standard-text-line-ferry-cancelled:#8ccfe2;
+  --components-travel-traveltag-standard-text-line-funicular-cancelled:#b898e5;
+  --components-travel-traveltag-standard-text-line-helicopter-cancelled:#f2b8e5;
+  --components-travel-traveltag-standard-text-line-metro-cancelled:#dd973c;
+  --components-travel-traveltag-standard-text-line-plane-cancelled:#f2b8e5;
+  --components-travel-traveltag-standard-text-line-snowcoach-cancelled:#ffe082;
+  --components-travel-traveltag-standard-text-line-taxi-cancelled:#ffe082;
+  --components-travel-traveltag-standard-text-line-train-cancelled:#60a2d7;
+  --components-travel-traveltag-standard-text-line-tram-cancelled:#b898e5;
+  --components-travel-traveltag-standard-text-line-walk:#08091c;
+  --components-travel-traveltag-standard-text-line-airportlinkbus-cancelled:#f2b8e5;
+  --components-travel-traveltag-standard-text-line-airportlinkrail-cancelled:#f2b8e5;
+  --components-travel-traveltag-standard-text-line-regional-bus-cancelled:#a4bf4d;
+  --components-travel-traveltag-standard-text-newtime:#ff9494;}
+}

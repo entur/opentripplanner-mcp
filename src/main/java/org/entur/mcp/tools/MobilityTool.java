@@ -23,7 +23,6 @@ import org.springframework.core.io.Resource;
 import org.springframework.stereotype.Component;
 
 import java.io.IOException;
-import java.nio.charset.Charset;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -39,6 +38,7 @@ public class MobilityTool {
 
     private final MobilityService mobilityService;
     private final GeocoderService geocoderService;
+    private final AppHtmlLoader appHtmlLoader;
 
     public static final class NearbyMobilityUiMeta implements MetaProvider {
         @Override
@@ -58,9 +58,11 @@ public class MobilityTool {
     }
 
     public MobilityTool(@Autowired MobilityService mobilityService,
-                        @Autowired GeocoderService geocoderService) {
+                        @Autowired GeocoderService geocoderService,
+                        @Autowired AppHtmlLoader appHtmlLoader) {
         this.mobilityService = mobilityService;
         this.geocoderService = geocoderService;
+        this.appHtmlLoader = appHtmlLoader;
     }
 
     @McpTool(
@@ -160,7 +162,7 @@ public class MobilityTool {
         metaProvider = MobilityTool.NearbyMobilityCspMeta.class
     )
     public String getNearbyMobilityMapResource() throws IOException {
-        return nearbyMobilityMapHtml.getContentAsString(Charset.defaultCharset());
+        return appHtmlLoader.load(nearbyMobilityMapHtml);
     }
 
     private String toErrorJson(ErrorResponse errorResponse) {

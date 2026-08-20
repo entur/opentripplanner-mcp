@@ -3,31 +3,64 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="color-scheme" content="light dark">
     <title>Nearby Stops</title>
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
+    <!--ENTUR_TOKENS-->
     <style>
         * { margin: 0; padding: 0; box-sizing: border-box; }
-        body { font-family: inherit; font-size: 14px; display: flex; flex-direction: column; height: 100vh; overflow: hidden; background: #12121e; color: #e0e0e0; }
+        body { font-family: Arial, Helvetica, sans-serif; font-size: var(--font-sizes-medium);
+               display: flex; flex-direction: column; height: 100vh; overflow: hidden;
+               background: var(--basecolors-frame-default); color: var(--basecolors-text-accent); }
         #map { height: clamp(200px, 50vh, 320px); flex-shrink: 0; position: relative; }
-        #card-strip { flex: 1; background: #1a1a2e; display: flex; overflow-x: auto; border-top: 2px solid #0f3460; scrollbar-width: thin; scrollbar-color: #0f3460 #1a1a2e; }
-        .stop-card { min-width: 210px; flex-shrink: 0; padding: 12px 14px; border-right: 1px solid #0f3460; display: flex; flex-direction: column; gap: 4px; cursor: pointer; transition: background 0.1s; }
-        .stop-card:hover { background: #16213e; }
-        .stop-card.active { background: #1e2a4a; }
-        .card-stop-name { font-weight: 700; color: #fff; font-size: 12px; flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-        .card-distance { color: #888; font-size: 10px; flex-shrink: 0; }
+        #card-strip { flex: 1; background: var(--basecolors-frame-tint); display: flex; overflow-x: auto;
+                      border-top: var(--border-widths-medium) solid var(--basecolors-stroke-subdued);
+                      scrollbar-width: thin;
+                      scrollbar-color: var(--basecolors-shape-subdued) var(--basecolors-frame-tint); }
+        .stop-card { min-width: 210px; flex-shrink: 0; padding: 12px 14px;
+                     border-right: var(--border-widths-small) solid var(--basecolors-stroke-subdued);
+                     display: flex; flex-direction: column; gap: 4px; cursor: pointer;
+                     transition: background var(--timings-fast); }
+        .stop-card:hover { background: var(--basecolors-frame-subdued); }
+        .stop-card.active { background: var(--basecolors-frame-subdued);
+                            box-shadow: inset var(--border-widths-large) 0 0 0 var(--basecolors-shape-highlight); }
+        .stop-card:focus-visible { outline: none; box-shadow: var(--shadows-focus); }
+        .card-stop-name { font-weight: 700; color: var(--basecolors-text-accent); font-size: var(--font-sizes-small);
+                          flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+        .card-distance { color: var(--basecolors-text-subdued); font-size: var(--font-sizes-extra-small); flex-shrink: 0; }
         .card-modes { display: flex; gap: 3px; flex-wrap: wrap; }
-        .mode-badge { display: inline-block; padding: 2px 6px; border-radius: 3px; font-size: 10px; color: #fff; }
-        .departure-row { font-size: 11px; display: flex; gap: 5px; align-items: center; }
-        .departure-row .dest { color: #ddd; flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-        .departure-row .time { color: #ddd; flex-shrink: 0; }
-        .dep-delay { font-size: 10px; color: #e67e22; }
-        .dep-delay.delay-ok { color: #27ae60; }
-        .no-departures { color: #555; font-size: 11px; margin-top: 4px; }
-        .map-overlay { position: absolute; z-index: 1000; background: rgba(22,33,62,0.92); color: #fff; padding: 5px 10px; border-radius: 5px; font-size: 11px; pointer-events: none; }
-        .status-card { min-width: 210px; padding: 12px 14px; color: #888; font-size: 12px; display: flex; align-items: center; }
+        .mode-badge { display: inline-block; padding: 2px 6px; border-radius: var(--border-radiuses-medium);
+                      font-size: var(--font-sizes-extra-small); color: var(--basecolors-frame-default); }
+        .departure-row { font-size: var(--font-sizes-small); display: flex; gap: 5px; align-items: center; }
+        .departure-row .dest { color: var(--basecolors-text-accent); flex: 1; overflow: hidden;
+                               text-overflow: ellipsis; white-space: nowrap; }
+        .departure-row .time { color: var(--basecolors-text-accent); flex-shrink: 0; }
+        .dep-delay { font-size: var(--font-sizes-extra-small); color: var(--app-feedback-negative-text); }
+        .dep-delay.delay-ok { color: var(--app-feedback-success-text); }
+        .no-departures { color: var(--basecolors-text-disabled); font-size: var(--font-sizes-small); margin-top: 4px; }
+        .map-overlay { position: absolute; z-index: var(--z-indexes-popover);
+                       background: var(--basecolors-frame-elevated); color: var(--basecolors-text-accent);
+                       padding: 5px 10px; border-radius: var(--border-radiuses-medium);
+                       box-shadow: var(--shadows-card-shadow);
+                       font-size: var(--font-sizes-small); pointer-events: none; }
+        .status-card { min-width: 210px; padding: 12px 14px; color: var(--basecolors-text-subdued);
+                       font-size: var(--font-sizes-small); display: flex; align-items: center; }
         .leaflet-popup-content { min-width: 160px; }
-        .popup-stop-name { font-weight: 700; font-size: 13px; }
-        .popup-dep { font-size: 11px; margin-top: 4px; display: flex; gap: 6px; }
+        .popup-stop-name { font-weight: 700; font-size: var(--font-sizes-small); }
+        .popup-dep { font-size: var(--font-sizes-small); margin-top: 4px; display: flex; gap: 6px; }
+
+        /* Leaflet renders its own light-themed surfaces; pull them onto the token palette. */
+        .leaflet-popup-content-wrapper, .leaflet-popup-tip,
+        .leaflet-control-zoom a, .leaflet-control-attribution {
+            background: var(--basecolors-frame-elevated); color: var(--basecolors-text-accent);
+        }
+        .leaflet-control-zoom a { border-color: var(--basecolors-stroke-subdued); }
+        .leaflet-control-attribution a { color: var(--basecolors-text-subdued); }
+        /* OSM raster tiles have no dark variant; damp them so markers stay readable. */
+        :root[data-color-mode="dark"] .leaflet-tile-pane { filter: invert(1) hue-rotate(180deg) brightness(0.85) contrast(0.9); }
+        @media (prefers-color-scheme: dark) {
+            :root:not([data-color-mode="light"]) .leaflet-tile-pane { filter: invert(1) hue-rotate(180deg) brightness(0.85) contrast(0.9); }
+        }
     </style>
 </head>
 <body>
@@ -39,6 +72,28 @@
         import { App } from "https://unpkg.com/@modelcontextprotocol/ext-apps@0.4.2/dist/src/app-with-deps.js";
 
         const app = new App({ name: "nearby-stops", version: "1.0.0" });
+
+        // --- Entur colour mode ------------------------------------------------
+        // Linje tokens key off data-color-mode on <html>. With the attribute absent the
+        // prefers-color-scheme block in entur-tokens.css decides, so the app is themed
+        // correctly before the host has reported anything.
+        function applyColorMode(theme) {
+            const root = document.documentElement;
+            if (theme === 'dark' || theme === 'light') root.setAttribute('data-color-mode', theme);
+            else root.removeAttribute('data-color-mode');
+        }
+
+        // Leaflet writes colours into SVG presentation attributes, which do not accept
+        // var(), so vector layers need the token resolved to a concrete value.
+        function cssVar(name) {
+            return getComputedStyle(document.documentElement).getPropertyValue(name).trim();
+        }
+
+        let lastData = null;
+        function onColorModeChange() {
+            if (lastData) render(lastData);
+        }
+        matchMedia('(prefers-color-scheme: dark)').addEventListener('change', onColorModeChange);
         let leafletMap = null;
         let originMarker = null;
         let radiusCircle = null;
@@ -103,9 +158,26 @@
             return String(s ?? '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
         }
 
+        // OTP transport modes -> Entur Linje transport tokens.
+        const MODE_TOKENS = {
+            bus: 'bus', coach: 'bus',
+            rail: 'train', train: 'train',
+            metro: 'metro', subway: 'metro',
+            tram: 'tram',
+            water: 'ferry', ferry: 'ferry',
+            air: 'plane', plane: 'plane',
+            funicular: 'funicular', cableway: 'cableway',
+            taxi: 'taxi', bicycle: 'bicycle',
+            foot: 'walk', walk: 'walk',
+        };
+
+        function modeToken(mode) {
+            const key = MODE_TOKENS[(mode || '').toLowerCase()];
+            return key ? `--basecolors-shape-${key}-default` : '--basecolors-shape-subdued';
+        }
+
         function modeColor(mode) {
-            const colors = { bus: '#3787bd', rail: '#e67e22', metro: '#8e44ad', tram: '#27ae60', water: '#2980b9', air: '#c0392b' };
-            return colors[(mode || '').toLowerCase()] || '#555';
+            return `var(${modeToken(mode)})`;
         }
 
         function safeHex(v) {
@@ -116,8 +188,11 @@
             return safeHex(line?.presentation?.colour) || modeColor(line?.transportMode);
         }
 
+        // Transport fills are saturated in light mode and pastel in dark, so the label must
+        // invert with the surface. --basecolors-frame-default is white in light mode and
+        // near-black in dark; --basecolors-text-light stays pale in both and would vanish.
         function lineTextColor(line) {
-            return safeHex(line?.presentation?.textColour) || '#ffffff';
+            return safeHex(line?.presentation?.textColour) || 'var(--basecolors-frame-default)';
         }
 
         function parseDurationSecs(dur) {
@@ -145,7 +220,7 @@
         function makeStopIcon(modes) {
             const color = modeColor(modes?.[0]);
             const html = `<div style="width:22px;height:22px;border-radius:50%;background:${color};` +
-                `border:2px solid #fff;box-shadow:0 2px 4px #0006;"></div>`;
+                `border:2px solid var(--basecolors-stroke-light);box-shadow:var(--shadows-card-shadow);"></div>`;
             return L.divIcon({ html, className: '', iconSize: [22, 22], iconAnchor: [11, 11] });
         }
 
@@ -188,7 +263,7 @@
             }
 
             const subtitle = q.location
-                ? ` &nbsp;·&nbsp; <span style="color:#aaa;font-weight:400">${esc(t('near_subtitle', q.location, q.radiusMeters))}</span>`
+                ? ` &nbsp;·&nbsp; <span style="color:var(--basecolors-text-subdued);font-weight:400">${esc(t('near_subtitle', q.location, q.radiusMeters))}</span>`
                 : '';
             if (titleOverlay) {
                 titleOverlay.innerHTML = `<strong>${esc(t('title'))}</strong>${subtitle}`;
@@ -203,13 +278,15 @@
             if (radiusCircle) leafletMap.removeLayer(radiusCircle);
             cardStripEl.innerHTML = '';
 
+            const highlight = cssVar('--basecolors-shape-highlight');
+            const accent = cssVar('--basecolors-shape-accent');
             originMarker = L.circleMarker([q.latitude, q.longitude], {
-                radius: 7, color: '#e74c3c', fillColor: '#e74c3c', fillOpacity: 1, weight: 2
+                radius: 7, color: highlight, fillColor: highlight, fillOpacity: 1, weight: 2
             }).addTo(leafletMap).bindTooltip(esc(q.location || t('origin')), { permanent: false });
 
             radiusCircle = L.circle([q.latitude, q.longitude], {
                 radius: q.radiusMeters,
-                color: '#3498db', weight: 1, fillColor: '#3498db', fillOpacity: 0.04
+                color: accent, weight: 1, fillColor: accent, fillOpacity: 0.04
             }).addTo(leafletMap);
 
             const cardEls = [];
@@ -230,7 +307,7 @@
 
                 marker.bindPopup(
                     `<div class="popup-stop-name">${esc(stop.name)}</div>` +
-                    `<small style="color:#888">${modes.map(esc).join(', ')} · ${Math.round(node.distance)}m</small>` +
+                    `<small style="color:var(--basecolors-text-subdued)">${modes.map(esc).join(', ')} · ${Math.round(node.distance)}m</small>` +
                     departureRows(calls)
                 );
                 stopMarkers.push(marker);
@@ -330,6 +407,7 @@
                     return;
                 }
                 lang = data.language || 'en';
+                lastData = data;
                 render(data);
             } catch (e) {
                 cardStripEl.innerHTML = '';
@@ -340,7 +418,15 @@
             }
         };
 
+        app.onhostcontextchanged = (ctx) => {
+            if (ctx && 'theme' in ctx) {
+                applyColorMode(ctx.theme);
+                onColorModeChange();
+            }
+        };
+
         await app.connect();
+        applyColorMode(app.getHostContext()?.theme);
     </script>
 </body>
 </html>

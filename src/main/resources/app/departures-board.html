@@ -3,86 +3,118 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="color-scheme" content="light dark">
     <title>Departures</title>
+    <!--ENTUR_TOKENS-->
+    <!--ENTUR_TRAVEL-->
     <style>
         * { margin: 0; padding: 0; box-sizing: border-box; }
-        body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-               background: linear-gradient(160deg, #0f1117 0%, #1a1030 100%);
-               color: #e8e8e8; min-height: 100vh; }
+        /* No min-height: the host sizes the iframe from the content, so reserving a
+           viewport pads every result. */
+        body { font-family: Arial, Helvetica, sans-serif;
+               background: var(--basecolors-frame-default);
+               color: var(--basecolors-text-accent); }
         #board { max-width: 640px; margin: 0 auto; }
 
         #header { padding: 12px 14px; display: flex; justify-content: space-between; align-items: center; }
         #header-left { display: flex; flex-direction: column; gap: 2px; }
-        #stop-name { font-size: 16px; font-weight: 800; }
-        #live-row { display: flex; align-items: center; gap: 5px; font-size: 10px; color: #a78bfa; }
-        #live-dot { width: 5px; height: 5px; border-radius: 50%; background: #a78bfa; flex-shrink: 0;
+        #stop-name { font-size: var(--font-sizes-large); font-weight: 700; }
+        #live-row { display: flex; align-items: center; gap: 5px;
+                    font-size: var(--font-sizes-extra-small); color: var(--basecolors-text-highlight); }
+        #live-dot { width: 5px; height: 5px; border-radius: 50%;
+                    background: var(--basecolors-shape-highlight); flex-shrink: 0;
                     animation: pulse 2s ease-in-out infinite; }
         @keyframes pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.25; } }
-        #refresh-btn { font-size: 11px; padding: 5px 10px; border: 1px solid #3a3a5a;
-                       border-radius: 6px; background: #ffffff08; color: #aaa; cursor: pointer; flex-shrink: 0; }
-        #refresh-btn:hover { background: #ffffff15; color: #e8e8e8; }
+        @media (prefers-reduced-motion: reduce) {
+            #live-dot { animation: none; }
+            #refresh-bar-fill, .occ-bar-fill, .tab { transition: none; }
+        }
+        #refresh-btn { font-size: var(--font-sizes-small); padding: 5px 10px;
+                       border: var(--border-widths-small) solid var(--basecolors-stroke-subdued);
+                       border-radius: var(--border-radiuses-large); background: var(--basecolors-frame-elevated);
+                       color: var(--basecolors-text-accent); cursor: pointer; flex-shrink: 0;
+                       font-family: inherit; transition: background var(--timings-fast); }
+        #refresh-btn:hover:not(:disabled) { background: var(--basecolors-frame-subdued); }
+        #refresh-btn:focus-visible { outline: none; box-shadow: var(--shadows-focus); }
         #refresh-btn:disabled { opacity: 0.4; cursor: default; }
 
-        #refresh-bar { height: 2px; background: #1a1a2e; }
-        #refresh-bar-fill { height: 100%; background: #a78bfa; width: 0%;
+        #refresh-bar { height: 2px; background: var(--basecolors-frame-subdued); }
+        #refresh-bar-fill { height: 100%; background: var(--basecolors-shape-highlight); width: 0%;
                             border-radius: 0 2px 2px 0; transition: width 1s linear; }
 
         #departures-list, #arrivals-list { padding: 4px 0 8px; }
 
-        .dep-card { margin: 4px 8px; background: #ffffff08; border: 1px solid #ffffff0d;
-                    border-radius: 8px; padding: 9px 12px;
+        .dep-card { margin: 4px 8px; background: var(--basecolors-frame-elevated);
+                    border: var(--border-widths-small) solid var(--basecolors-stroke-subdued);
+                    border-radius: var(--border-radiuses-large); padding: 9px 12px;
                     display: grid; grid-template-columns: 56px auto 1fr auto;
                     gap: 8px; align-items: center; }
-        .dep-card.next-departure { background: #a78bfa18; border-color: #a78bfa44;
-                                   box-shadow: 0 0 0 1px #a78bfa22; }
-        .dep-card.delayed .dep-time { color: #ff6b6b; }
+        .dep-card.next-departure { background: var(--basecolors-frame-subdued);
+                                   border-color: var(--basecolors-stroke-highlight);
+                                   box-shadow: var(--shadows-card-shadow); }
+        .dep-card.delayed .dep-time { color: var(--app-feedback-negative-text); }
         .dep-card.cancelled { opacity: 0.45; }
         .dep-card.cancelled .dep-time { text-decoration: line-through; }
 
         .dep-time-col { display: flex; flex-direction: column; gap: 1px; }
-        .dep-time-aimed { font-size: 10px; color: #ff6b6b; text-decoration: line-through;
-                          font-variant-numeric: tabular-nums; }
-        .dep-time { font-size: 15px; font-weight: 800; font-variant-numeric: tabular-nums; }
-        .dep-countdown { font-size: 10px; }
-        .dep-countdown.soon { color: #4ecdc4; font-weight: 700; }
-        .dep-countdown.normal { color: #a78bfa; }
-        .dep-countdown.far { color: #666; }
-        .dep-countdown.late { color: #ff6b6b; }
+        .dep-time-aimed { font-size: var(--font-sizes-extra-small); color: var(--app-feedback-negative-text);
+                          text-decoration: line-through; font-variant-numeric: tabular-nums; }
+        .dep-time { font-size: var(--font-sizes-large); font-weight: 700; font-variant-numeric: tabular-nums; }
+        .dep-countdown { font-size: var(--font-sizes-extra-small); }
+        .dep-countdown.soon { color: var(--app-feedback-success-text); font-weight: 700; }
+        .dep-countdown.normal { color: var(--basecolors-text-highlight); }
+        .dep-countdown.far { color: var(--basecolors-text-subdued); }
+        .dep-countdown.late { color: var(--app-feedback-negative-text); }
 
-        .badge { display: inline-flex; align-items: center; gap: 4px;
-                 padding: 3px 8px 3px 6px; border-radius: 20px; font-weight: 700; font-size: 11px; }
+        /* TravelTag supplies its own shape and colours; only our inline icon needs sizing. */
+        .eds-travel-tag { align-items: center; font-weight: 700; }
+        .eds-travel-tag > .eds-icon { width: 1.125rem; height: 1.125rem; flex-shrink: 0; }
 
         .dep-dest { display: flex; flex-direction: column; gap: 2px; overflow: hidden; }
-        .dep-dest-name { font-size: 12px; font-weight: 500; white-space: nowrap;
+        .dep-dest-name { font-size: var(--font-sizes-small); font-weight: 500; white-space: nowrap;
                          overflow: hidden; text-overflow: ellipsis; }
-        .dep-plat { font-size: 10px; color: #666; }
+        .dep-plat { font-size: var(--font-sizes-extra-small); color: var(--basecolors-text-subdued); }
 
         .dep-right { display: flex; flex-direction: column; align-items: flex-end; gap: 3px; }
         .occ-widget { display: flex; align-items: center; gap: 4px; }
-        .occ-icon { font-size: 11px; opacity: 0.7; }
-        .occ-bar-track { width: 36px; height: 7px; border-radius: 4px; background: #2a2a4a; overflow: hidden; }
-        .occ-bar-fill { height: 100%; border-radius: 4px; transition: width 0.3s; }
-        .occ-bar-fill.teal  { background: #4ecdc4; }
-        .occ-bar-fill.amber { background: #ffaa6b; }
-        .occ-bar-fill.red   { background: #ff6b6b; }
-        .occ-label { font-size: 10px; font-weight: 500; }
-        .occ-label.teal  { color: #4ecdc4; }
-        .occ-label.amber { color: #ffaa6b; }
-        .occ-label.red   { color: #ff6b6b; }
+        .occ-icon { font-size: var(--font-sizes-small); opacity: 0.7; }
+        .occ-bar-track { width: 36px; height: 7px; border-radius: 4px;
+                         background: var(--basecolors-frame-subdued); overflow: hidden; }
+        .occ-bar-fill { height: 100%; border-radius: 4px; transition: width var(--timings-medium); }
+        .occ-bar-fill.quiet { background: var(--colors-validation-mint); }
+        .occ-bar-fill.busy  { background: var(--colors-validation-canary); }
+        .occ-bar-fill.full  { background: var(--colors-validation-lava); }
+        .occ-label { font-size: var(--font-sizes-extra-small); font-weight: 500; }
+        .occ-label.quiet { color: var(--app-feedback-success-text); }
+        .occ-label.busy  { color: var(--app-feedback-warning-text); }
+        .occ-label.full  { color: var(--app-feedback-negative-text); }
 
-        .dep-alert { margin: 2px 8px; background: #ff6b2218; border: 1px solid #ff6b2233;
-                     border-radius: 6px; padding: 5px 10px; font-size: 10px; color: #ffaa6b; }
+        .dep-alert { margin: 2px 8px; background: var(--app-feedback-warning-fill);
+                     border: var(--border-widths-small) solid var(--colors-validation-canary);
+                     border-radius: var(--border-radiuses-medium); padding: 5px 10px;
+                     font-size: var(--font-sizes-extra-small); color: var(--basecolors-text-accent); }
 
-        #tab-bar { display: flex; padding: 0 8px; border-bottom: 1px solid #ffffff0d; }
-        .tab { background: none; border: none; border-bottom: 2px solid transparent; color: #555;
-               font-family: inherit; font-size: 12px; font-weight: 600; padding: 8px 12px; cursor: pointer;
-               margin-bottom: -1px; transition: color 0.15s, border-color 0.15s; }
-        .tab.active { color: #a78bfa; border-bottom-color: #a78bfa; }
-        .tab:hover:not(.active) { color: #aaa; }
+        #tab-bar { display: flex; padding: 0 8px;
+                   border-bottom: var(--border-widths-small) solid var(--basecolors-stroke-subdued); }
+        .tab { background: none; border: none; border-bottom: var(--border-widths-medium) solid transparent;
+               color: var(--basecolors-text-subdued);
+               font-family: inherit; font-size: var(--font-sizes-small); font-weight: 600;
+               padding: 8px 12px; cursor: pointer;
+               margin-bottom: -1px; transition: color var(--timings-fast), border-color var(--timings-fast); }
+        .tab.active { color: var(--basecolors-text-accent); border-bottom-color: var(--basecolors-stroke-highlight); }
+        .tab:hover:not(.active) { color: var(--basecolors-text-accent); }
+        .tab:focus-visible { outline: none; box-shadow: var(--shadows-focus); }
 
-        .status-msg { padding: 40px; text-align: center; color: #555; font-size: 15px; }
-        .delay-badge { font-size: 10px; color: #e67e22; background: #2a1a0a; border: 1px solid #5a3010; border-radius: 3px; padding: 1px 4px; white-space: nowrap; }
-        .delay-badge.delay-ok { color: #27ae60; background: #0a1f0a; border-color: #1a4a1a; }
+        .status-msg { padding: 40px; text-align: center; color: var(--basecolors-text-subdued);
+                      font-size: var(--font-sizes-large); }
+        /* Fill flips with the colour mode; the semantic signal is carried by the border,
+           and text stays on the mode-aware token so contrast holds in light and dark. */
+        .delay-badge { font-size: var(--font-sizes-extra-small); color: var(--basecolors-text-accent);
+                       background: var(--app-feedback-negative-fill);
+                       border: var(--border-widths-small) solid var(--colors-validation-lava);
+                       border-radius: var(--border-radiuses-medium); padding: 1px 4px; white-space: nowrap; }
+        .delay-badge.delay-ok { background: var(--app-feedback-success-fill);
+                                border-color: var(--colors-validation-mint); }
     </style>
 </head>
 <body>
@@ -197,15 +229,6 @@
     let barProgress = 0;
     const REFRESH_INTERVAL = 10_000;
 
-    const MODE_COLORS = {
-        bus: "#d45200", coach: "#d45200",
-        tram: "#0077aa",
-        metro: "#b00", subway: "#b00",
-        rail: "#555", train: "#555",
-        water: "#005599", ferry: "#005599",
-        air: "#7b2fbe",
-    };
-
     const MODE_ICONS = {
         tram: `<path fill-rule="evenodd" clip-rule="evenodd" fill="currentColor" d="M14.0619507,5.2719116 c-0.0360718-0.1594849-0.1778564-0.2727661-0.3414307-0.2727661H8.5660925L9.8547363,4.109314 c0.1005249-0.0756836,0.1490479-0.1333008,0.1490479-0.2557373c0-0.1252441-0.0609131-0.2161255-0.1420288-0.2755737 L8.368042,2.3991089H7.4037476l1.7016602,1.4334717l-1.699707,1.1665649H2.27948 c-0.1635742,0-0.3053589,0.1132812-0.3414307,0.2727661l-0.928833,4.1077271 C0.9841309,9.501709,1.0106812,9.6287231,1.0825195,9.7305908l0.8125,1.1231689 c0.0657959,0.0910034,0.1712036,0.1448364,0.2834473,0.1448975l4.2353516,0.0003662v0.0001221l0.6726074-0.000061 l0.4901733,0.000061v-0.000061l6.244873-0.0004272c0.1123047-0.000061,0.2177124-0.053894,0.2835083-0.1448975l0.812439-1.1231689 c0.0718994-0.1018677,0.0984497-0.2288818,0.0733643-0.3509521L14.0619507,5.2719116z M3.75,8.1812744 c0,0.1942749-0.1566772,0.3509521-0.3500977,0.3509521H2.3496094c-0.105896,0-0.206543-0.0481567-0.2730713-0.1312866 C2.0100098,8.3186646,1.9855347,8.210144,2.0083008,8.1060181l0.30896-1.4003906 c0.0349731-0.1610718,0.1776733-0.2748413,0.3413086-0.2748413h0.7413330C3.5933228,6.4307861,3.75,6.5874634,3.75,6.7808838V8.1812744z M7.2496338,8.1812744c0,0.1934204-0.1575317,0.3500977-0.3500977,0.3500977H4.7990112 c-0.1934204,0-0.3500977-0.1566772-0.3500977-0.3500977V6.7808838c0-0.1934204,0.1566772-0.3500977,0.3500977-0.3500977h2.1005249 c0.1925659,0,0.3500977,0.1566772,0.3500977,0.3500977V8.1812744z M10.7602539,8.1812744 c0,0.1934204-0.1575317,0.3500977-0.3500977,0.3500977H8.3096313c-0.1934204,0-0.3500977-0.1566772-0.3500977-0.3500977 V6.7808838c0-0.1934204,0.1566772-0.3500977,0.3500977-0.3500977h2.1005249c0.1925659,0,0.3500977,0.1566772,0.3500977,0.3500977 V8.1812744z M13.8328247,8.4009399c-0.0665283,0.0831299-0.1671753,0.1312866-0.2722168,0.1312866h-1.7504883 c-0.1942749,0-0.3509521-0.1566772-0.3509521-0.3500977V6.7808838c0-0.1934204,0.1566772-0.3500977,0.3509521-0.3500977 h1.3906860c0.1654053,0,0.3063354,0.1137695,0.3421631,0.2748413l0.30896,1.4003906 C13.9246826,8.210144,13.9002075,8.3186646,13.8328247,8.4009399z"/>
 <rect x="2" y="11.9991455" fill-rule="evenodd" clip-rule="evenodd" fill="currentColor" width="12" height="1"/>`,
@@ -222,10 +245,6 @@
 <rect x="2" y="11.9991455" fill-rule="evenodd" clip-rule="evenodd" fill="currentColor" width="12" height="1"/>`,
     };
 
-    function modeColor(mode) {
-        return MODE_COLORS[(mode || "").toLowerCase()] || "#444";
-    }
-
     function modeIcon(mode) {
         const key = (mode || "").toLowerCase();
         if (key === "coach") return MODE_ICONS.bus;
@@ -236,12 +255,37 @@
         return MODE_ICONS[key] || "";
     }
 
-    function lineBg(line) {
-        return safeHex(line.presentation?.colour) || modeColor(line.transportMode);
+    // @entur/travel names its TravelTag fills after the same modality strings OTP uses,
+    // so most modes map straight through.
+    const TAG_MODALITIES = new Set([
+        "air", "bicycle", "bus", "cableway", "carferry", "ferry", "funicular",
+        "helicopter", "metro", "mobility", "plane", "rail", "taxi", "train",
+        "tram", "walk", "water",
+    ]);
+
+    function tagModality(mode) {
+        const key = (mode || "").toLowerCase();
+        if (key === "coach") return "bus";
+        if (key === "subway") return "metro";
+        if (key === "foot") return "walk";
+        return TAG_MODALITIES.has(key) ? key : "walk";
     }
 
-    function lineFg(line) {
-        return safeHex(line.presentation?.textColour) || "#ffffff";
+    /**
+     * A TravelTag for one line. Colour goes through the component's own
+     * --background-color / --text-color custom properties rather than overriding its
+     * classes, which is the stable half of the contract. Operator branding wins when the
+     * line supplies it; otherwise Linje's modality fill is used, and the tag's default
+     * text colour already inverts with the colour mode.
+     */
+    function travelTag(line, label) {
+        const brandBg = safeHex(line.presentation?.colour);
+        const brandFg = safeHex(line.presentation?.textColour);
+        const bg = brandBg || `var(--components-travel-traveltag-standard-fill-${tagModality(line.transportMode)})`;
+        const style = `--background-color:${bg}` + (brandFg ? `;--text-color:${brandFg}` : "");
+        return `<span class="eds-travel-tag eds-travel-tag--icon-and-text" style="${esc(style)}">` +
+               `<svg class="eds-icon" viewBox="0 0 16 16" fill="currentColor" aria-hidden="true">` +
+               `${modeIcon(line.transportMode)}</svg>${esc(label)}</span>`;
     }
 
     const refreshBtn = document.getElementById("refresh-btn");
@@ -309,9 +353,23 @@
         }
     }
 
+    // --- Entur colour mode ------------------------------------------------
+    // Linje tokens key off data-color-mode on <html>. With the attribute absent the
+    // prefers-color-scheme block in entur-tokens.css decides, so the board is themed
+    // correctly before the host has reported anything.
+    function applyColorMode(theme) {
+        const root = document.documentElement;
+        if (theme === 'dark' || theme === 'light') root.setAttribute('data-color-mode', theme);
+        else root.removeAttribute('data-color-mode');
+    }
+
     app.ontoolresult = applyToolResult;
+    app.onhostcontextchanged = (ctx) => {
+        if (ctx && 'theme' in ctx) applyColorMode(ctx.theme);
+    };
 
     await app.connect();
+    applyColorMode(app.getHostContext()?.theme);
 
     refreshBtn.addEventListener("click", () => triggerRefresh());
 
@@ -408,14 +466,14 @@
 
     function occupancyDots(status) {
         const levels = {
-            EMPTY:                    { pct: 0,   color: "teal",  label: "" },
-            MANY_SEATS_AVAILABLE:     { pct: 20,  color: "teal",  label: t('occ_empty') },
-            FEW_SEATS_AVAILABLE:      { pct: 55,  color: "teal",  label: t('occ_seats') },
-            STANDING_ROOM_ONLY:       { pct: 80,  color: "amber", label: t('occ_busy') },
-            FULL:                     { pct: 100, color: "red",   label: t('occ_full') },
-            CRUSHED_STANDING_ROOM_ONLY: { pct: 100, color: "red", label: t('occ_full') },
+            EMPTY:                    { pct: 0,   color: "quiet", label: "" },
+            MANY_SEATS_AVAILABLE:     { pct: 20,  color: "quiet", label: t('occ_empty') },
+            FEW_SEATS_AVAILABLE:      { pct: 55,  color: "quiet", label: t('occ_seats') },
+            STANDING_ROOM_ONLY:       { pct: 80,  color: "busy",  label: t('occ_busy') },
+            FULL:                     { pct: 100, color: "full",  label: t('occ_full') },
+            CRUSHED_STANDING_ROOM_ONLY: { pct: 100, color: "full", label: t('occ_full') },
         };
-        const info = levels[status] || { pct: 0, color: "teal", label: "" };
+        const info = levels[status] || { pct: 0, color: "quiet", label: "" };
         if (!info.label) return "";
         return `<div class="occ-widget">
             <span class="occ-icon">🧍</span>
@@ -467,9 +525,6 @@
             if (delayed)   classes.push("delayed");
             if (cancelled) classes.push("cancelled");
 
-            const bg   = esc(lineBg(line));
-            const fg   = esc(lineFg(line));
-            const icon = modeIcon(line.transportMode);
             const card = document.createElement("div");
             card.className = classes.join(" ");
             card.innerHTML = `
@@ -478,7 +533,7 @@
                     <span class="dep-time">${fmt(expected)}</span>
                     <span class="dep-countdown ${cdCls}">${cdText}</span>
                 </div>
-                <span class="badge" style="background:${bg};color:${fg};"><svg width="13" height="13" viewBox="0 0 16 16" fill="currentColor">${icon}</svg>${esc(line.publicCode || "?")}</span>
+                ${travelTag(line, line.publicCode || "?")}
                 <div class="dep-dest">
                     <span class="dep-dest-name">${esc(call.destinationDisplay?.frontText || "")}</span>
                     <span class="dep-plat">${call.quay?.publicCode ? esc(t('platform', call.quay.publicCode)) : ""}</span>

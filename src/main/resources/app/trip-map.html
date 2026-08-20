@@ -3,114 +3,216 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Trip Map</title>
+    <meta name="color-scheme" content="light dark">
+    <title>Trip</title>
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9/dist/leaflet.css">
     <script src="https://unpkg.com/leaflet@1.9/dist/leaflet.js"></script>
+    <!--ENTUR_TOKENS-->
+    <!--ENTUR_TRAVEL-->
     <style>
         * { margin: 0; padding: 0; box-sizing: border-box; }
-        body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-               background: #0f0f23; color: #e8e8e8; min-height: 100vh; }
-        #app { max-width: 680px; margin: 0 auto; display: flex; flex-direction: column; min-height: 100vh; }
+        /* No min-height: the app is sized by the host from its content, so reserving a
+           viewport pads every result and turns an empty one into a screenful. */
+        body { font-family: Arial, Helvetica, sans-serif;
+               background: var(--basecolors-frame-default); color: var(--basecolors-text-accent); }
+        #app { max-width: 680px; margin: 0 auto; display: flex; flex-direction: column; }
 
-        #header { padding: 10px 14px; background: #16213e;
+        #header { padding: 10px 14px; background: var(--basecolors-frame-tint);
                   display: flex; align-items: baseline; justify-content: space-between; gap: 12px;
-                  border-bottom: 1px solid #1e2a4a; flex-shrink: 0; }
-        #route-label { font-size: 14px; font-weight: 700; }
-        #replan-btn { font-size: 11px; padding: 4px 10px; border: 1px solid #3a3a5a;
-                      border-radius: 6px; background: transparent; color: #aaa; cursor: pointer; flex-shrink: 0; }
-        #replan-btn:hover { background: #2a2a4a; color: #e8e8e8; }
+                  border-bottom: var(--border-widths-small) solid var(--basecolors-stroke-subdued);
+                  flex-shrink: 0; }
+        /* TravelHeader carries its own colour, weight and the red logo stroke. */
+        #route-label { font-size: var(--font-sizes-medium); min-width: 0; }
+        #replan-btn { font-size: var(--font-sizes-small); padding: 4px 10px;
+                      border: var(--border-widths-small) solid var(--basecolors-stroke-subdued);
+                      border-radius: var(--border-radiuses-large); background: transparent;
+                      color: var(--basecolors-text-accent); cursor: pointer; flex-shrink: 0;
+                      font-family: inherit; transition: background var(--timings-fast); }
+        #replan-btn:hover:not(:disabled) { background: var(--basecolors-frame-subdued); }
+        #replan-btn:focus-visible { outline: none; box-shadow: var(--shadows-focus); }
         #replan-btn:disabled { opacity: 0.4; cursor: default; }
 
-        #map { height: clamp(160px, 40vh, 220px); flex-shrink: 0; background: #1e2235; }
+        #map { height: clamp(160px, 40vh, 220px); flex-shrink: 0; background: var(--basecolors-frame-subdued); }
 
-        #leg-strip { background: #0a0a1e; border-top: 1px solid #1e1e35;
+        #leg-strip { background: var(--basecolors-frame-tint);
+                     border-top: var(--border-widths-small) solid var(--basecolors-stroke-subdued);
                      padding: 6px 12px; display: flex; gap: 5px; align-items: center;
-                     flex-wrap: wrap; font-size: 10px; color: #888; min-height: 30px; flex-shrink: 0; }
-        .strip-sep { color: #333; }
-        .strip-dest { color: #4ecdc4; }
+                     flex-wrap: wrap; font-size: var(--font-sizes-extra-small);
+                     color: var(--basecolors-text-subdued); min-height: 30px; flex-shrink: 0; }
+        .strip-sep { color: var(--basecolors-text-disabled); }
+        .strip-dest { color: var(--basecolors-text-accent); font-weight: 700; }
 
-        #vehicle-status { font-size: 10px; color: #666; padding: 2px 12px 4px;
-                          min-height: 16px; flex-shrink: 0; }
-        #vehicle-status.ok  { color: #4ecdc4; }
-        #vehicle-status.err { color: #ff6b6b; }
+        #vehicle-status { font-size: var(--font-sizes-extra-small); color: var(--basecolors-text-subdued);
+                          padding: 2px 12px 4px; min-height: 16px; flex-shrink: 0; }
+        #vehicle-status.ok  { color: var(--app-feedback-success-text); }
+        #vehicle-status.err { color: var(--app-feedback-negative-text); }
 
         #patterns { padding: 4px 0 8px; overflow-y: auto; }
 
-        .pattern { margin: 4px 8px; border: 1px solid #2a2a4a; border-radius: 8px;
-                   overflow: hidden; cursor: pointer; transition: border-color .15s; }
-        .pattern:hover { border-color: #4a4a7a; }
-        .pattern.active { border-color: #7c7cf8; box-shadow: 0 0 0 2px #7c7cf822; }
+        .pattern { margin: 4px 8px;
+                   border: var(--border-widths-small) solid var(--basecolors-stroke-subdued);
+                   border-radius: var(--border-radiuses-large);
+                   overflow: hidden; cursor: pointer; transition: border-color var(--timings-fast); }
+        .pattern:hover { border-color: var(--basecolors-stroke-default); }
+        .pattern.active { border-color: var(--basecolors-stroke-highlight);
+                          box-shadow: var(--shadows-card-shadow); }
+        .pattern:focus-visible { outline: none; box-shadow: var(--shadows-focus); }
         .pattern:not(.active) { opacity: 0.6; }
         .pattern-main { padding: 8px 12px; display: flex; align-items: center; gap: 8px; }
-        .pattern.active .pattern-main { background: #1e1e38; }
-        .pattern-times { font-size: 13px; font-weight: 700; white-space: nowrap; }
+        .pattern.active .pattern-main { background: var(--basecolors-frame-subdued); }
+        .pattern-times { font-size: var(--font-sizes-medium); font-weight: 700; white-space: nowrap; }
         .leg-bar { flex: 1; height: 7px; border-radius: 4px; overflow: hidden; display: flex; min-width: 60px; }
         .lb { height: 100%; }
-        .pattern-dur { font-size: 11px; color: #888; white-space: nowrap;
-                       display: flex; align-items: center; gap: 4px; }
-        .delay-badge { font-size: 9px; color: #ff6b6b; background: #ff6b2222;
-                       border: 1px solid #ff6b2244; border-radius: 3px; padding: 1px 4px; }
+        .pattern-dur { font-size: var(--font-sizes-small); color: var(--basecolors-text-subdued);
+                       white-space: nowrap; display: flex; align-items: center; gap: 4px; }
+        /* Fill flips with the colour mode; the semantic signal is carried by the border,
+           and text stays on the mode-aware token so contrast holds in light and dark. */
+        .delay-badge { font-size: var(--font-sizes-extra-small); color: var(--basecolors-text-accent);
+                       background: var(--app-feedback-negative-fill);
+                       border: var(--border-widths-small) solid var(--colors-validation-lava);
+                       border-radius: var(--border-radiuses-medium); padding: 1px 4px; }
 
-        /* Selected card leg detail */
-        .leg-rows { padding: 6px 12px 8px; background: #0f0f23; display: flex; flex-direction: column; gap: 1px; }
-        .transit-leg { display: flex; flex-direction: column; gap: 3px; padding: 5px 0; border-top: 1px solid #1e1e35; }
-        .transit-stop { font-size: 10px; color: #888; }
+        /* Selected card leg detail. Each row is a LegBone gutter plus the leg content;
+           the bone's dots and mask-drawn line come from @entur/travel. */
+        .leg-rows { padding: 6px 12px 8px; background: var(--basecolors-frame-default);
+                    display: flex; flex-direction: column; }
+        .leg-row { display: grid; grid-template-columns: 1rem 1fr; column-gap: 10px; }
+        .leg-row > .eds-leg-bone { align-self: stretch; }
+        .leg-row--walk { min-height: 26px; }
+        .leg-end { display: grid; grid-template-columns: 1rem 1fr; column-gap: 10px;
+                   align-items: center; }
+        .leg-end-name { font-size: var(--font-sizes-small); font-weight: 700; }
+
+        /* Disruption notice on a leg. Fill flips with the colour mode; severity is
+           carried by the border so the two levels stay distinguishable in both. */
+        .leg-situation { display: flex; align-items: flex-start; gap: 5px;
+                         margin: 3px 0 1px; padding: 4px 8px;
+                         border-radius: var(--border-radiuses-medium);
+                         font-size: var(--font-sizes-extra-small);
+                         color: var(--basecolors-text-accent);
+                         background: var(--app-feedback-warning-fill);
+                         border: var(--border-widths-small) solid var(--colors-validation-canary); }
+        .leg-situation--severe { background: var(--app-feedback-negative-fill);
+                                 border-color: var(--colors-validation-lava); }
+        .leg-situation-icon { flex-shrink: 0; }
+        .pattern-situations { display: inline-flex; align-items: center; gap: 3px;
+                              margin-right: 6px;
+                              font-size: var(--font-sizes-extra-small); white-space: nowrap;
+                              color: var(--app-feedback-warning-text); }
+        .pattern-situations--severe { color: var(--app-feedback-negative-text); }
+        .transit-leg { display: flex; flex-direction: column; gap: 3px; padding: 5px 0; }
+        .transit-stop { font-size: var(--font-sizes-extra-small); color: var(--basecolors-text-subdued); }
         .transit-badge-row { display: flex; align-items: center; gap: 8px; }
-        .transit-badge { display: inline-flex; align-items: center; gap: 5px; border-radius: 20px;
-                         padding: 4px 11px 4px 7px; font-size: 11px; font-weight: 700; flex-shrink: 0; }
+        .eds-travel-tag { align-items: center; font-weight: 700; }
+        .eds-travel-tag > .eds-icon { width: 1.25rem; height: 1.25rem; flex-shrink: 0; }
         .mode-icon { width: 16px; height: 16px; flex-shrink: 0; }
-        .transit-arrival { margin-left: auto; font-size: 11px; color: #888; white-space: nowrap; }
-        .transit-times { font-size: 11px; display: flex; gap: 6px; align-items: center; padding-left: 2px; }
-        .time-delayed { color: #ff6b6b; }
-        .time-aimed { text-decoration: line-through; color: #555; }
-        .time-ontime { color: #aaa; }
+        .transit-arrival { margin-left: auto; font-size: var(--font-sizes-small);
+                           color: var(--basecolors-text-subdued); white-space: nowrap; }
+        .transit-times { font-size: var(--font-sizes-small); display: flex; gap: 6px;
+                         align-items: center; padding-left: 2px; }
+        .time-delayed { color: var(--app-feedback-negative-text); }
+        .time-aimed { text-decoration: line-through; color: var(--basecolors-text-disabled); }
+        .time-ontime { color: var(--basecolors-text-accent); }
         .walk-connector { display: flex; align-items: center; gap: 5px; padding: 3px 0;
-                          color: #555; font-size: 11px; border-top: 1px solid #1e1e35; }
+                          color: var(--basecolors-text-subdued); font-size: var(--font-sizes-small); }
 
         /* Unselected compact card */
         .compact-row { padding: 9px 12px; display: flex; align-items: center; gap: 8px; }
-        .compact-times { font-size: 12px; font-weight: 700; white-space: nowrap; flex-shrink: 0; }
+        .compact-times { font-size: var(--font-sizes-small); font-weight: 700; white-space: nowrap; flex-shrink: 0; }
         .compact-badges { display: flex; align-items: center; gap: 4px; flex: 1; flex-wrap: wrap; overflow: hidden; }
-        .compact-dur { font-size: 11px; color: #666; white-space: nowrap; flex-shrink: 0; }
+        .compact-dur { font-size: var(--font-sizes-small); color: var(--basecolors-text-subdued);
+                       white-space: nowrap; flex-shrink: 0; }
         .mini-badge { display: inline-flex; align-items: center; gap: 3px; border-radius: 20px;
-                      padding: 2px 7px 2px 5px; font-size: 10px; font-weight: 700; }
+                      padding: 2px 7px 2px 5px; font-size: var(--font-sizes-extra-small); font-weight: 700; }
         .mini-mode-icon { width: 13px; height: 13px; flex-shrink: 0; }
-        .mini-walk { font-size: 10px; color: #555; }
+        .mini-walk { font-size: var(--font-sizes-extra-small); color: var(--basecolors-text-subdued); }
 
+        /* Buying a ticket is the primary action: Entur brand blue, coral on contrast surfaces. */
         .buy-btn { display: inline-flex; align-items: center; justify-content: center;
-                   text-decoration: none; font-weight: 700; background: #4ecdc4; color: #0f0f23;
-                   border-radius: 6px; flex-shrink: 0; transition: background .15s; }
-        .buy-btn:hover { background: #6fe3da; }
-        .buy-btn-compact { font-size: 10px; padding: 3px 10px; }
+                   text-decoration: none; font-weight: 700;
+                   background: var(--basecolors-shape-accent); color: var(--basecolors-frame-default);
+                   border-radius: var(--border-radiuses-large); flex-shrink: 0;
+                   transition: opacity var(--timings-fast); }
+        .buy-btn:hover { opacity: 0.85; }
+        .buy-btn:focus-visible { outline: none; box-shadow: var(--shadows-focus); }
+        .buy-btn-compact { font-size: var(--font-sizes-extra-small); padding: 3px 10px; }
         .pattern-buy { padding: 0 12px 10px; }
-        .buy-btn-active { width: 100%; font-size: 12px; padding: 8px 12px; }
+        .buy-btn-active { width: 100%; font-size: var(--font-sizes-small); padding: 8px 12px; }
 
         .badge { display: inline-flex; align-items: center; justify-content: center;
-                 min-width: 28px; padding: 2px 5px; border-radius: 3px; font-weight: 700; font-size: 10px; color: #fff; }
+                 min-width: 28px; padding: 2px 5px; border-radius: var(--border-radiuses-medium);
+                 font-weight: 700; font-size: var(--font-sizes-extra-small);
+                 color: var(--basecolors-frame-default); }
 
-        #status { padding: 40px; text-align: center; color: #555; font-size: 15px; }
+        #status { padding: 40px; text-align: center; color: var(--basecolors-text-subdued);
+                  font-size: var(--font-sizes-large); }
+
+        /* Empty result: no map, no leg strip, just enough to say what was searched for. */
+        #app.is-empty #map,
+        #app.is-empty #leg-strip,
+        #app.is-empty #vehicle-status { display: none; }
+        #app.is-empty #status { padding: 14px 14px 16px; text-align: left;
+                                font-size: var(--font-sizes-medium); }
+        .empty-hint { margin-top: 3px; font-size: var(--font-sizes-small);
+                      color: var(--basecolors-text-subdued); }
+        .next-departure-btn { margin-top: 10px; font-family: inherit; cursor: pointer;
+                              font-size: var(--font-sizes-small); font-weight: 700;
+                              padding: 7px 14px; border: none;
+                              border-radius: var(--border-radiuses-large);
+                              background: var(--basecolors-shape-accent);
+                              color: var(--basecolors-frame-default);
+                              transition: opacity var(--timings-fast); }
+        .next-departure-btn:hover { opacity: 0.85; }
+        .next-departure-btn:focus-visible { outline: none; box-shadow: var(--shadows-focus); }
 
         .leg-meta { display: flex; gap: 6px; align-items: center; margin-top: 2px; flex-wrap: wrap; }
-        .leg-emission { font-size: 10px; color: #27ae60; background: #0a1f0a; border: 1px solid #1a4a1a; border-radius: 3px; padding: 1px 4px; }
-        .leg-delay { font-size: 10px; color: #e67e22; background: #2a1a0a; border: 1px solid #5a3010; border-radius: 3px; padding: 1px 4px; }
-        .leg-delay.delay-ok { color: #27ae60; background: #0a1f0a; border-color: #1a4a1a; }
+        .leg-emission { font-size: var(--font-sizes-extra-small); color: var(--basecolors-text-accent);
+                        background: var(--app-feedback-success-fill);
+                        border: var(--border-widths-small) solid var(--colors-validation-mint);
+                        border-radius: var(--border-radiuses-medium); padding: 1px 4px; }
+        .leg-delay { font-size: var(--font-sizes-extra-small); color: var(--basecolors-text-accent);
+                     background: var(--app-feedback-negative-fill);
+                     border: var(--border-widths-small) solid var(--colors-validation-lava);
+                     border-radius: var(--border-radiuses-medium); padding: 1px 4px; }
+        .leg-delay.delay-ok { background: var(--app-feedback-success-fill);
+                              border-color: var(--colors-validation-mint); }
         .occ-widget { display: flex; align-items: center; gap: 4px; }
-        .occ-icon { font-size: 11px; opacity: 0.7; }
-        .occ-bar-track { width: 36px; height: 7px; border-radius: 4px; background: #2a2a4a; overflow: hidden; }
+        .occ-icon { font-size: var(--font-sizes-small); opacity: 0.7; }
+        .occ-bar-track { width: 36px; height: 7px; border-radius: 4px;
+                         background: var(--basecolors-frame-subdued); overflow: hidden; }
         .occ-bar-fill { height: 100%; border-radius: 4px; }
-        .occ-bar-fill.teal  { background: #4ecdc4; }
-        .occ-bar-fill.amber { background: #ffaa6b; }
-        .occ-bar-fill.red   { background: #ff6b6b; }
-        .occ-label { font-size: 10px; font-weight: 500; }
-        .occ-label.teal  { color: #4ecdc4; }
-        .occ-label.amber { color: #ffaa6b; }
-        .occ-label.red   { color: #ff6b6b; }
+        .occ-bar-fill.quiet { background: var(--colors-validation-mint); }
+        .occ-bar-fill.busy  { background: var(--colors-validation-canary); }
+        .occ-bar-fill.full  { background: var(--colors-validation-lava); }
+        .occ-label { font-size: var(--font-sizes-extra-small); font-weight: 500; }
+        .occ-label.quiet { color: var(--app-feedback-success-text); }
+        .occ-label.busy  { color: var(--app-feedback-warning-text); }
+        .occ-label.full  { color: var(--app-feedback-negative-text); }
+
+        @media (prefers-reduced-motion: reduce) {
+            .pattern, .buy-btn, #replan-btn { transition: none; }
+        }
+
+        /* Leaflet renders its own light-themed surfaces; pull them onto the token palette. */
+        .leaflet-popup-content-wrapper, .leaflet-popup-tip,
+        .leaflet-control-zoom a, .leaflet-control-attribution {
+            background: var(--basecolors-frame-elevated); color: var(--basecolors-text-accent);
+        }
+        .leaflet-control-zoom a { border-color: var(--basecolors-stroke-subdued); }
+        .leaflet-control-attribution a { color: var(--basecolors-text-subdued); }
+        /* OSM raster tiles have no dark variant; damp them so the route stays readable. */
+        :root[data-color-mode="dark"] .leaflet-tile-pane { filter: invert(1) hue-rotate(180deg) brightness(0.85) contrast(0.9); }
+        @media (prefers-color-scheme: dark) {
+            :root:not([data-color-mode="light"]) .leaflet-tile-pane { filter: invert(1) hue-rotate(180deg) brightness(0.85) contrast(0.9); }
+        }
     </style>
 </head>
 <body>
 <div id="app">
     <div id="header">
-        <span id="route-label">Loading…</span>
+        <div id="route-label" class="eds-travel-header eds-travel-header--medium eds-travel-header--no-wrap">
+            <span class="eds-travel-header__from">…</span><span class="eds-travel-header__to"></span>
+        </div>
         <button id="replan-btn" disabled>↻ Replan</button>
     </div>
     <div id="map"></div>
@@ -136,6 +238,9 @@
             replan:             "↻ Replan",
             replanning:         "Replanning…",
             no_trips:           "No trips found.",
+            no_trips_at:        "No departures {0}. Try another time.",
+            no_trips_hint:      "Try a different time or place.",
+            next_departure:     "Show next departure {0}",
             no_data:            "Could not parse trip data.",
             walk_min:           "walk {0} min",
             walk_m:             "walk {0}m",
@@ -154,11 +259,17 @@
             occ_seats:          "few seats",
             occ_busy:           "busy",
             occ_full:           "full",
+            disruption:         "Service disruption",
+            disruption_one:     "1 disruption",
+            disruption_count:   "{0} disruptions",
         },
         nb: {
             replan:             "↻ Planlegg på nytt",
             replanning:         "Planlegger…",
             no_trips:           "Ingen reiser funnet.",
+            no_trips_at:        "Ingen avganger {0}. Prøv et annet tidspunkt.",
+            no_trips_hint:      "Prøv et annet tidspunkt eller et annet sted.",
+            next_departure:     "Vis neste avgang {0}",
             no_data:            "Kunne ikke lese reisedata.",
             walk_min:           "gå {0} min",
             walk_m:             "gå {0}m",
@@ -177,11 +288,17 @@
             occ_seats:          "få seter",
             occ_busy:           "travelt",
             occ_full:           "stappfullt",
+            disruption:         "Avvik",
+            disruption_one:     "1 avvik",
+            disruption_count:   "{0} avvik",
         },
         nn: {
             replan:             "↻ Planlegg på nytt",
             replanning:         "Planlegg på nytt…",
             no_trips:           "Ingen reiser funne.",
+            no_trips_at:        "Ingen avgangar {0}. Prøv eit anna tidspunkt.",
+            no_trips_hint:      "Prøv eit anna tidspunkt eller ein annan stad.",
+            next_departure:     "Vis neste avgang {0}",
             no_data:            "Kunne ikkje lese reisedata.",
             walk_min:           "gå {0} min",
             walk_m:             "gå {0}m",
@@ -200,6 +317,9 @@
             occ_seats:          "få seter",
             occ_busy:           "travelt",
             occ_full:           "stappfullt",
+            disruption:         "Avvik",
+            disruption_one:     "1 avvik",
+            disruption_count:   "{0} avvik",
         },
     };
     let lang = 'en';
@@ -217,15 +337,29 @@
 
     const replanBtn = document.getElementById("replan-btn");
 
-    const MODE_COLORS = {
-        bus: "#d45200", coach: "#d45200",
-        tram: "#0077aa",
-        metro: "#b00", subway: "#b00",
-        rail: "#555", train: "#555",
-        water: "#005599", ferry: "#005599",
-        air: "#7b2fbe",
-        foot: "#888",
+    // OTP transport modes -> Entur Linje transport tokens.
+    const MODE_TOKENS = {
+        bus: "bus", coach: "bus",
+        tram: "tram",
+        metro: "metro", subway: "metro",
+        rail: "train", train: "train",
+        water: "ferry", ferry: "ferry",
+        air: "plane", plane: "plane",
+        funicular: "funicular", cableway: "cableway",
+        taxi: "taxi", bicycle: "bicycle",
+        foot: "walk", walk: "walk",
     };
+
+    function modeTokenName(mode) {
+        const key = MODE_TOKENS[(mode || "").toLowerCase()];
+        return key ? `--basecolors-shape-${key}-default` : "--basecolors-shape-subdued";
+    }
+
+    // Leaflet writes colours into SVG presentation attributes, which do not accept
+    // var(), so vector layers need the token resolved to a concrete value.
+    function cssVar(name) {
+        return getComputedStyle(document.documentElement).getPropertyValue(name).trim();
+    }
 
     const MODE_ICONS = {
         tram: `<path fill-rule="evenodd" clip-rule="evenodd" fill="currentColor" d="M14.0619507,5.2719116 c-0.0360718-0.1594849-0.1778564-0.2727661-0.3414307-0.2727661H8.5660925L9.8547363,4.109314 c0.1005249-0.0756836,0.1490479-0.1333008,0.1490479-0.2557373c0-0.1252441-0.0609131-0.2161255-0.1420288-0.2755737 L8.368042,2.3991089H7.4037476l1.7016602,1.4334717l-1.699707,1.1665649H2.27948 c-0.1635742,0-0.3053589,0.1132812-0.3414307,0.2727661l-0.928833,4.1077271 C0.9841309,9.501709,1.0106812,9.6287231,1.0825195,9.7305908l0.8125,1.1231689 c0.0657959,0.0910034,0.1712036,0.1448364,0.2834473,0.1448975l4.2353516,0.0003662v0.0001221l0.6726074-0.000061 l0.4901733,0.000061v-0.000061l6.244873-0.0004272c0.1123047-0.000061,0.2177124-0.053894,0.2835083-0.1448975l0.812439-1.1231689 c0.0718994-0.1018677,0.0984497-0.2288818,0.0733643-0.3509521L14.0619507,5.2719116z M3.75,8.1812744 c0,0.1942749-0.1566772,0.3509521-0.3500977,0.3509521H2.3496094c-0.105896,0-0.206543-0.0481567-0.2730713-0.1312866 C2.0100098,8.3186646,1.9855347,8.210144,2.0083008,8.1060181l0.30896-1.4003906 c0.0349731-0.1610718,0.1776733-0.2748413,0.3413086-0.2748413h0.7413330C3.5933228,6.4307861,3.75,6.5874634,3.75,6.7808838V8.1812744z M7.2496338,8.1812744c0,0.1934204-0.1575317,0.3500977-0.3500977,0.3500977H4.7990112 c-0.1934204,0-0.3500977-0.1566772-0.3500977-0.3500977V6.7808838c0-0.1934204,0.1566772-0.3500977,0.3500977-0.3500977h2.1005249 c0.1925659,0,0.3500977,0.1566772,0.3500977,0.3500977V8.1812744z M10.7602539,8.1812744 c0,0.1934204-0.1575317,0.3500977-0.3500977,0.3500977H8.3096313c-0.1934204,0-0.3500977-0.1566772-0.3500977-0.3500977 V6.7808838c0-0.1934204,0.1566772-0.3500977,0.3500977-0.3500977h2.1005249c0.1925659,0,0.3500977,0.1566772,0.3500977,0.3500977 V8.1812744z M13.8328247,8.4009399c-0.0665283,0.0831299-0.1671753,0.1312866-0.2722168,0.1312866h-1.7504883 c-0.1942749,0-0.3509521-0.1566772-0.3509521-0.3500977V6.7808838c0-0.1934204,0.1566772-0.3500977,0.3509521-0.3500977 h1.3906860c0.1654053,0,0.3063354,0.1137695,0.3421631,0.2748413l0.30896,1.4003906 C13.9246826,8.210144,13.9002075,8.3186646,13.8328247,8.4009399z"/>
@@ -263,7 +397,7 @@
     }
 
     function modeColor(mode) {
-        return MODE_COLORS[(mode || "").toLowerCase()] || "#444";
+        return `var(${modeTokenName(mode)})`;
     }
 
     function safeHex(v) {
@@ -274,8 +408,111 @@
         return safeHex(leg.line?.presentation?.colour) || modeColor(leg.mode);
     }
 
+    // Transport fills are saturated in light mode and pastel in dark, so the label has to
+    // invert with the surface. --basecolors-frame-default is white in light mode and
+    // near-black in dark; --basecolors-text-light stays pale in both and would vanish.
     function legTextColor(leg) {
-        return safeHex(leg.line?.presentation?.textColour) || "#ffffff";
+        return safeHex(leg.line?.presentation?.textColour) || "var(--basecolors-frame-default)";
+    }
+
+    /** legColor() for Leaflet vector layers, which cannot resolve var() themselves. */
+    function resolvedLegColor(leg) {
+        return safeHex(leg.line?.presentation?.colour) || cssVar(modeTokenName(leg.mode));
+    }
+
+    // @entur/travel names its TravelTag fills after the same modality strings OTP uses,
+    // so most modes map straight through.
+    const TAG_MODALITIES = new Set([
+        "air", "bicycle", "bus", "cableway", "carferry", "ferry", "funicular",
+        "helicopter", "metro", "mobility", "plane", "rail", "taxi", "train",
+        "tram", "walk", "water",
+    ]);
+
+    function tagModality(mode) {
+        const key = (mode || "").toLowerCase();
+        if (key === "coach") return "bus";
+        if (key === "subway") return "metro";
+        if (key === "foot") return "walk";
+        return TAG_MODALITIES.has(key) ? key : "walk";
+    }
+
+    /**
+     * A TravelTag for one leg. Colour is set through the component's own
+     * --background-color / --text-color custom properties rather than by overriding its
+     * classes, which is the stable half of the contract. Operator branding wins when the
+     * line supplies it; otherwise Linje's modality fill is used, and the tag's default
+     * text colour already inverts with the colour mode.
+     */
+    function travelTag(leg, label) {
+        const brandBg = safeHex(leg.line?.presentation?.colour);
+        const brandFg = safeHex(leg.line?.presentation?.textColour);
+        const bg = brandBg || `var(--components-travel-traveltag-standard-fill-${tagModality(leg.mode)})`;
+        const style = `--background-color:${bg}` + (brandFg ? `;--text-color:${brandFg}` : "");
+        const icon = modeIcon(leg.mode);
+        return `<span class="eds-travel-tag eds-travel-tag--icon-and-text" style="${esc(style)}">` +
+               `<svg class="eds-icon" viewBox="0 0 16 16" fill="currentColor" aria-hidden="true">${icon}</svg>` +
+               `${esc(label)}</span>`;
+    }
+
+    // OTP tags each summary with a language, and the same disruption is repeated on
+    // every leg it touches, so both have to be resolved before rendering.
+    const SEVERE = new Set(["severe", "verySevere"]);
+
+    function isSevere(situation) {
+        return SEVERE.has(situation?.severity);
+    }
+
+    /** The summary in the app's language, falling back to Norwegian then to whatever exists. */
+    function situationText(situation) {
+        const summaries = situation?.summary;
+        if (!Array.isArray(summaries) || summaries.length === 0) return "";
+        const wanted = lang === "en" ? ["en"] : ["no", "nb", "nn"];
+        for (const code of wanted) {
+            const hit = summaries.find(x => x?.language === code);
+            if (hit?.value) return hit.value;
+        }
+        return summaries.find(x => x?.value)?.value || "";
+    }
+
+    /**
+     * Name for the end of the journey. OTP returns the literal placeholder "Destination"
+     * when the endpoint is a coordinate rather than a stop, so prefer what the user asked
+     * for; a real stop name is kept as-is.
+     */
+    function destinationName(lastLeg) {
+        const name = lastLeg?.toPlace?.name || "";
+        if (!name || name === "Destination") return currentQuery?.to || name;
+        return name;
+    }
+
+    /** Situations across a pattern's legs, de-duplicated by situation number. */
+    function patternSituations(pattern) {
+        const seen = new Map();
+        for (const leg of pattern?.legs || []) {
+            for (const situation of leg.situations || []) {
+                const text = situationText(situation);
+                if (!text) continue;
+                // Fall back to the text when the feed omits a number, so a repeated
+                // disruption still collapses to one entry.
+                const key = situation.situationNumber || text;
+                if (!seen.has(key)) seen.set(key, { text, severe: isSevere(situation) });
+            }
+        }
+        return [...seen.values()];
+    }
+
+    /**
+     * The LegBone gutter beside a leg row: a dot for the boarding stop (transit only)
+     * and the line itself, dotted for walking. The line is drawn by a CSS mask in
+     * @entur/travel, so its colour is just this element's background.
+     */
+    function legBone(leg, isFoot) {
+        const colour = isFoot ? "var(--basecolors-shape-walk-default)" : esc(legColor(leg));
+        const dot = isFoot ? "" :
+            `<span class="eds-leg-bone__start" style="background-color:${colour}"></span>`;
+        const line = `<span class="eds-leg-bone__line eds-leg-line eds-leg-line--vertical` +
+                     `${isFoot ? " eds-leg-line--dotted" : ""}" style="background-color:${colour}"></span>`;
+        return `<div class="eds-leg-bone eds-leg-bone--vertical">${dot}${line}</div>`;
     }
 
     function esc(v) {
@@ -307,6 +544,18 @@
         return new Date(iso).toLocaleTimeString(lang === 'en' ? 'en-GB' : lang === 'nn' ? 'nn-NO' : 'nb-NO', { hour: "2-digit", minute: "2-digit" });
     }
 
+    /** The searched-for time, with the date included when it is not today. */
+    function fmtQueryTime(iso) {
+        const when = new Date(iso);
+        if (Number.isNaN(when.getTime())) return String(iso);
+        const locale = lang === 'en' ? 'en-GB' : lang === 'nn' ? 'nn-NO' : 'nb-NO';
+        const time = when.toLocaleTimeString(locale, { hour: "2-digit", minute: "2-digit" });
+        const today = new Date();
+        const sameDay = when.toDateString() === today.toDateString();
+        return sameDay ? time
+            : `${when.toLocaleDateString(locale, { day: "numeric", month: "short" })} ${time}`;
+    }
+
     function fmtDuration(secs) {
         if (secs == null) return "";
         const h = Math.floor(secs / 3600);
@@ -323,14 +572,14 @@
 
     function occupancyWidget(status) {
         const levels = {
-            EMPTY:                      { pct: 0,   color: "teal",  label: "" },
-            MANY_SEATS_AVAILABLE:       { pct: 20,  color: "teal",  label: t('occ_empty') },
-            FEW_SEATS_AVAILABLE:        { pct: 55,  color: "teal",  label: t('occ_seats') },
-            STANDING_ROOM_ONLY:         { pct: 80,  color: "amber", label: t('occ_busy') },
-            FULL:                       { pct: 100, color: "red",   label: t('occ_full') },
-            CRUSHED_STANDING_ROOM_ONLY: { pct: 100, color: "red",   label: t('occ_full') },
+            EMPTY:                      { pct: 0,   color: "quiet", label: "" },
+            MANY_SEATS_AVAILABLE:       { pct: 20,  color: "quiet", label: t('occ_empty') },
+            FEW_SEATS_AVAILABLE:        { pct: 55,  color: "quiet", label: t('occ_seats') },
+            STANDING_ROOM_ONLY:         { pct: 80,  color: "busy",  label: t('occ_busy') },
+            FULL:                       { pct: 100, color: "full",  label: t('occ_full') },
+            CRUSHED_STANDING_ROOM_ONLY: { pct: 100, color: "full",  label: t('occ_full') },
         };
-        const info = levels[status] || { pct: 0, color: "teal", label: "" };
+        const info = levels[status] || { pct: 0, color: "quiet", label: "" };
         if (!info.label) return "";
         return `<div class="occ-widget">
             <span class="occ-icon">🧍</span>
@@ -341,26 +590,25 @@
 
     function renderLegRows(legs) {
         let html = '<div class="leg-rows">';
-        let firstTransitLeg = true;
+        // A disruption spans every leg it touches; show it once, on the first.
+        const shownSituations = new Set();
         for (const leg of legs) {
             const isFoot = (leg.mode || "").toLowerCase() === "foot";
             if (isFoot) {
                 const mins = Math.round((leg.duration || 0) / 60);
                 const icon = MODE_ICONS.foot || "";
-                html += `<div class="walk-connector">
-                    <svg width="12" height="12" viewBox="0 0 16 16" style="flex-shrink:0;color:#555;">${icon}</svg>
-                    ${t('walk_min', mins)}
+                html += `<div class="leg-row leg-row--walk">
+                    ${legBone(leg, true)}
+                    <div class="walk-connector">
+                        <svg width="12" height="12" viewBox="0 0 16 16" style="flex-shrink:0;color:var(--basecolors-text-subdued);">${icon}</svg>
+                        ${t('walk_min', mins)}
+                    </div>
                 </div>`;
             } else {
-                const borderStyle = firstTransitLeg ? ' style="border-top:none"' : '';
-                firstTransitLeg = false;
                 const stopName = esc(leg.fromPlace?.name || "");
-                const color = esc(legColor(leg));
-                const textColor = esc(legTextColor(leg));
-                const code = esc(leg.line?.publicCode || leg.mode || "?");
-                const dest = esc(leg.fromEstimatedCall?.destinationDisplay?.frontText || "");
+                const code = leg.line?.publicCode || leg.mode || "?";
+                const dest = leg.fromEstimatedCall?.destinationDisplay?.frontText || "";
                 const label = dest ? `${code} ${dest}` : code;
-                const icon = modeIcon(leg.mode);
 
                 const depAimed = leg.aimedStartTime;
                 const depExpected = leg.expectedStartTime;
@@ -394,20 +642,42 @@
                 }
                 const legMetaHtml = metaParts.length > 0 ? `<div class="leg-meta">${metaParts.join("")}</div>` : "";
 
-                html += `<div class="transit-leg"${borderStyle}>
-                    <div class="transit-stop">${stopName}</div>
-                    <div class="transit-badge-row">
-                        <div class="transit-badge" style="background:${color};color:${textColor};">
-                            <svg class="mode-icon" viewBox="0 0 16 16" fill="currentColor"
-                                 style="color:${textColor};">${icon}</svg>
-                            ${label}
+                let situationsHtml = "";
+                for (const situation of leg.situations || []) {
+                    const text = situationText(situation);
+                    if (!text) continue;
+                    const key = situation.situationNumber || text;
+                    if (shownSituations.has(key)) continue;
+                    shownSituations.add(key);
+                    const severe = isSevere(situation) ? " leg-situation--severe" : "";
+                    situationsHtml += `<div class="leg-situation${severe}" role="note">` +
+                        `<span class="leg-situation-icon" aria-hidden="true">⚠</span>` +
+                        `<span>${esc(text)}</span></div>`;
+                }
+
+                html += `<div class="leg-row">
+                    ${legBone(leg, false)}
+                    <div class="transit-leg">
+                        <div class="transit-stop">${stopName}</div>
+                        <div class="transit-badge-row">
+                            ${travelTag(leg, label)}
+                            <span class="transit-arrival">${esc(fmt(arrival))}</span>
                         </div>
-                        <span class="transit-arrival">${esc(fmt(arrival))}</span>
+                        <div class="transit-times">${timesHtml}</div>
+                        ${legMetaHtml}
+                        ${situationsHtml}
                     </div>
-                    <div class="transit-times">${timesHtml}</div>
-                    ${legMetaHtml}
                 </div>`;
             }
+        }
+        const last = legs[legs.length - 1];
+        if (last) {
+            html += `<div class="leg-end">
+                <div class="eds-leg-bone eds-leg-bone--vertical">
+                    <span class="eds-leg-bone__stop" style="background-color:var(--basecolors-shape-accent)"></span>
+                </div>
+                <span class="leg-end-name">${esc(destinationName(last))}</span>
+            </div>`;
         }
         html += "</div>";
         return html;
@@ -476,9 +746,22 @@
             }
         }
 
+        // Surfaced on collapsed options too, so an affected trip is visible without
+        // having to open it.
+        const situations = patternSituations(p);
+        let situationBadge = "";
+        if (situations.length > 0) {
+            const severe = situations.some(x => x.severe) ? " pattern-situations--severe" : "";
+            const label = situations.length === 1
+                ? t('disruption_one') : t('disruption_count', situations.length);
+            const title = situations.map(x => x.text).join(" · ");
+            situationBadge = `<span class="pattern-situations${severe}" title="${esc(title)}">` +
+                `<span aria-hidden="true">⚠</span>${esc(label)}</span>`;
+        }
+
         const barSegs = legs.map(leg => {
             const w = Math.round(((leg.duration || 0) / totalDur) * 100);
-            const c = (leg.mode || "").toLowerCase() === "foot" ? "#3a3a5a" : legColor(leg);
+            const c = legColor(leg);
             return `<div class="lb" style="width:${w}%;background:${esc(c)};"></div>`;
         }).join("");
 
@@ -487,7 +770,7 @@
                 <div class="pattern-main">
                     <span class="pattern-times">${esc(fmt(p.expectedStartTime))} – ${esc(fmt(p.expectedEndTime))}</span>
                     <div class="leg-bar">${barSegs}</div>
-                    <span class="pattern-dur">${esc(fmtDuration(p.duration))}${delayBadge}</span>
+                    <span class="pattern-dur">${situationBadge}${esc(fmtDuration(p.duration))}${delayBadge}</span>
                 </div>
                 ${renderLegRows(legs)}
                 ${(() => { const b = buyButtonHtml(p, "active"); return b ? `<div class="pattern-buy">${b}</div>` : ""; })()}
@@ -497,7 +780,7 @@
             <div class="compact-row">
                 <span class="compact-times">${esc(fmt(p.expectedStartTime))}</span>
                 <div class="compact-badges">${renderCompactBadges(legs)}</div>
-                <span class="compact-dur">${esc(fmtDuration(p.duration))}</span>
+                <span class="compact-dur">${situationBadge}${esc(fmtDuration(p.duration))}</span>
                 ${buyButtonHtml(p, "compact")}
             </div>
         </div>`;
@@ -543,7 +826,7 @@
 
         for (const leg of legs) {
             const isFoot = (leg.mode || "").toLowerCase() === "foot";
-            const color = legColor(leg);
+            const color = resolvedLegColor(leg);
 
             let points = null;
             if (leg.pointsOnLink?.points) {
@@ -584,8 +867,8 @@
             const p = legs[i].toPlace;
             if (p?.latitude == null) continue;
             const dot = L.circleMarker([p.latitude, p.longitude], {
-                radius: 4, color: "#fff", weight: 2,
-                fillColor: legColor(legs[i]), fillOpacity: 1,
+                radius: 4, color: cssVar("--basecolors-stroke-light"), weight: 2,
+                fillColor: resolvedLegColor(legs[i]), fillOpacity: 1,
             }).addTo(leafletMap);
             routeLayers.push(dot);
         }
@@ -594,7 +877,8 @@
         const first = legs[0];
         if (first?.fromPlace?.latitude != null) {
             const m = L.circleMarker([first.fromPlace.latitude, first.fromPlace.longitude], {
-                radius: 8, color: "#fff", weight: 2, fillColor: "#7c7cf8", fillOpacity: 1,
+                radius: 8, color: cssVar("--basecolors-stroke-light"), weight: 2,
+                fillColor: cssVar("--basecolors-shape-accent"), fillOpacity: 1,
             }).addTo(leafletMap);
             routeLayers.push(m);
         }
@@ -603,7 +887,8 @@
         const last = legs[legs.length - 1];
         if (last?.toPlace?.latitude != null) {
             const m = L.circleMarker([last.toPlace.latitude, last.toPlace.longitude], {
-                radius: 8, color: "#fff", weight: 2, fillColor: "#4ecdc4", fillOpacity: 1,
+                radius: 8, color: cssVar("--basecolors-stroke-light"), weight: 2,
+                fillColor: cssVar("--basecolors-shape-highlight"), fillOpacity: 1,
             }).addTo(leafletMap);
             routeLayers.push(m);
         }
@@ -624,13 +909,13 @@
 
             if (isFoot) {
                 const mins = Math.round((leg.duration || 0) / 60);
-                el.innerHTML = `<span class="badge" style="background:#2a2a2a;border:1px solid #444;color:#888;">${t('walk_m', mins)}</span>`;
+                el.innerHTML = `<span class="badge" style="background:var(--basecolors-frame-subdued);border:var(--border-widths-small) solid var(--basecolors-stroke-subdued);color:var(--basecolors-text-subdued);">${t('walk_m', mins)}</span>`;
             } else {
                 const code = esc(leg.line?.publicCode || leg.mode || "?");
                 let stopsSuffix = "";
                 if (leg.intermediateEstimatedCalls !== undefined) {
                     const stops = leg.intermediateEstimatedCalls.length + 1;
-                    stopsSuffix = ` <span style="color:#666;font-size:10px;">· ${stops} ${stops !== 1 ? t('stop_many') : t('stop_one')}</span>`;
+                    stopsSuffix = ` <span style="color:var(--basecolors-text-subdued);font-size:var(--font-sizes-extra-small);">· ${stops} ${stops !== 1 ? t('stop_many') : t('stop_one')}</span>`;
                 }
                 el.innerHTML = `<span class="badge" style="background:${esc(legColor(leg))};color:${esc(legTextColor(leg))}">${code}</span>`
                     + stopsSuffix;
@@ -701,7 +986,7 @@
         const iconSvg = `<svg width="18" height="18" viewBox="0 0 16 16" fill="currentColor" ` +
             `style="color:${textColor};">${icon}</svg>`;
         const circle = `<div style="width:28px;height:28px;border-radius:50%;background:${color};` +
-            `display:flex;align-items:center;justify-content:center;box-shadow:0 2px 6px #0009;">` +
+            `display:flex;align-items:center;justify-content:center;box-shadow:var(--shadows-card-shadow);">` +
             (hasBearing ? `<div style="transform:rotate(-${vehicle.bearing}deg)">${iconSvg}</div>` : iconSvg) +
             `</div>`;
 
@@ -831,18 +1116,47 @@
         }
     }
 
-    function showStatus(msg) {
-        document.getElementById("patterns").innerHTML = `<div id="status">${esc(msg)}</div>`;
+    function showStatus(msg, hint, nextDeparture) {
+        const hintHtml = hint ? `<div class="empty-hint">${esc(hint)}</div>` : "";
+        // The server looks ahead when a timed search comes back empty, so the dead end can
+        // offer the far side of the gap instead of just reporting nothing.
+        const nextHtml = nextDeparture
+            ? `<button id="next-departure-btn" class="next-departure-btn">` +
+              `${esc(t('next_departure', fmtQueryTime(nextDeparture)))}</button>`
+            : "";
+        document.getElementById("patterns").innerHTML =
+            `<div id="status">${esc(msg)}${hintHtml}${nextHtml}</div>`;
+    }
+
+    /** Collapses the map and leg strip so an empty result is a line, not a screenful. */
+    function setEmpty(isEmpty) {
+        document.getElementById("app").classList.toggle("is-empty", isEmpty);
     }
 
     function render(data) {
         const query = data.query || {};
-        document.getElementById("route-label").textContent =
-            `${query.from || t('from_fallback')} → ${query.to || t('to_fallback')}`;
+        const header = document.getElementById("route-label");
+        header.querySelector(".eds-travel-header__from").textContent = query.from || t('from_fallback');
+        header.querySelector(".eds-travel-header__to").textContent = query.to || t('to_fallback');
 
         currentPatterns = data.trip?.tripPatterns || [];
-        if (currentPatterns.length === 0) { showStatus(t('no_trips')); return; }
+        if (currentPatterns.length === 0) {
+            setEmpty(true);
+            const when = query.departureTime || query.arrivalTime;
+            const next = data.nextDepartureTime;
+            showStatus(
+                t('no_trips'),
+                when ? t('no_trips_at', fmtQueryTime(when)) : t('no_trips_hint'),
+                next
+            );
+            if (next) {
+                document.getElementById("next-departure-btn")
+                    ?.addEventListener("click", () => replan({ departureTime: next }));
+            }
+            return;
+        }
 
+        setEmpty(false);
         activeIndex = 0;
         initMap();
         selectPattern(0);
@@ -893,22 +1207,47 @@
         }
     }
 
+    // --- Entur colour mode ------------------------------------------------
+    // Linje tokens key off data-color-mode on <html>. With the attribute absent the
+    // prefers-color-scheme block in entur-tokens.css decides, so the map is themed
+    // correctly before the host has reported anything.
+    function applyColorMode(theme) {
+        const root = document.documentElement;
+        if (theme === 'dark' || theme === 'light') root.setAttribute('data-color-mode', theme);
+        else root.removeAttribute('data-color-mode');
+    }
+
+    // Leaflet layers bake in resolved colours, so a colour-mode change needs a re-draw.
+    function onColorModeChange() {
+        if (currentPatterns.length > 0) selectPattern(activeIndex);
+    }
+    matchMedia('(prefers-color-scheme: dark)').addEventListener('change', onColorModeChange);
+
     app.ontoolresult = applyToolResult;
+    app.onhostcontextchanged = (ctx) => {
+        if (ctx && 'theme' in ctx) {
+            applyColorMode(ctx.theme);
+            onColorModeChange();
+        }
+    };
 
     await app.connect();
+    applyColorMode(app.getHostContext()?.theme);
 
-    replanBtn.addEventListener("click", async () => {
+    async function replan(overrides) {
         if (!currentQuery) return;
+        if (overrides) currentQuery = { ...currentQuery, ...overrides };
         replanBtn.disabled = true;
         replanBtn.textContent = t('replanning');
         try {
-            const result = await app.callServerTool({ name: "poll-trip", arguments: currentQuery });
-            applyToolResult(result);
+            applyToolResult(await app.callServerTool({ name: "poll-trip", arguments: currentQuery }));
         } catch (e) {
             replanBtn.disabled = false;
             replanBtn.textContent = t('replan');
         }
-    });
+    }
+
+    replanBtn.addEventListener("click", () => replan());
 
     window.addEventListener("beforeunload", () => {
         closeVehicleSubscription();

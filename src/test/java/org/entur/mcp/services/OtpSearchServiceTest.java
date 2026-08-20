@@ -51,6 +51,87 @@ class OtpSearchServiceTest {
         mockWebServer.close();
     }
 
+    // ==================== Next-departure look-ahead ====================
+
+    private static final String EMPTY_TRIP = "{\"data\":{\"trip\":{\"tripPatterns\":[]}}}";
+
+    private void geocodeOsloToAsker() {
+        when(geocoderService.geocodeIfNeeded("Oslo S")).thenReturn(TestFixtures.createOsloLocation());
+        when(geocoderService.geocodeIfNeeded("Asker")).thenReturn(TestFixtures.createAskerLocation());
+    }
+
+    @Test
+    @DisplayName("An empty timed search looks ahead and reports when service resumes")
+    void handleTripRequest_withNoTripsAtRequestedTime_shouldReportNextDeparture() throws Exception {
+        geocodeOsloToAsker();
+        mockWebServer.enqueue(new MockResponse.Builder().code(200).body(EMPTY_TRIP).build());
+        mockWebServer.enqueue(new MockResponse.Builder().code(200).body(
+            "{\"data\":{\"trip\":{\"tripPatterns\":"
+            + "[{\"expectedStartTime\":\"2026-08-20T05:22:28+02:00\"}]}}}").build());
+
+        Map<String, Object> result = otpSearchService.handleTripRequest(
+            "Oslo S", "Asker", "2026-08-20T03:15:00", null, 3, null);
+
+        assertThat(result).containsEntry("nextDepartureTime", "2026-08-20T05:22:28+02:00");
+
+        // OTP's default window is short and adaptive, so the look-ahead has to ask for an
+        // explicit one or it just returns nothing again.
+        mockWebServer.takeRequest();
+        RecordedRequest lookAhead = mockWebServer.takeRequest();
+        assertThat(lookAhead.getBody().utf8()).contains("searchWindow: 1440");
+    }
+
+    @Test
+    @DisplayName("No look-ahead when the search had no time, since it already started from now")
+    void handleTripRequest_withNoTripsAndNoTime_shouldNotLookAhead() {
+        geocodeOsloToAsker();
+        mockWebServer.enqueue(new MockResponse.Builder().code(200).body(EMPTY_TRIP).build());
+
+        Map<String, Object> result = otpSearchService.handleTripRequest(
+            "Oslo S", "Asker", null, null, 3, null);
+
+        assertThat(result).doesNotContainKey("nextDepartureTime");
+        assertThat(mockWebServer.getRequestCount()).isEqualTo(1);
+    }
+
+    @Test
+    @DisplayName("Nothing within the window leaves the empty result untouched")
+    void handleTripRequest_withNothingAhead_shouldOmitNextDeparture() {
+        geocodeOsloToAsker();
+        mockWebServer.enqueue(new MockResponse.Builder().code(200).body(EMPTY_TRIP).build());
+        mockWebServer.enqueue(new MockResponse.Builder().code(200).body(EMPTY_TRIP).build());
+
+        Map<String, Object> result = otpSearchService.handleTripRequest(
+            "Oslo S", "Asker", "2026-08-20T03:15:00", null, 3, null);
+
+        assertThat(result).containsKey("trip").doesNotContainKey("nextDepartureTime");
+    }
+
+    @Test
+    @DisplayName("A failing look-ahead must not turn a valid empty result into an error")
+    void handleTripRequest_withFailingLookAhead_shouldStillReturnTheEmptyResult() {
+        geocodeOsloToAsker();
+        mockWebServer.enqueue(new MockResponse.Builder().code(200).body(EMPTY_TRIP).build());
+        mockWebServer.enqueue(new MockResponse.Builder().code(500).body("upstream exploded").build());
+
+        Map<String, Object> result = otpSearchService.handleTripRequest(
+            "Oslo S", "Asker", "2026-08-20T03:15:00", null, 3, null);
+
+        assertThat(result).containsKey("trip").doesNotContainKey("nextDepartureTime");
+    }
+
+    @Test
+    @DisplayName("A search that found trips does not pay for a second request")
+    void handleTripRequest_withTrips_shouldNotLookAhead() {
+        geocodeOsloToAsker();
+        mockWebServer.enqueue(new MockResponse.Builder()
+            .code(200).body(TestFixtures.createOtpTripResponse()).build());
+
+        otpSearchService.handleTripRequest("Oslo S", "Asker", "2026-08-20T09:00:00", null, 3, null);
+
+        assertThat(mockWebServer.getRequestCount()).isEqualTo(1);
+    }
+
     // ==================== Validation Tests ====================
 
     @Test

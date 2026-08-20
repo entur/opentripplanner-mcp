@@ -46,8 +46,78 @@ class TripSearchToolUnitTest {
 
     @BeforeEach
     void setUp() {
-        tripSearchTool = new TripSearchTool(otpSearchService, geocoderService, "wss://test.example.com/vehicles");
+        tripSearchTool = new TripSearchTool(otpSearchService, geocoderService, new AppHtmlLoader(), "wss://test.example.com/vehicles");
         objectMapper = new ObjectMapper();
+    }
+
+    // ==================== Empty Result Advice ====================
+
+    @Test
+    @DisplayName("A timed search with nothing ahead of it says so, and says not to retry")
+    void trip_withNoPatterns_shouldAdviseAgainstRetrying() throws Exception {
+        // A bare empty array gives the model nothing to act on, so it re-issues the same
+        // search and each retry renders another empty UI card.
+        when(otpSearchService.handleTripRequest(anyString(), anyString(), any(), any(), any(), any()))
+            .thenReturn(new HashMap<>(Map.of("trip", Map.of("tripPatterns", List.of()))));
+
+        Map<String, Object> payload = objectMapper.readValue(
+            textOf(tripSearchTool.trip("Holmestrand", "Oslo lufthavn", "2026-08-20T03:15:00",
+                                       null, 3, "nb", null)), Map.class);
+
+        assertThat(payload).containsKey("noTripsFound");
+        Map<String, Object> advice = (Map<String, Object>) payload.get("noTripsFound");
+        assertThat(advice.get("retryWillNotHelp")).isEqualTo(true);
+        assertThat((String) advice.get("advice"))
+            .contains("Repeating this search returns the same result")
+            .contains("none were found within the following 24 hours");
+        assertThat(advice).doesNotContainKey("nextDepartureTime");
+    }
+
+    @Test
+    @DisplayName("When the service found a next departure, the advice carries it")
+    void trip_withNextDeparture_shouldOfferIt() throws Exception {
+        Map<String, Object> response = new HashMap<>();
+        response.put("trip", Map.of("tripPatterns", List.of()));
+        response.put("nextDepartureTime", "2026-08-20T05:22:28+02:00");
+        when(otpSearchService.handleTripRequest(anyString(), anyString(), any(), any(), any(), any()))
+            .thenReturn(response);
+
+        Map<String, Object> payload = objectMapper.readValue(
+            textOf(tripSearchTool.trip("Holmestrand", "Oslo lufthavn", "2026-08-20T03:15:00",
+                                       null, 3, "nb", null)), Map.class);
+
+        Map<String, Object> advice = (Map<String, Object>) payload.get("noTripsFound");
+        assertThat(advice).containsEntry("nextDepartureTime", "2026-08-20T05:22:28+02:00");
+        assertThat((String) advice.get("advice"))
+            .contains("service resumes at 2026-08-20T05:22:28+02:00");
+    }
+
+    @Test
+    @DisplayName("Advice for a search with no time given points at the route, not the clock")
+    void trip_withNoPatternsAndNoTime_shouldAdviseAboutTheRoute() throws Exception {
+        when(otpSearchService.handleTripRequest(anyString(), anyString(), any(), any(), any(), any()))
+            .thenReturn(new HashMap<>(Map.of("trip", Map.of("tripPatterns", List.of()))));
+
+        Map<String, Object> payload = objectMapper.readValue(
+            textOf(tripSearchTool.trip("A", "B", null, null, 3, "en", null)), Map.class);
+
+        Map<String, Object> advice = (Map<String, Object>) payload.get("noTripsFound");
+        assertThat((String) advice.get("advice"))
+            .contains("no route appears to exist")
+            .doesNotContain("no service runs then");
+    }
+
+    @Test
+    @DisplayName("A result with trips carries no advice")
+    void trip_withPatterns_shouldNotAdvise() throws Exception {
+        when(otpSearchService.handleTripRequest(anyString(), anyString(), any(), any(), any(), any()))
+            .thenReturn(new HashMap<>(Map.of(
+                "trip", Map.of("tripPatterns", List.of(Map.of("duration", 600))))));
+
+        Map<String, Object> payload = objectMapper.readValue(
+            textOf(tripSearchTool.trip("Oslo S", "Asker", null, null, 3, "en", null)), Map.class);
+
+        assertThat(payload).doesNotContainKey("noTripsFound");
     }
 
     // ==================== Trip Tool Success Tests ====================

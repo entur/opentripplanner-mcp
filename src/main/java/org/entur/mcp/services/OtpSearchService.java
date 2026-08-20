@@ -21,6 +21,7 @@ import java.net.http.HttpResponse;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
@@ -127,7 +128,10 @@ public class OtpSearchService {
                                     }
                                 }
                                 situations {
+                                    situationNumber
+                                    severity
                                     summary {
+                                        language
                                         value
                                     }
                                 }
@@ -325,6 +329,26 @@ public class OtpSearchService {
         log.info("Initializing OtpSearchService with otpURL='{}', etClientName='{}'", otpURL, etClientName);
     }
 
+    /** A day, so an overnight gap or a service that only runs next morning is still found. */
+    private static final int NEXT_DEPARTURE_SEARCH_WINDOW_MINUTES = 1440;
+
+    /** Asks only when the next trip leaves; the caller already reported that none exist. */
+    private static final String NEXT_DEPARTURE_QUERY = """
+            {
+                trip(
+                    from: {name: "%s", coordinates: {latitude: %f, longitude: %f}}
+                    to: {name: "%s", coordinates: {latitude: %f, longitude: %f}}
+                    dateTime: "%s"
+                    searchWindow: %d
+                    numTripPatterns: 1%s
+                ) {
+                    tripPatterns {
+                        expectedStartTime
+                    }
+                }
+            }
+            """;
+
     public Map<String, Object> handleTripRequest(String from, String to, String departureTime,
                                                  String arrivalTime, Integer maxResults,
                                                  List<String> transportModes) {
@@ -424,7 +448,71 @@ public class OtpSearchService {
         }
 
         log.info("Successfully planned trip from '{}' to '{}'", fromLocation.getPlace(), toLocation.getPlace());
+
+        // An empty result for a requested time usually means nothing runs then rather than
+        // that no route exists, so look ahead for when service resumes. Only worth doing
+        // when a time was given: without one the search already started from now.
+        if (isEmptyTripResult(data) && departureTime != null && !departureTime.isEmpty()) {
+            findNextDeparture(fromLocation, toLocation, departureTime, modesParam)
+                .ifPresent(next -> data.put("nextDepartureTime", next));
+        }
         return data;
+    }
+
+    @SuppressWarnings("unchecked")
+    private static boolean isEmptyTripResult(Map<String, Object> data) {
+        if (!(data.get("trip") instanceof Map<?, ?> trip)) {
+            return false;
+        }
+        Object patterns = ((Map<String, Object>) trip).get("tripPatterns");
+        return patterns instanceof List<?> list && list.isEmpty();
+    }
+
+    /**
+     * Departure time of the first trip on or after {@code departureTime}.
+     *
+     * <p>OTP's default search window is short and adaptive, so an overnight or weekend gap
+     * simply returns nothing. Re-asking with an explicit day-long window finds the far side
+     * of the gap. Deliberately a second request rather than a wider window on the first:
+     * widening every search would cost time on the overwhelmingly common case that already
+     * has results.
+     *
+     * <p>Best-effort - a failure here must not turn a valid empty result into an error.
+     *
+     * @return the next departure as an ISO timestamp, or empty if none within the window
+     */
+    private Optional<String> findNextDeparture(Location fromLocation, Location toLocation,
+                                               String departureTime, String modesParam) {
+        String query = String.format(NEXT_DEPARTURE_QUERY,
+            fromLocation.getPlace(), fromLocation.getLatitude(), fromLocation.getLongitude(),
+            toLocation.getPlace(), toLocation.getLatitude(), toLocation.getLongitude(),
+            departureTime, NEXT_DEPARTURE_SEARCH_WINDOW_MINUTES,
+            modesParam.isEmpty() ? "" : "\n                        " + modesParam);
+        try {
+            ObjectMapper mapper = new ObjectMapper();
+            HttpResponse<String> response =
+                sendOtpGraphQlRequest(mapper.writeValueAsString(Map.of("query", query)));
+            Map<String, Object> result = mapper.readValue(response.body(), new TypeReference<>() {});
+
+            Map<String, Object> data = (Map<String, Object>) result.get("data");
+            if (data == null || !(data.get("trip") instanceof Map<?, ?> trip)) {
+                return Optional.empty();
+            }
+            Object patterns = ((Map<String, Object>) trip).get("tripPatterns");
+            if (!(patterns instanceof List<?> list) || list.isEmpty()) {
+                return Optional.empty();
+            }
+            Object first = list.get(0);
+            if (!(first instanceof Map<?, ?> pattern)) {
+                return Optional.empty();
+            }
+            Object start = ((Map<String, Object>) pattern).get("expectedStartTime");
+            return start instanceof String iso ? Optional.of(iso) : Optional.empty();
+        } catch (Exception e) {
+            log.warn("Look-ahead for the next departure failed, reporting no trips only: {}",
+                e.getMessage());
+            return Optional.empty();
+        }
     }
 
     public HttpResponse<String> sendOtpGraphQlRequest(String reqJSON) {
