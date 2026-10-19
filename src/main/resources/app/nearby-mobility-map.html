@@ -186,6 +186,21 @@
 
         const cardStripEl = document.getElementById('card-strip');
 
+        // Everything interpolated into HTML goes through esc(): names and URLs come from
+        // third-party operator feeds, and the location is whatever the model passed in.
+        function esc(s) {
+            return String(s ?? '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+        }
+
+        // Only https links are rendered, so a feed cannot smuggle in javascript: or data: URLs.
+        function safeUrl(u) {
+            try {
+                return new URL(u).protocol === 'https:' ? u : null;
+            } catch {
+                return null;
+            }
+        }
+
         function iconClassForFormFactor(ff) {
             if (!ff) return 'other';
             if (ff === 'BICYCLE' || ff === 'CARGO_BICYCLE') return 'bike';
@@ -246,7 +261,7 @@
             originMarker = L.circleMarker([originLat, originLon], {
                 radius: 7, color: cssVar('--basecolors-shape-highlight'),
                 fillColor: cssVar('--basecolors-shape-highlight'), fillOpacity: 1, weight: 2,
-            }).bindPopup(t('origin') + ': ' + originName).addTo(leafletMap);
+            }).bindPopup(esc(t('origin') + ': ' + originName)).addTo(leafletMap);
             radiusCircle = L.circle([originLat, originLon], {
                 radius, color: cssVar('--basecolors-shape-accent'), weight: 1, dashArray: '4 6', fillOpacity: 0.05,
             }).addTo(leafletMap);
@@ -301,7 +316,7 @@
 
         function rentalUrl(uris) {
             if (!uris) return null;
-            return uris.web || uris.ios || uris.android || null;
+            return safeUrl(uris.web) || safeUrl(uris.ios) || safeUrl(uris.android);
         }
 
         function renderCards(vehicles, stations, systems) {
@@ -333,12 +348,12 @@
                     card.innerHTML = `
                         <div class="mob-card-header">
                             <span class="mob-icon ${iconCls}"></span>
-                            <span class="mob-name">${t('form_factor.' + ff)}</span>
-                            <span class="mob-distance">${item.data.distanceMeters ?? 0}m</span>
+                            <span class="mob-name">${esc(t('form_factor.' + ff))}</span>
+                            <span class="mob-distance">${esc(item.data.distanceMeters ?? 0)}m</span>
                         </div>
-                        <div class="mob-operator">${operator}</div>
-                        <div class="mob-range">${t('range_remaining', rangeKm)}</div>
-                        ${url ? `<a class="mob-rental-link" href="${url}" target="_blank" rel="noopener">${t('open_in_app')}</a>` : ''}
+                        <div class="mob-operator">${esc(operator)}</div>
+                        <div class="mob-range">${esc(t('range_remaining', rangeKm))}</div>
+                        ${url ? `<a class="mob-rental-link" href="${esc(url)}" target="_blank" rel="noopener">${esc(t('open_in_app'))}</a>` : ''}
                     `;
                 } else {
                     const ff = dominantFormFactor(item.data);
@@ -349,12 +364,12 @@
                     card.innerHTML = `
                         <div class="mob-card-header">
                             <span class="mob-icon ${iconCls}" style="background:${colorForIcon(iconClassForFormFactor(ff))}; border-color:var(--basecolors-stroke-light);"></span>
-                            <span class="mob-name">${name}</span>
-                            <span class="mob-distance">${item.data.distanceMeters ?? 0}m</span>
+                            <span class="mob-name">${esc(name)}</span>
+                            <span class="mob-distance">${esc(item.data.distanceMeters ?? 0)}m</span>
                         </div>
-                        <div class="mob-operator">${operator}</div>
-                        <div class="mob-availability">${t('available', item.data.numVehiclesAvailable ?? 0)}</div>
-                        ${url ? `<a class="mob-rental-link" href="${url}" target="_blank" rel="noopener">${t('open_in_app')}</a>` : ''}
+                        <div class="mob-operator">${esc(operator)}</div>
+                        <div class="mob-availability">${esc(t('available', item.data.numVehiclesAvailable ?? 0))}</div>
+                        ${url ? `<a class="mob-rental-link" href="${esc(url)}" target="_blank" rel="noopener">${esc(t('open_in_app'))}</a>` : ''}
                     `;
                 }
                 cardStripEl.appendChild(card);
@@ -362,7 +377,7 @@
         }
 
         function showError(msg) {
-            cardStripEl.innerHTML = `<div class="status-card">${msg}</div>`;
+            cardStripEl.innerHTML = `<div class="status-card">${esc(msg)}</div>`;
         }
 
         // Grafts UI-only fields back onto the payload. The server strips them into
