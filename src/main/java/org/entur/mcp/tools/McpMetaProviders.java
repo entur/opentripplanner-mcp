@@ -11,19 +11,18 @@ import java.util.Map;
  */
 public final class McpMetaProviders {
 
-    public static final List<String> CSP_SCRIPT_DOMAINS = List.of("https://unpkg.com");
+    // No script CDN: Leaflet and the SDK are inlined by AppHtmlLoader, so the apps load no
+    // third-party code. Do not add one back; see scripts/update-vendor-js.py.
+    public static final List<String> CSP_NO_RESOURCE_DOMAINS = List.of();
     public static final List<String> CSP_MAP_DOMAINS = List.of(
-        "https://unpkg.com",
         "https://tile.openstreetmap.org"
     );
     public static final List<String> CSP_API_DOMAINS = List.of(
-        "https://unpkg.com",
         "https://api.dev.entur.io",
         "https://api.staging.entur.io",
         "https://api.entur.io"
     );
     public static final List<String> CSP_API_DOMAINS_WITH_WS = List.of(
-        "https://unpkg.com",
         "https://api.dev.entur.io",
         "https://api.staging.entur.io",
         "https://api.entur.io",

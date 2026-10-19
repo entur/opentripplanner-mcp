@@ -58,6 +58,9 @@ class EnturCssTest {
         AppHtmlLoader loader = new AppHtmlLoader();
         ReflectionTestUtils.setField(loader, "tokensCss", new ClassPathResource("app/entur-tokens.css"));
         ReflectionTestUtils.setField(loader, "travelCss", new ClassPathResource("app/entur-travel.css"));
+        ReflectionTestUtils.setField(loader, "leafletCss", new ClassPathResource("app/vendor/leaflet.css"));
+        ReflectionTestUtils.setField(loader, "leafletJs", new ClassPathResource("app/vendor/leaflet.js"));
+        ReflectionTestUtils.setField(loader, "extAppsJs", new ClassPathResource("app/vendor/ext-apps.js"));
         return loader;
     }
 
@@ -221,8 +224,36 @@ class EnturCssTest {
         String html = new ClassPathResource(path).getContentAsString(StandardCharsets.UTF_8);
         // Dropping the script leaves L undefined and the app renders only an error,
         // which no server-side test would otherwise catch.
-        assertThat(html).as("Leaflet stylesheet").containsPattern("leaflet@[\\d.]+/dist/leaflet\\.css");
-        assertThat(html).as("Leaflet script").containsPattern("leaflet@[\\d.]+/dist/leaflet\\.js");
+        assertThat(html).as("Leaflet stylesheet").contains(AppHtmlLoader.LEAFLET_CSS_MARKER);
+        assertThat(html).as("Leaflet script").contains(AppHtmlLoader.LEAFLET_JS_MARKER);
+    }
+
+    @Test
+    @DisplayName("served apps inline Leaflet and the SDK, and load no third-party script")
+    void servedAppsLoadNoThirdPartyScript() throws IOException {
+        AppHtmlLoader loader = loader();
+
+        for (String path : APPS) {
+            String served = loader.load(new ClassPathResource(path));
+
+            // Script in the app can call tools and post into the conversation, so none of
+            // it may come from a CDN. See scripts/update-vendor-js.py.
+            assertThat(served).as("%s script sources", path).doesNotContainPattern("<script[^>]*\\ssrc=");
+            assertThat(served).as("%s external stylesheets", path).doesNotContainPattern("<link[^>]*stylesheet");
+            assertThat(served).as("%s CDN references", path).doesNotContain("unpkg.com");
+            assertThat(served).as("%s module imports", path).doesNotContainPattern("\\bimport\\s*\\{");
+
+            assertThat(served).as("%s SDK inlined", path)
+                .doesNotContain(AppHtmlLoader.EXT_APPS_MARKER)
+                .contains("<script data-vendor=\"ext-apps\">")
+                .contains("var McpExtApps = (function ()");
+            if (!path.endsWith("departures-board.html")) {
+                assertThat(served).as("%s Leaflet inlined", path)
+                    .doesNotContain(AppHtmlLoader.LEAFLET_JS_MARKER)
+                    .doesNotContain(AppHtmlLoader.LEAFLET_CSS_MARKER)
+                    .contains(".leaflet-container");
+            }
+        }
     }
 
     @Test

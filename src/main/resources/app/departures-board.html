@@ -6,6 +6,7 @@
     <meta name="color-scheme" content="light dark">
     <title>Departures</title>
     <!--ENTUR_TOKENS-->
+    <!--EXT_APPS-->
     <!--ENTUR_TRAVEL-->
     <style>
         * { margin: 0; padding: 0; box-sizing: border-box; }
@@ -138,7 +139,7 @@
     <div id="arrivals-list" style="display:none"></div>
 </div>
 <script type="module">
-    import { App } from "https://unpkg.com/@modelcontextprotocol/ext-apps@0.4.2/dist/src/app-with-deps.js";
+    const { App } = McpExtApps;
 
     const app = new App({ name: "departures", version: "2.0.0" });
     const i18n = {

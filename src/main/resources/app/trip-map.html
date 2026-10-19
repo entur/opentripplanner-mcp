@@ -5,9 +5,10 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <meta name="color-scheme" content="light dark">
     <title>Trip</title>
-    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9/dist/leaflet.css">
-    <script src="https://unpkg.com/leaflet@1.9/dist/leaflet.js"></script>
+    <!--LEAFLET_CSS-->
+    <!--LEAFLET_JS-->
     <!--ENTUR_TOKENS-->
+    <!--EXT_APPS-->
     <!--ENTUR_TRAVEL-->
     <style>
         * { margin: 0; padding: 0; box-sizing: border-box; }
@@ -221,7 +222,7 @@
     <div id="patterns"><div id="status">Connecting…</div></div>
 </div>
 <script type="module">
-    import { App } from "https://unpkg.com/@modelcontextprotocol/ext-apps@0.4.2/dist/src/app-with-deps.js";
+    const { App } = McpExtApps;
 
     const app = new App({ name: "trip", version: "2.0.0" });
     let currentQuery = null;

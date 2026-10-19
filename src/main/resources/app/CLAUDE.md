@@ -19,6 +19,10 @@ Conventions for the MCP App HTML files and the vendored Entur CSS in this direct
   `<!--ENTUR_TOKENS-->` in all four, `<!--ENTUR_TRAVEL-->` in `trip-map` and `departures-board`.
   A relative `<link>` cannot be used: the host renders the app in a sandboxed iframe with no origin
   to resolve against.
+- Leaflet and the MCP Apps SDK are vendored in `vendor/` and inlined the same way, at
+  `<!--LEAFLET_CSS-->`, `<!--LEAFLET_JS-->` and `<!--EXT_APPS-->`. The SDK is rewrapped as a classic
+  script, so apps take it from the global (`const { App } = McpExtApps;`), not an `import`. Never
+  add a CDN `<script>`/`<link>` back - `EnturCssTest` fails on one, and the CSP no longer allows it.
 - `scripts/preview-apps.py` renders the apps in a normal browser (light and dark) using real tool
   results pulled over `/mcp`, which is the only practical way to eyeball UI changes.
 - **Colour mode:** apps set `data-color-mode` on `<html>` from `app.getHostContext()?.theme` and keep
