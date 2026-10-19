@@ -44,7 +44,7 @@ public class GeocoderService {
     @Autowired
     public GeocoderService(
             @Value("${org.entur.geocoder.url}") String geocodeURL,
-            @Value("${org.entur.mcp.client_name:entur-mcp}") String etClientName) {
+            @Value("${org.entur.mcp.client_name:opentripplanner-mcp-local}") String etClientName) {
         this(geocodeURL, etClientName, UpstreamHttp.REQUEST_TIMEOUT);
     }
 
@@ -53,7 +53,7 @@ public class GeocoderService {
         this.etClientName = etClientName;
         this.requestTimeout = requestTimeout;
         client = UpstreamHttp.newClient();
-        log.info("Initializing GeocoderService with geocodeURL='{}', etClientName='{}'", geocodeURL, etClientName);
+        log.info("Initializing GeocoderService with geocodeURL='{}'", geocodeURL);
     }
 
     public Map<String, Object> handleGeocodeRequest(String text, int maxResults) {

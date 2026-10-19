@@ -161,7 +161,8 @@ The application can be configured through `src/main/resources/application.proper
 - `SERVER_PORT`: HTTP port to listen on (default: 8080)
 - `ORG_ENTUR_OTP_URL`: OpenTripPlanner GraphQL endpoint URL
 - `ORG_ENTUR_GEOCODER_URL`: Entur Geocoder REST API URL
-- `ORG_ENTUR_MCP_CLIENT_NAME`: Client identifier for API requests (default: "entur-mcp")
+- `ORG_ENTUR_MCP_CLIENT_NAME`: `ET-Client-Name` sent with the server's calls to Entur's APIs (default: `opentripplanner-mcp-local`). Deployed environments read it from Secret Manager as `ET_CLIENT_NAME`, so the real value is not in this repository.
+- `ORG_ENTUR_VEHICLES_CLIENT_NAME`: `ET-Client-Name` the trip map sends from the user's browser for live vehicle positions. It is public by design and must differ from the server's.
 
 Example with environment variables:
 ```bash

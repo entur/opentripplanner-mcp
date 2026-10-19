@@ -320,7 +320,7 @@ public class OtpSearchService {
     @Autowired
     public OtpSearchService(
             @Value("${org.entur.otp.url}") String otpURL,
-            @Value("${org.entur.mcp.client_name:entur-mcp}") String etClientName,
+            @Value("${org.entur.mcp.client_name:opentripplanner-mcp-local}") String etClientName,
             GeocoderService geocoderService) {
         this(otpURL, etClientName, geocoderService, UpstreamHttp.REQUEST_TIMEOUT);
     }
@@ -332,7 +332,7 @@ public class OtpSearchService {
         this.geocoderService = geocoderService;
         this.requestTimeout = requestTimeout;
         client = UpstreamHttp.newClient();
-        log.info("Initializing OtpSearchService with otpURL='{}', etClientName='{}'", otpURL, etClientName);
+        log.info("Initializing OtpSearchService with otpURL='{}'", otpURL);
     }
 
     /** A day, so an overnight gap or a service that only runs next morning is still found. */
