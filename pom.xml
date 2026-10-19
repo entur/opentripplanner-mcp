@@ -17,6 +17,7 @@
 		<spring-ai.version>2.0.0</spring-ai.version>
         <springdoc-openapi.version>3.0.3</springdoc-openapi.version>
         <mockwebserver.version>5.4.0</mockwebserver.version>
+        <cloud-logging.version>7.1.0</cloud-logging.version>
 	</properties>
 
     <dependencyManagement>
@@ -35,6 +36,13 @@
                 <type>pom</type>
                 <scope>import</scope>
             </dependency>
+            <dependency>
+                <groupId>no.entur.logging.cloud</groupId>
+                <artifactId>bom</artifactId>
+                <version>${cloud-logging.version}</version>
+                <type>pom</type>
+                <scope>import</scope>
+            </dependency>
         </dependencies>
     </dependencyManagement>
 
@@ -42,6 +50,32 @@
 		<dependency>
 			<groupId>org.springframework.ai</groupId>
 			<artifactId>spring-ai-starter-mcp-server-webmvc</artifactId>
+		</dependency>
+
+		<!--
+		  Entur cloud-logging: one-line JSON logs with GCP severity mapping. Every value is
+		  JSON-escaped, so caller input in a log statement cannot forge another entry. The
+		  test starter switches local and test output to human-readable lines.
+
+		  The starter depends on spring-boot-starter-security only to order its correlation-id
+		  filter ahead of the security chain. On the classpath, Spring Boot's default security
+		  would answer every request with 401 - this server is deliberately open - so it is
+		  excluded.
+		-->
+		<dependency>
+			<groupId>no.entur.logging.cloud</groupId>
+			<artifactId>spring-boot-starter-gcp-web</artifactId>
+			<exclusions>
+				<exclusion>
+					<groupId>org.springframework.boot</groupId>
+					<artifactId>spring-boot-starter-security</artifactId>
+				</exclusion>
+			</exclusions>
+		</dependency>
+		<dependency>
+			<groupId>no.entur.logging.cloud</groupId>
+			<artifactId>spring-boot-starter-gcp-web-test</artifactId>
+			<scope>test</scope>
 		</dependency>
 
 		<dependency>

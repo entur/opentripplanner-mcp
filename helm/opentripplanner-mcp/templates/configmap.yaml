@@ -9,6 +9,7 @@ data:
     application.properties: |-
       spring.application.name=opentripplanner-mcp
       server.port=8080
+      logging.level.root=INFO
       management.server.port=9090
       management.endpoints.web.exposure.include=health,prometheus
       # MCP Server Configuration
