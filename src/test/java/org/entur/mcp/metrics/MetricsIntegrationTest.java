@@ -53,7 +53,6 @@ class MetricsIntegrationTest {
 
         // Verify custom metrics were captured with correct tags
         Counter counter = meterRegistry.find("http.requests.by.client")
-            .tag("client_name", "test-client")
             .tag("client_type", "curl")
             .tag("endpoint", "trips")
             .tag("status", "200")
@@ -77,7 +76,6 @@ class MetricsIntegrationTest {
             .andExpect(status().isOk());
 
         Counter counter = meterRegistry.find("http.requests.by.client")
-            .tag("client_name", "chatgpt-plugin")
             .tag("client_type", "chatgpt")
             .tag("endpoint", "geocode")
             .counter();
@@ -87,7 +85,7 @@ class MetricsIntegrationTest {
     }
 
     @Test
-    void httpRequest_withoutClientHeader_shouldTagAsUnknown() throws Exception {
+    void httpRequest_withoutUserAgent_shouldTagClientTypeAsUnknown() throws Exception {
         Map<String, Object> mockResponse = Map.of("features", List.of());
         when(geocoderService.handleGeocodeRequest(any(), anyInt()))
             .thenReturn(mockResponse);
@@ -97,7 +95,6 @@ class MetricsIntegrationTest {
             .andExpect(status().isOk());
 
         Counter counter = meterRegistry.find("http.requests.by.client")
-            .tag("client_name", "unknown")
             .tag("client_type", "unknown")
             .counter();
 
@@ -113,7 +110,6 @@ class MetricsIntegrationTest {
             .andExpect(status().isBadRequest());
 
         Counter counter = meterRegistry.find("http.requests.by.client")
-            .tag("client_name", "error-client")
             .tag("status", "400")
             .counter();
 
@@ -160,21 +156,18 @@ class MetricsIntegrationTest {
         // Verify each endpoint is tagged correctly
         Counter tripsCounter = meterRegistry.find("http.requests.by.client")
             .tag("endpoint", "trips")
-            .tag("client_name", clientName)
             .counter();
         assertThat(tripsCounter).isNotNull();
         assertThat(tripsCounter.count()).isGreaterThan(0);
 
         Counter geocodeCounter = meterRegistry.find("http.requests.by.client")
             .tag("endpoint", "geocode")
-            .tag("client_name", clientName)
             .counter();
         assertThat(geocodeCounter).isNotNull();
         assertThat(geocodeCounter.count()).isGreaterThan(0);
 
         Counter departuresCounter = meterRegistry.find("http.requests.by.client")
             .tag("endpoint", "departures")
-            .tag("client_name", clientName)
             .counter();
         assertThat(departuresCounter).isNotNull();
         assertThat(departuresCounter.count()).isGreaterThan(0);
@@ -214,5 +207,22 @@ class MetricsIntegrationTest {
             .counter();
 
         assertThat(counter).isNotNull();
+    }
+
+    @Test
+    void httpRequest_withClientNameHeader_shouldNotTagClientName() throws Exception {
+        Map<String, Object> mockResponse = Map.of("features", List.of());
+        when(geocoderService.handleGeocodeRequest(any(), anyInt()))
+            .thenReturn(mockResponse);
+
+        // The header is caller-supplied: tagging on it would let callers mint unbounded series.
+        mockMvc.perform(get("/api/geocode")
+                .param("text", "Oslo")
+                .header("ET-Client-Name", "random-" + System.nanoTime()))
+            .andExpect(status().isOk());
+
+        assertThat(meterRegistry.find("http.requests.by.client").counters())
+            .isNotEmpty()
+            .allSatisfy(c -> assertThat(c.getId().getTag("client_name")).isNull());
     }
 }

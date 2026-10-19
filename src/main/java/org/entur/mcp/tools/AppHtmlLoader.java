@@ -14,7 +14,7 @@ import java.util.concurrent.ConcurrentHashMap;
 
 /**
  * Loads MCP App HTML from the classpath and inlines the vendored Entur Linje
- * stylesheets into it.
+ * stylesheets and third-party scripts into it.
  *
  * <p>The apps are handed to the host as a single {@code text/html;profile=mcp-app}
  * string and rendered in a sandboxed iframe, so a relative
@@ -27,6 +27,11 @@ import java.util.concurrent.ConcurrentHashMap;
  * {@value #TRAVEL_MARKER}. Markers are substituted in declaration order, so the travel
  * components always land after the tokens they depend on. A marker an app does not
  * carry is simply skipped.
+ *
+ * <p>Leaflet and the MCP Apps SDK are inlined the same way rather than loaded from a CDN
+ * (see {@code scripts/update-vendor-js.py}). Script in the app can call server tools and
+ * post into the conversation, so serving it from our own jar keeps a compromised CDN or
+ * package release out of every app, and lets the CSP drop the third-party origin.
  */
 @Component
 public class AppHtmlLoader {
@@ -37,6 +42,15 @@ public class AppHtmlLoader {
     /** TravelHeader / TravelTag / LegBone. Only the journey-rendering apps need these. */
     public static final String TRAVEL_MARKER = "<!--ENTUR_TRAVEL-->";
 
+    /** Leaflet's stylesheet. The map apps need it. */
+    public static final String LEAFLET_CSS_MARKER = "<!--LEAFLET_CSS-->";
+
+    /** Leaflet itself, defining the global {@code L}. */
+    public static final String LEAFLET_JS_MARKER = "<!--LEAFLET_JS-->";
+
+    /** The MCP Apps SDK, defining the global {@code McpExtApps}. Every app needs it. */
+    public static final String EXT_APPS_MARKER = "<!--EXT_APPS-->";
+
     private static final Logger log = LoggerFactory.getLogger(AppHtmlLoader.class);
 
     @Value("classpath:/app/entur-tokens.css")
@@ -44,6 +58,15 @@ public class AppHtmlLoader {
 
     @Value("classpath:/app/entur-travel.css")
     private Resource travelCss;
+
+    @Value("classpath:/app/vendor/leaflet.css")
+    private Resource leafletCss;
+
+    @Value("classpath:/app/vendor/leaflet.js")
+    private Resource leafletJs;
+
+    @Value("classpath:/app/vendor/ext-apps.js")
+    private Resource extAppsJs;
 
     private final Map<String, String> cache = new ConcurrentHashMap<>();
 
@@ -85,25 +108,33 @@ public class AppHtmlLoader {
 
     private String inlineStylesheets(String html, String key) throws IOException {
         // Ordered: tokens first, then anything that resolves against them.
-        Map<String, Resource> sheets = new LinkedHashMap<>();
-        sheets.put(TOKEN_MARKER, tokensCss);
-        sheets.put(TRAVEL_MARKER, travelCss);
+        Map<String, Inline> inlines = new LinkedHashMap<>();
+        inlines.put(TOKEN_MARKER, new Inline(tokensCss, "<style>", "</style>"));
+        inlines.put(TRAVEL_MARKER, new Inline(travelCss, "<style>", "</style>"));
+        inlines.put(LEAFLET_CSS_MARKER, new Inline(leafletCss, "<style>", "</style>"));
+        inlines.put(LEAFLET_JS_MARKER, new Inline(leafletJs, "<script>", "</script>"));
+        // Tagged so scripts/preview-apps.py can swap in its stand-in SDK.
+        inlines.put(EXT_APPS_MARKER,
+            new Inline(extAppsJs, "<script data-vendor=\"ext-apps\">", "</script>"));
 
         if (!html.contains(TOKEN_MARKER)) {
             log.warn("App {} has no {} marker; serving without Entur design tokens", key, TOKEN_MARKER);
         }
 
         String composed = html;
-        for (Map.Entry<String, Resource> sheet : sheets.entrySet()) {
-            String marker = sheet.getKey();
+        for (Map.Entry<String, Inline> entry : inlines.entrySet()) {
+            String marker = entry.getKey();
             if (!composed.contains(marker)) {
                 continue;
             }
-            String css = sheet.getValue().getContentAsString(StandardCharsets.UTF_8);
-            // Literal replacement: the CSS contains $ and \ sequences that
+            Inline inline = entry.getValue();
+            String content = inline.resource().getContentAsString(StandardCharsets.UTF_8);
+            // Literal replacement: the CSS and JS contain $ and \ sequences that
             // String.replaceAll would interpret as group references.
-            composed = composed.replace(marker, "<style>\n" + css + "\n</style>");
+            composed = composed.replace(marker, inline.open() + "\n" + content + "\n" + inline.close());
         }
         return composed;
     }
+
+    private record Inline(Resource resource, String open, String close) {}
 }

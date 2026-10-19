@@ -12,6 +12,9 @@ import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 
 import java.io.IOException;
+import java.net.http.HttpTimeoutException;
+import java.time.Duration;
+import java.util.concurrent.TimeUnit;
 import java.util.List;
 import java.util.Map;
 
@@ -244,6 +247,21 @@ class GeocoderServiceTest {
     }
 
     @Test
+    @DisplayName("resolveStopId should reject a malformed NSR ID without calling the geocoder")
+    void resolveStopId_withMalformedNsrId_shouldThrowValidationException() {
+        for (String id : List.of(
+                "NSR:StopPlace:337\") { id } x: stopPlace(id: \"1",
+                "NSR:StopPlace:337}",
+                "NSR:Quay:abc",
+                "NSR:StopPlace:")) {
+            assertThatThrownBy(() -> geocoderService.resolveStopId(id))
+                .as(id)
+                .isInstanceOf(ValidationException.class);
+        }
+        assertThat(mockWebServer.getRequestCount()).isZero();
+    }
+
+    @Test
     @DisplayName("resolveStopId should geocode stop name and return ID")
     void resolveStopId_withStopName_shouldGeocodeAndReturnId() {
         // Arrange
@@ -288,5 +306,17 @@ class GeocoderServiceTest {
         assertThatThrownBy(() -> geocoderService.resolveStopId("Oslo S"))
             .isInstanceOf(GeocodingException.class)
             .hasMessageContaining("No stop ID found");
+    }
+
+    @Test
+    @DisplayName("A stalled geocoder times out instead of holding the thread")
+    void handleGeocodeRequest_stalledUpstream_timesOut() {
+        GeocoderService impatient = new GeocoderService(
+            mockWebServer.url("/geocoder").toString(), "test-client", Duration.ofMillis(200));
+        mockWebServer.enqueue(new MockResponse.Builder().code(200).headersDelay(5, TimeUnit.SECONDS).body("{}").build());
+
+        assertThatThrownBy(() -> impatient.handleGeocodeRequest("Oslo", 1))
+            .isInstanceOf(GeocodingException.class)
+            .hasRootCauseInstanceOf(HttpTimeoutException.class);
     }
 }

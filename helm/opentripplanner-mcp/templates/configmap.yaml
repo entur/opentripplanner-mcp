@@ -10,7 +10,7 @@ data:
       spring.application.name=opentripplanner-mcp
       server.port=8080
       management.server.port=9090
-      management.endpoints.web.exposure.include=info,health,prometheus,env,metrics,loggers
+      management.endpoints.web.exposure.include=health,prometheus
       # MCP Server Configuration
       spring.ai.mcp.server.protocol=STATELESS
       spring.ai.mcp.server.capabilities.prompt=false

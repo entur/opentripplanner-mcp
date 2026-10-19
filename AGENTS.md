@@ -16,6 +16,10 @@ MCP server for OpenTripPlanner's transmodel GraphQL API. Java/Spring Boot with M
   items carry `systemId` instead of `system`
 - `src/main/resources/app/entur-tokens.css` and `entur-travel.css` are **generated — do not hand-edit**.
   Regenerate with `scripts/update-entur-css.py`.
+- `src/main/resources/app/vendor/` (Leaflet, the MCP Apps SDK) is likewise **generated** by
+  `scripts/update-vendor-js.py` and inlined by `AppHtmlLoader`. Apps must load no script from a
+  CDN: app script can call tools and post into the conversation. Upgrades change the pinned
+  versions and integrity hashes in that script.
 - UI/styling conventions (Entur Linje tokens, colour mode, stylesheet inlining, previewing the apps)
   live in `src/main/resources/app/CLAUDE.md`.
 - An empty `trip` result carries a top-level `noTripsFound` advisory telling the model the

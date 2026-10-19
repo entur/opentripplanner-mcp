@@ -7,6 +7,7 @@ import org.entur.mcp.exception.MobilityException;
 import org.entur.mcp.metrics.MetricsUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 
@@ -14,6 +15,7 @@ import java.net.URI;
 import java.net.http.HttpClient;
 import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
+import java.time.Duration;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashMap;
@@ -75,13 +77,20 @@ public class MobilityService {
     private final String mobilityURL;
     private final String etClientName;
     private final HttpClient client;
+    private final Duration requestTimeout;
 
+    @Autowired
     public MobilityService(
             @Value("${org.entur.mobility.url}") String mobilityURL,
             @Value("${org.entur.mcp.client_name:entur-mcp}") String etClientName) {
+        this(mobilityURL, etClientName, UpstreamHttp.REQUEST_TIMEOUT);
+    }
+
+    MobilityService(String mobilityURL, String etClientName, Duration requestTimeout) {
         this.mobilityURL = mobilityURL;
         this.etClientName = etClientName;
-        this.client = HttpClient.newHttpClient();
+        this.requestTimeout = requestTimeout;
+        this.client = UpstreamHttp.newClient();
         log.info("Initializing MobilityService with mobilityURL='{}', etClientName='{}'", mobilityURL, etClientName);
     }
 
@@ -168,6 +177,7 @@ public class MobilityService {
             .uri(URI.create(mobilityURL))
             .header("Content-Type", "application/json")
             .header(MetricsUtils.ET_CLIENT_NAME_HEADER, etClientName)
+            .timeout(requestTimeout)
             .POST(HttpRequest.BodyPublishers.ofString(reqJSON))
             .build();
 

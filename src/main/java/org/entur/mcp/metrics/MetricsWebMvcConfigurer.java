@@ -11,6 +11,8 @@ import org.springframework.web.servlet.HandlerInterceptor;
 import org.springframework.web.servlet.config.annotation.InterceptorRegistry;
 import org.springframework.web.servlet.config.annotation.WebMvcConfigurer;
 
+import java.util.Set;
+
 /**
  * Web MVC configuration that registers a HandlerInterceptor to add custom
  * metrics tags based on HTTP headers.
@@ -51,6 +53,9 @@ public class MetricsWebMvcConfigurer implements WebMvcConfigurer {
      */
     private static class MetricsHeadersInterceptor implements HandlerInterceptor {
 
+        private static final Set<String> KNOWN_METHODS = Set.of(
+            "GET", "HEAD", "POST", "PUT", "PATCH", "DELETE", "OPTIONS", "TRACE");
+
         private final MeterRegistry meterRegistry;
 
         public MetricsHeadersInterceptor(MeterRegistry meterRegistry) {
@@ -63,7 +68,6 @@ public class MetricsWebMvcConfigurer implements WebMvcConfigurer {
                                 Object handler) {
 
             // Store header values as request attributes
-            setHeaderAttribute(request, MetricsUtils.ET_CLIENT_NAME_HEADER, "metrics.client_name", "unknown");
             request.setAttribute("metrics.client_type",
                 MetricsUtils.detectClientType(request.getHeader(MetricsUtils.USER_AGENT_HEADER)));
             setHeaderAttribute(request, MetricsUtils.API_VERSION_HEADER, "metrics.api_version", "v1");
@@ -93,17 +97,17 @@ public class MetricsWebMvcConfigurer implements WebMvcConfigurer {
                                    Object handler,
                                    Exception ex) {
 
-            // Record custom metrics with tags from request attributes
-            String clientName = (String) request.getAttribute("metrics.client_name");
+            // No client_name tag: ET-Client-Name is caller-supplied, so every distinct value
+            // would mint a new time series kept for the life of the process. MCP clients don't
+            // send it anyway; client_type (from User-Agent, fixed set of values) tells them apart.
             String clientType = (String) request.getAttribute("metrics.client_type");
             String endpoint = MetricsUtils.extractEndpoint(request.getRequestURI());
 
             meterRegistry.counter("http.requests.by.client",
-                    "client_name", clientName != null ? clientName : "unknown",
                     "client_type", clientType != null ? clientType : "unknown",
                     "endpoint", endpoint,
                     "status", String.valueOf(response.getStatus()),
-                    "method", request.getMethod())
+                    "method", KNOWN_METHODS.contains(request.getMethod()) ? request.getMethod() : "other")
                 .increment();
         }
     }

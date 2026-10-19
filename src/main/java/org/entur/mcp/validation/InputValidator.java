@@ -6,6 +6,7 @@ import java.time.format.DateTimeFormatter;
 import java.time.format.DateTimeParseException;
 import java.util.List;
 import java.util.Set;
+import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 
 public class InputValidator {
@@ -27,6 +28,7 @@ public class InputValidator {
         "air", "bus", "cableway", "water", "funicular", "lift", "rail",
         "metro", "taxi", "tram", "trolleybus", "monorail", "coach", "unknown"
     );
+    private static final Pattern NSR_STOP_ID = Pattern.compile("^NSR:(StopPlace|Quay):[0-9]+$");
     private static final int MIN_RESULTS = 1;
     private static final int MAX_TIME_RANGE_MINUTES = 1440; // 24 hours
     private static final int MIN_TIME_RANGE_MINUTES = 1;
@@ -44,6 +46,10 @@ public class InputValidator {
             throw new ValidationException(fieldName,
                 String.format("%s exceeds maximum length of 500 characters", fieldName));
         }
+    }
+
+    public static boolean isNsrStopId(String value) {
+        return value != null && NSR_STOP_ID.matcher(value).matches();
     }
 
     public static void validateDateTime(String dateTime, String fieldName) {

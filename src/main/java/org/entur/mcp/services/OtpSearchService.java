@@ -18,12 +18,11 @@ import java.net.URI;
 import java.net.http.HttpClient;
 import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
+import java.time.Duration;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
-import java.util.stream.Collectors;
-import java.util.stream.Stream;
 
 @Service
 @Timed(value = "mcp.trip.service", description = "Trip request towards the OTP-service")
@@ -39,25 +38,21 @@ public class OtpSearchService {
 
     private final HttpClient client;
 
+    private final Duration requestTimeout;
+
+    // Every value goes in as a GraphQL variable, never spliced into the query text, so no input
+    // can change the shape of the query. A variable left out of the map counts as an absent
+    // argument, which is how the optional ones (dateTime, arriveBy, modes, ...) stay optional.
     private static final String baseQuery = """
-                {
+                query trip($from: Location!, $to: Location!, $dateTime: DateTime, $arriveBy: Boolean,
+                           $modes: Modes, $numTripPatterns: Int) {
                     trip(
-                        from: {
-                            place: "%s"
-                            coordinates: {
-                                latitude: %f
-                                longitude: %f
-                            }
-                        }
-                        to: {
-                            place: "%s"
-                            coordinates: {
-                                latitude: %f
-                                longitude: %f
-                            }
-                        }
-                        %s
-                        numTripPatterns: %d
+                        from: $from
+                        to: $to
+                        dateTime: $dateTime
+                        arriveBy: $arriveBy
+                        modes: $modes
+                        numTripPatterns: $numTripPatterns
                     ) {
                         tripPatterns {
                             duration
@@ -147,22 +142,25 @@ public class OtpSearchService {
                 }""";
 
     private static final String departureBoardQuery = """
-                {
-                    stopPlace(id: "%s") {
+                query departures($id: String!, $numberOfDepartures: Int, $startTime: DateTime,
+                                 $timeRange: Int, $whiteListedModes: [TransportMode]) {
+                    stopPlace(id: $id) {
                         id
                         name
                         arrivals: estimatedCalls(
-                            numberOfDepartures: %d
-                            %s
-                            timeRange: %d
+                            numberOfDepartures: $numberOfDepartures
+                            startTime: $startTime
+                            whiteListedModes: $whiteListedModes
+                            timeRange: $timeRange
                             arrivalDeparture: arrivals
                         ) {
                             ...calls
                         }
                         departures: estimatedCalls(
-                            numberOfDepartures: %d
-                            %s
-                            timeRange: %d
+                            numberOfDepartures: $numberOfDepartures
+                            startTime: $startTime
+                            whiteListedModes: $whiteListedModes
+                            timeRange: $timeRange
                             arrivalDeparture: departures
                         ) {
                             ...calls
@@ -213,8 +211,8 @@ public class OtpSearchService {
 """;
 
     private static final String situationsQuery = """
-                {
-                    situations%s {
+                query situations($severities: [Severity]) {
+                    situations(severities: $severities) {
                         id
                         situationNumber
                         severity
@@ -271,14 +269,15 @@ public class OtpSearchService {
                 }""";
 
     private static final String nearestQuery = """
-                {
+                query nearest($latitude: Float!, $longitude: Float!, $maximumDistance: Float!,
+                              $maximumResults: Int, $filterByModes: [TransportMode]) {
                     nearest(
-                        latitude: %f
-                        longitude: %f
-                        maximumDistance: %.1f
-                        maximumResults: %d
+                        latitude: $latitude
+                        longitude: $longitude
+                        maximumDistance: $maximumDistance
+                        maximumResults: $maximumResults
                         filterByPlaceTypes: [stopPlace]
-                        %s
+                        filterByModes: $filterByModes
                     ) {
                         edges {
                             node {
@@ -318,14 +317,21 @@ public class OtpSearchService {
                     }
                 }""";
 
+    @Autowired
     public OtpSearchService(
             @Value("${org.entur.otp.url}") String otpURL,
             @Value("${org.entur.mcp.client_name:entur-mcp}") String etClientName,
-            @Autowired GeocoderService geocoderService) {
+            GeocoderService geocoderService) {
+        this(otpURL, etClientName, geocoderService, UpstreamHttp.REQUEST_TIMEOUT);
+    }
+
+    OtpSearchService(String otpURL, String etClientName, GeocoderService geocoderService,
+                     Duration requestTimeout) {
         this.otpURL = otpURL;
         this.etClientName = etClientName;
         this.geocoderService = geocoderService;
-        client = HttpClient.newHttpClient();
+        this.requestTimeout = requestTimeout;
+        client = UpstreamHttp.newClient();
         log.info("Initializing OtpSearchService with otpURL='{}', etClientName='{}'", otpURL, etClientName);
     }
 
@@ -334,13 +340,15 @@ public class OtpSearchService {
 
     /** Asks only when the next trip leaves; the caller already reported that none exist. */
     private static final String NEXT_DEPARTURE_QUERY = """
-            {
+            query nextDeparture($from: Location!, $to: Location!, $dateTime: DateTime,
+                                $searchWindow: Int, $modes: Modes) {
                 trip(
-                    from: {name: "%s", coordinates: {latitude: %f, longitude: %f}}
-                    to: {name: "%s", coordinates: {latitude: %f, longitude: %f}}
-                    dateTime: "%s"
-                    searchWindow: %d
-                    numTripPatterns: 1%s
+                    from: $from
+                    to: $to
+                    dateTime: $dateTime
+                    searchWindow: $searchWindow
+                    numTripPatterns: 1
+                    modes: $modes
                 ) {
                     tripPatterns {
                         expectedStartTime
@@ -367,48 +375,29 @@ public class OtpSearchService {
         Location fromLocation = getLocation(from);
         Location toLocation = getLocation(to);
 
-        // Construct GraphQL query
-        String dateTimeParam = "";
+        Map<String, Object> variables = new HashMap<>();
+        variables.put("from", locationInput("place", fromLocation));
+        variables.put("to", locationInput("place", toLocation));
+        variables.put("numTripPatterns", validatedMaxResults);
         if (departureTime != null && !departureTime.isEmpty()) {
-            dateTimeParam = String.format("dateTime: \"%s\"", departureTime);
+            variables.put("dateTime", departureTime);
             log.debug("Using departure time: {}", departureTime);
         } else if (arrivalTime != null && !arrivalTime.isEmpty()) {
-            dateTimeParam = String.format("arriveBy: true dateTime: \"%s\"", arrivalTime);
+            variables.put("arriveBy", true);
+            variables.put("dateTime", arrivalTime);
             log.debug("Using arrival time: {}", arrivalTime);
         }
-
-        // Emitted only when filtering, so the unfiltered query stays byte-identical to before.
-        // All four fields are required: with a null accessMode/egressMode OTP only considers
-        // transit boardable at the exact origin coordinate and returns zero trip patterns.
-        String modesParam = "";
-        if (validatedModes != null && !validatedModes.isEmpty()) {
-            String modeEntries = validatedModes.stream()
-                .map(m -> String.format("{transportMode: %s}", m))
-                .collect(Collectors.joining(", ", "[", "]"));
-            modesParam = String.format(
-                "modes: {accessMode: foot, egressMode: foot, directMode: foot, transportModes: %s}",
-                modeEntries);
+        Map<String, Object> modes = modesInput(validatedModes);
+        if (modes != null) {
+            variables.put("modes", modes);
         }
-
-        // Collapsed into a single placeholder so the unfiltered query (both fragments empty)
-        // renders the exact same blank-then-numTripPatterns line the template produced before
-        // this filter existed - no stray blank line is introduced.
-        String optionalParams = Stream.of(dateTimeParam, modesParam)
-            .filter(s -> !s.isEmpty())
-            .collect(Collectors.joining("\n                        "));
-
-        String query = String.format(
-                baseQuery,
-                fromLocation.getPlace(), fromLocation.getLatitude(), fromLocation.getLongitude(),
-                toLocation.getPlace(), toLocation.getLatitude(), toLocation.getLongitude(),
-                optionalParams, validatedMaxResults
-        );
 
         log.debug("Executing GraphQL query for trip from '{}' to '{}'", fromLocation.getPlace(), toLocation.getPlace());
 
         // Make the GraphQL request
-        Map<String, String> reqBody = new HashMap<>();
-        reqBody.put("query", query);
+        Map<String, Object> reqBody = new HashMap<>();
+        reqBody.put("query", baseQuery);
+        reqBody.put("variables", variables);
 
         ObjectMapper objectMapper = new ObjectMapper();
         String reqJSON;
@@ -453,10 +442,36 @@ public class OtpSearchService {
         // that no route exists, so look ahead for when service resumes. Only worth doing
         // when a time was given: without one the search already started from now.
         if (isEmptyTripResult(data) && departureTime != null && !departureTime.isEmpty()) {
-            findNextDeparture(fromLocation, toLocation, departureTime, modesParam)
+            findNextDeparture(fromLocation, toLocation, departureTime, modes)
                 .ifPresent(next -> data.put("nextDepartureTime", next));
         }
         return data;
+    }
+
+    private static Map<String, Object> locationInput(String labelField, Location location) {
+        return Map.of(
+            labelField, location.getPlace(),
+            "coordinates", Map.of(
+                "latitude", location.getLatitude(),
+                "longitude", location.getLongitude()));
+    }
+
+    /**
+     * The {@code modes} argument, or null when not filtering so the argument is left out.
+     * All four fields are required: with a null accessMode/egressMode OTP only considers
+     * transit boardable at the exact origin coordinate and returns zero trip patterns.
+     */
+    private static Map<String, Object> modesInput(List<String> validatedModes) {
+        if (validatedModes == null || validatedModes.isEmpty()) {
+            return null;
+        }
+        return Map.of(
+            "accessMode", "foot",
+            "egressMode", "foot",
+            "directMode", "foot",
+            "transportModes", validatedModes.stream()
+                .map(m -> Map.of("transportMode", m))
+                .toList());
     }
 
     @SuppressWarnings("unchecked")
@@ -482,16 +497,19 @@ public class OtpSearchService {
      * @return the next departure as an ISO timestamp, or empty if none within the window
      */
     private Optional<String> findNextDeparture(Location fromLocation, Location toLocation,
-                                               String departureTime, String modesParam) {
-        String query = String.format(NEXT_DEPARTURE_QUERY,
-            fromLocation.getPlace(), fromLocation.getLatitude(), fromLocation.getLongitude(),
-            toLocation.getPlace(), toLocation.getLatitude(), toLocation.getLongitude(),
-            departureTime, NEXT_DEPARTURE_SEARCH_WINDOW_MINUTES,
-            modesParam.isEmpty() ? "" : "\n                        " + modesParam);
+                                               String departureTime, Map<String, Object> modes) {
+        Map<String, Object> variables = new HashMap<>();
+        variables.put("from", locationInput("name", fromLocation));
+        variables.put("to", locationInput("name", toLocation));
+        variables.put("dateTime", departureTime);
+        variables.put("searchWindow", NEXT_DEPARTURE_SEARCH_WINDOW_MINUTES);
+        if (modes != null) {
+            variables.put("modes", modes);
+        }
         try {
             ObjectMapper mapper = new ObjectMapper();
-            HttpResponse<String> response =
-                sendOtpGraphQlRequest(mapper.writeValueAsString(Map.of("query", query)));
+            HttpResponse<String> response = sendOtpGraphQlRequest(mapper.writeValueAsString(
+                Map.of("query", NEXT_DEPARTURE_QUERY, "variables", variables)));
             Map<String, Object> result = mapper.readValue(response.body(), new TypeReference<>() {});
 
             Map<String, Object> data = (Map<String, Object>) result.get("data");
@@ -521,6 +539,7 @@ public class OtpSearchService {
                 .uri(URI.create(otpURL))
                 .header("Content-Type", "application/json")
                 .header(MetricsUtils.ET_CLIENT_NAME_HEADER, etClientName)
+                .timeout(requestTimeout)
                 .POST(HttpRequest.BodyPublishers.ofString(reqJSON))
                 .build();
 
@@ -570,33 +589,25 @@ public class OtpSearchService {
         log.info("Fetching departures for stop '{}' (numDepartures: {}, timeRange: {} min)",
             stopId, validatedNumDepartures, validatedTimeRange);
 
-        // Build optional parameters
-        StringBuilder optionalParams = new StringBuilder();
+        Map<String, Object> variables = new HashMap<>();
+        variables.put("id", stopId);
+        variables.put("numberOfDepartures", validatedNumDepartures);
+        // Convert timeRange from minutes to seconds
+        variables.put("timeRange", validatedTimeRange * 60);
         if (startTime != null && !startTime.isEmpty()) {
             InputValidator.validateDateTime(startTime, "startTime");
-            optionalParams.append(String.format("startTime: \"%s\"\n", startTime));
+            variables.put("startTime", startTime);
         }
         if (validatedModes != null && !validatedModes.isEmpty()) {
-            String modesStr = validatedModes.stream()
-                .collect(Collectors.joining(", ", "[", "]"));
-            optionalParams.append(String.format("whiteListedModes: %s\n", modesStr));
+            variables.put("whiteListedModes", validatedModes);
         }
-
-        // Convert timeRange from minutes to seconds
-        int timeRangeSeconds = validatedTimeRange * 60;
-
-        String query = String.format(
-                departureBoardQuery,
-                stopId,
-                validatedNumDepartures, optionalParams, timeRangeSeconds,
-                validatedNumDepartures, optionalParams, timeRangeSeconds
-        );
 
         log.debug("Executing departure board query for stop '{}'", stopId);
 
         // Make the GraphQL request
-        Map<String, String> reqBody = new HashMap<>();
-        reqBody.put("query", query);
+        Map<String, Object> reqBody = new HashMap<>();
+        reqBody.put("query", departureBoardQuery);
+        reqBody.put("variables", variables);
 
         ObjectMapper objectMapper = new ObjectMapper();
         String reqJSON;
@@ -650,16 +661,14 @@ public class OtpSearchService {
 
         InputValidator.validateSeverities(severities);
 
-        String filterArg = "";
+        Map<String, Object> variables = new HashMap<>();
         if (severities != null && !severities.isEmpty()) {
-            filterArg = "(severities: " + severities.stream()
-                .collect(Collectors.joining(", ", "[", "]")) + ")";
+            variables.put("severities", severities);
         }
 
-        String query = String.format(situationsQuery, filterArg);
-
-        Map<String, String> reqBody = new HashMap<>();
-        reqBody.put("query", query);
+        Map<String, Object> reqBody = new HashMap<>();
+        reqBody.put("query", situationsQuery);
+        reqBody.put("variables", variables);
 
         ObjectMapper objectMapper = new ObjectMapper();
         String reqJSON;
@@ -705,17 +714,18 @@ public class OtpSearchService {
         log.info("Fetching nearby stops at ({}, {}), radius={}m, max={}", latitude, longitude, radiusMeters, maxResults);
 
         List<String> validatedModes = InputValidator.validateTransportModes(transportModes);
-        String modeFilter = "";
+        Map<String, Object> variables = new HashMap<>();
+        variables.put("latitude", latitude);
+        variables.put("longitude", longitude);
+        variables.put("maximumDistance", (double) radiusMeters);
+        variables.put("maximumResults", maxResults);
         if (validatedModes != null && !validatedModes.isEmpty()) {
-            String modes = validatedModes.stream()
-                .collect(Collectors.joining(", ", "[", "]"));
-            modeFilter = "filterByModes: " + modes;
+            variables.put("filterByModes", validatedModes);
         }
 
-        String query = String.format(nearestQuery, latitude, longitude, (double) radiusMeters, maxResults, modeFilter);
-
-        Map<String, String> reqBody = new HashMap<>();
-        reqBody.put("query", query);
+        Map<String, Object> reqBody = new HashMap<>();
+        reqBody.put("query", nearestQuery);
+        reqBody.put("variables", variables);
 
         ObjectMapper objectMapper = new ObjectMapper();
         String reqJSON;

@@ -5,11 +5,13 @@ import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import io.micrometer.core.annotation.Timed;
 import org.entur.mcp.exception.GeocodingException;
+import org.entur.mcp.exception.ValidationException;
 import org.entur.mcp.metrics.MetricsUtils;
 import org.entur.mcp.model.Location;
 import org.entur.mcp.validation.InputValidator;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 
@@ -20,6 +22,7 @@ import java.net.http.HttpClient;
 import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
 import java.nio.charset.StandardCharsets;
+import java.time.Duration;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
@@ -36,12 +39,20 @@ public class GeocoderService {
 
     private final String etClientName;
 
+    private final Duration requestTimeout;
+
+    @Autowired
     public GeocoderService(
             @Value("${org.entur.geocoder.url}") String geocodeURL,
             @Value("${org.entur.mcp.client_name:entur-mcp}") String etClientName) {
+        this(geocodeURL, etClientName, UpstreamHttp.REQUEST_TIMEOUT);
+    }
+
+    GeocoderService(String geocodeURL, String etClientName, Duration requestTimeout) {
         this.geocodeURL = geocodeURL;
         this.etClientName = etClientName;
-        client = HttpClient.newHttpClient();
+        this.requestTimeout = requestTimeout;
+        client = UpstreamHttp.newClient();
         log.info("Initializing GeocoderService with geocodeURL='{}', etClientName='{}'", geocodeURL, etClientName);
     }
 
@@ -60,6 +71,7 @@ public class GeocoderService {
         HttpRequest request = HttpRequest.newBuilder()
                 .uri(URI.create(requestUrl))
                 .header(MetricsUtils.ET_CLIENT_NAME_HEADER, etClientName)
+                .timeout(requestTimeout)
                 .GET()
                 .build();
 
@@ -157,9 +169,15 @@ public class GeocoderService {
         InputValidator.validateLocation(input, "stop");
 
         // If already an NSR ID, return as-is
-        if (input.startsWith("NSR:StopPlace:") || input.startsWith("NSR:Quay:")) {
+        if (InputValidator.isNsrStopId(input)) {
             log.debug("Input is already an NSR ID: {}", input);
             return input;
+        }
+        // Looks like an ID but isn't a well-formed one; geocoding it as free text would only
+        // return some unrelated stop.
+        if (input.startsWith("NSR:")) {
+            throw new ValidationException("stop",
+                "Invalid stop ID. Expected NSR:StopPlace:<digits> or NSR:Quay:<digits>");
         }
 
         // Geocode and extract ID from first result

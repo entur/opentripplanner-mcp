@@ -58,7 +58,7 @@ public class TripSearchTool {
         @Override
         public Map<String, Object> getMeta() {
             return McpMetaProviders.cspMeta(
-                McpMetaProviders.CSP_SCRIPT_DOMAINS,
+                McpMetaProviders.CSP_NO_RESOURCE_DOMAINS,
                 McpMetaProviders.CSP_API_DOMAINS
             );
         }

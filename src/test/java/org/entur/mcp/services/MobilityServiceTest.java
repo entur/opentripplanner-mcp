@@ -12,6 +12,9 @@ import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 
 import java.io.IOException;
+import java.net.http.HttpTimeoutException;
+import java.time.Duration;
+import java.util.concurrent.TimeUnit;
 import java.util.List;
 import java.util.Map;
 
@@ -199,5 +202,18 @@ class MobilityServiceTest {
                 return new MockResponse.Builder().code(200).body(responseBody).build();
             }
         };
+    }
+
+    @Test
+    @DisplayName("A stalled mobility API times out instead of holding the thread")
+    void findNearby_stalledUpstream_timesOut() {
+        MobilityService impatient = new MobilityService(
+            mockWebServer.url("/graphql").toString(), "test-client", Duration.ofMillis(200));
+        mockWebServer.enqueue(new MockResponse.Builder().code(200).headersDelay(5, TimeUnit.SECONDS).body("{}").build());
+        mockWebServer.enqueue(new MockResponse.Builder().code(200).headersDelay(5, TimeUnit.SECONDS).body("{}").build());
+
+        assertThatThrownBy(() -> impatient.findNearby(59.91, 10.75, 500, null, null, null, 20))
+            .isInstanceOf(MobilityException.class)
+            .hasRootCauseInstanceOf(HttpTimeoutException.class);
     }
 }

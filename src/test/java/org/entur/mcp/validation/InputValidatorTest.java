@@ -388,6 +388,20 @@ class InputValidatorTest {
     }
 
     @Test
+    @DisplayName("Should accept only well-formed NSR StopPlace and Quay IDs")
+    void isNsrStopId_matchesStrictPattern() {
+        assertThat(InputValidator.isNsrStopId("NSR:StopPlace:337")).isTrue();
+        assertThat(InputValidator.isNsrStopId("NSR:Quay:566")).isTrue();
+
+        assertThat(InputValidator.isNsrStopId(null)).isFalse();
+        assertThat(InputValidator.isNsrStopId("NSR:StopPlace:337\"")).isFalse();
+        assertThat(InputValidator.isNsrStopId("NSR:StopPlace:337 ")).isFalse();
+        assertThat(InputValidator.isNsrStopId("NSR:StopPlace:337\n")).isFalse();
+        assertThat(InputValidator.isNsrStopId("NSR:Line:1")).isFalse();
+        assertThat(InputValidator.isNsrStopId("Oslo S")).isFalse();
+    }
+
+    @Test
     @DisplayName("Should reject unknown transport modes")
     void validateTransportModes_rejectsUnknownValues() {
         assertThatThrownBy(() -> InputValidator.validateTransportModes(List.of("rail", "hovercraft")))
