@@ -18,6 +18,7 @@ import java.net.URI;
 import java.net.http.HttpClient;
 import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
+import java.time.Duration;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -36,6 +37,8 @@ public class OtpSearchService {
     private final GeocoderService geocoderService;
 
     private final HttpClient client;
+
+    private final Duration requestTimeout;
 
     // Every value goes in as a GraphQL variable, never spliced into the query text, so no input
     // can change the shape of the query. A variable left out of the map counts as an absent
@@ -314,14 +317,21 @@ public class OtpSearchService {
                     }
                 }""";
 
+    @Autowired
     public OtpSearchService(
             @Value("${org.entur.otp.url}") String otpURL,
             @Value("${org.entur.mcp.client_name:entur-mcp}") String etClientName,
-            @Autowired GeocoderService geocoderService) {
+            GeocoderService geocoderService) {
+        this(otpURL, etClientName, geocoderService, UpstreamHttp.REQUEST_TIMEOUT);
+    }
+
+    OtpSearchService(String otpURL, String etClientName, GeocoderService geocoderService,
+                     Duration requestTimeout) {
         this.otpURL = otpURL;
         this.etClientName = etClientName;
         this.geocoderService = geocoderService;
-        client = HttpClient.newHttpClient();
+        this.requestTimeout = requestTimeout;
+        client = UpstreamHttp.newClient();
         log.info("Initializing OtpSearchService with otpURL='{}', etClientName='{}'", otpURL, etClientName);
     }
 
@@ -529,6 +539,7 @@ public class OtpSearchService {
                 .uri(URI.create(otpURL))
                 .header("Content-Type", "application/json")
                 .header(MetricsUtils.ET_CLIENT_NAME_HEADER, etClientName)
+                .timeout(requestTimeout)
                 .POST(HttpRequest.BodyPublishers.ofString(reqJSON))
                 .build();
 

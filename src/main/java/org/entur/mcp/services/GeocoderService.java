@@ -11,6 +11,7 @@ import org.entur.mcp.model.Location;
 import org.entur.mcp.validation.InputValidator;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 
@@ -21,6 +22,7 @@ import java.net.http.HttpClient;
 import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
 import java.nio.charset.StandardCharsets;
+import java.time.Duration;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
@@ -37,12 +39,20 @@ public class GeocoderService {
 
     private final String etClientName;
 
+    private final Duration requestTimeout;
+
+    @Autowired
     public GeocoderService(
             @Value("${org.entur.geocoder.url}") String geocodeURL,
             @Value("${org.entur.mcp.client_name:entur-mcp}") String etClientName) {
+        this(geocodeURL, etClientName, UpstreamHttp.REQUEST_TIMEOUT);
+    }
+
+    GeocoderService(String geocodeURL, String etClientName, Duration requestTimeout) {
         this.geocodeURL = geocodeURL;
         this.etClientName = etClientName;
-        client = HttpClient.newHttpClient();
+        this.requestTimeout = requestTimeout;
+        client = UpstreamHttp.newClient();
         log.info("Initializing GeocoderService with geocodeURL='{}', etClientName='{}'", geocodeURL, etClientName);
     }
 
@@ -61,6 +71,7 @@ public class GeocoderService {
         HttpRequest request = HttpRequest.newBuilder()
                 .uri(URI.create(requestUrl))
                 .header(MetricsUtils.ET_CLIENT_NAME_HEADER, etClientName)
+                .timeout(requestTimeout)
                 .GET()
                 .build();
 

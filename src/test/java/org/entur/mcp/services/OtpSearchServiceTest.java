@@ -18,6 +18,9 @@ import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
 import java.io.IOException;
+import java.net.http.HttpTimeoutException;
+import java.time.Duration;
+import java.util.concurrent.TimeUnit;
 import java.util.List;
 import java.util.Map;
 
@@ -824,5 +827,19 @@ class OtpSearchServiceTest {
             otpSearchService.handleTripRequest("Oslo", "Asker", null, null, 3, List.of("hovercraft")))
             .isInstanceOf(ValidationException.class)
             .hasMessageContaining("hovercraft");
+    }
+
+    @Test
+    @DisplayName("A stalled OTP times out instead of holding the thread")
+    void handleDepartureBoardRequest_stalledUpstream_timesOut() {
+        OtpSearchService impatient = new OtpSearchService(
+            mockWebServer.url("/graphql").toString(), "test-client", geocoderService,
+            Duration.ofMillis(200));
+        mockWebServer.enqueue(new MockResponse.Builder().code(200).headersDelay(5, TimeUnit.SECONDS).body("{}").build());
+
+        assertThatThrownBy(() ->
+            impatient.handleDepartureBoardRequest("NSR:StopPlace:337", 5, null, 60, null))
+            .isInstanceOf(TripPlanningException.class)
+            .hasRootCauseInstanceOf(HttpTimeoutException.class);
     }
 }
