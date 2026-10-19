@@ -87,7 +87,7 @@ The server integrates with Entur's public APIs:
 
 ### Prerequisites
 
-- Java 21 or higher
+- Java 25 or higher
 - Maven 3.6 or higher
 - Docker (optional, for containerized deployment)
 
