@@ -147,6 +147,21 @@ public final class MetricsUtils {
     }
 
     /**
+     * Makes a caller-supplied header value safe to put in the logging context. Anything outside
+     * a conservative identifier alphabet becomes {@code _} - most importantly CR/LF, which would
+     * otherwise let a caller forge log lines - and the value is cut to {@code maxLength}.
+     *
+     * @param value the raw header value
+     * @param maxLength the longest value kept
+     * @return the sanitized value, or null if the input is null or blank
+     */
+    public static String sanitizeForLog(String value, int maxLength) {
+        if (isNullOrBlank(value)) return null;
+        String cut = value.length() > maxLength ? value.substring(0, maxLength) : value;
+        return cut.replaceAll("[^A-Za-z0-9._:/-]", "_");
+    }
+
+    /**
      * Sanitizes a string value for use in metrics tags by limiting length
      * and replacing invalid characters.
      *

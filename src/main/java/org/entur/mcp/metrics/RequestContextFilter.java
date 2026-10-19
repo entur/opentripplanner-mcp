@@ -34,6 +34,10 @@ public class RequestContextFilter implements Filter {
 
     private static final Logger log = LoggerFactory.getLogger(RequestContextFilter.class);
 
+    static final int MAX_CLIENT_NAME_LENGTH = 64;
+    static final int MAX_REQUEST_ID_LENGTH = 64;
+    static final int MAX_URI_LENGTH = 200;
+
     @Override
     public void doFilter(ServletRequest request, ServletResponse response, FilterChain chain)
             throws IOException, ServletException {
@@ -49,7 +53,7 @@ public class RequestContextFilter implements Filter {
 
             log.debug("Request started - Method: {}, URI: {}, Client: {}",
                 httpRequest.getMethod(),
-                httpRequest.getRequestURI(),
+                MDC.get("http_uri"),
                 MDC.get("client_name"));
 
             // Continue filter chain
@@ -65,8 +69,11 @@ public class RequestContextFilter implements Filter {
      * Populate MDC with context from HTTP request headers.
      */
     private void populateMDC(HttpServletRequest request) {
-        // Client identification
-        String clientName = request.getHeader(MetricsUtils.ET_CLIENT_NAME_HEADER);
+        // ET-Client-Name, X-Request-ID and the URI are all chosen by the caller. Sanitize them
+        // before they reach the logs: a CR/LF would let a caller forge log lines, and an
+        // unbounded value lets one caller bloat every line logged for the request.
+        String clientName = MetricsUtils.sanitizeForLog(
+            request.getHeader(MetricsUtils.ET_CLIENT_NAME_HEADER), MAX_CLIENT_NAME_LENGTH);
         MDC.put("client_name", MetricsUtils.getOrDefault(clientName, "unknown"));
 
         // Client type detection
@@ -75,14 +82,16 @@ public class RequestContextFilter implements Filter {
         // Endpoint
         MDC.put("endpoint", MetricsUtils.extractEndpoint(request.getRequestURI()));
 
-        // Request ID for correlation (use existing or generate)
-        String requestId = request.getHeader(MetricsUtils.X_REQUEST_ID_HEADER);
-        MDC.put("request_id", MetricsUtils.isNullOrBlank(requestId)
+        // Request ID for correlation: keep the caller's if it is a plausible ID, else generate
+        String requestId = MetricsUtils.sanitizeForLog(
+            request.getHeader(MetricsUtils.X_REQUEST_ID_HEADER), MAX_REQUEST_ID_LENGTH);
+        MDC.put("request_id", requestId == null
             ? java.util.UUID.randomUUID().toString()
             : requestId);
 
         // HTTP method and URI
         MDC.put("http_method", request.getMethod());
-        MDC.put("http_uri", request.getRequestURI());
+        MDC.put("http_uri", MetricsUtils.getOrDefault(
+            MetricsUtils.sanitizeForLog(request.getRequestURI(), MAX_URI_LENGTH), "unknown"));
     }
 }

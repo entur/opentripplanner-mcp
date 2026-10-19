@@ -76,6 +76,50 @@ class RequestContextFilterTest {
     }
 
     @Test
+    void doFilter_withNewlineInHeaders_shouldNotLetCallerForgeLogLines() throws ServletException, IOException {
+        request.addHeader("ET-Client-Name", "evil\r\nINFO forged line");
+        request.addHeader("X-Request-ID", "id\nINFO forged");
+        request.setRequestURI("/api/trips");
+
+        doAnswer(invocation -> {
+            assertThat(MDC.get("client_name")).isEqualTo("evil__INFO_forged_line");
+            assertThat(MDC.get("request_id")).isEqualTo("id_INFO_forged");
+            return null;
+        }).when(filterChain).doFilter(request, response);
+
+        filter.doFilter(request, response, filterChain);
+    }
+
+    @Test
+    void doFilter_withOversizedHeaders_shouldTruncate() throws ServletException, IOException {
+        request.addHeader("ET-Client-Name", "c".repeat(5000));
+        request.addHeader("X-Request-ID", "r".repeat(5000));
+        request.setRequestURI("/mcp/" + "u".repeat(5000));
+
+        doAnswer(invocation -> {
+            assertThat(MDC.get("client_name")).hasSize(RequestContextFilter.MAX_CLIENT_NAME_LENGTH);
+            assertThat(MDC.get("request_id")).hasSize(RequestContextFilter.MAX_REQUEST_ID_LENGTH);
+            assertThat(MDC.get("http_uri")).hasSize(RequestContextFilter.MAX_URI_LENGTH);
+            return null;
+        }).when(filterChain).doFilter(request, response);
+
+        filter.doFilter(request, response, filterChain);
+    }
+
+    @Test
+    void doFilter_withValidRequestId_shouldKeepIt() throws ServletException, IOException {
+        request.addHeader("X-Request-ID", "3f2b9c1e-7a4d-4e0b-9f6a-2c8d1e5b7a90");
+        request.setRequestURI("/mcp");
+
+        doAnswer(invocation -> {
+            assertThat(MDC.get("request_id")).isEqualTo("3f2b9c1e-7a4d-4e0b-9f6a-2c8d1e5b7a90");
+            return null;
+        }).when(filterChain).doFilter(request, response);
+
+        filter.doFilter(request, response, filterChain);
+    }
+
+    @Test
     void doFilter_withoutETClientName_shouldUseUnknown() throws ServletException, IOException {
         request.setRequestURI("/api/trips");
 
