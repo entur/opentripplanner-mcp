@@ -5,6 +5,7 @@ import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import io.micrometer.core.annotation.Timed;
 import org.entur.mcp.exception.GeocodingException;
+import org.entur.mcp.exception.ValidationException;
 import org.entur.mcp.metrics.MetricsUtils;
 import org.entur.mcp.model.Location;
 import org.entur.mcp.validation.InputValidator;
@@ -157,9 +158,15 @@ public class GeocoderService {
         InputValidator.validateLocation(input, "stop");
 
         // If already an NSR ID, return as-is
-        if (input.startsWith("NSR:StopPlace:") || input.startsWith("NSR:Quay:")) {
+        if (InputValidator.isNsrStopId(input)) {
             log.debug("Input is already an NSR ID: {}", input);
             return input;
+        }
+        // Looks like an ID but isn't a well-formed one; geocoding it as free text would only
+        // return some unrelated stop.
+        if (input.startsWith("NSR:")) {
+            throw new ValidationException("stop",
+                "Invalid stop ID. Expected NSR:StopPlace:<digits> or NSR:Quay:<digits>");
         }
 
         // Geocode and extract ID from first result

@@ -51,6 +51,15 @@ class OtpSearchServiceTest {
         mockWebServer.close();
     }
 
+    private static JsonNode requestJson(RecordedRequest request) throws IOException {
+        assert request.getBody() != null;
+        return new ObjectMapper().readTree(request.getBody().utf8());
+    }
+
+    private static JsonNode variables(RecordedRequest request) throws IOException {
+        return requestJson(request).get("variables");
+    }
+
     // ==================== Next-departure look-ahead ====================
 
     private static final String EMPTY_TRIP = "{\"data\":{\"trip\":{\"tripPatterns\":[]}}}";
@@ -78,7 +87,7 @@ class OtpSearchServiceTest {
         // explicit one or it just returns nothing again.
         mockWebServer.takeRequest();
         RecordedRequest lookAhead = mockWebServer.takeRequest();
-        assertThat(lookAhead.getBody().utf8()).contains("searchWindow: 1440");
+        assertThat(variables(lookAhead).get("searchWindow").asInt()).isEqualTo(1440);
     }
 
     @Test
@@ -204,12 +213,10 @@ class OtpSearchServiceTest {
         otpSearchService.handleTripRequest("Oslo", "Asker", "2023-05-26T10:00:00", null, 3, null);
 
         // Assert
-        RecordedRequest request = mockWebServer.takeRequest();
-        assert request.getBody() != null;
-        String requestBody = request.getBody().utf8();
+        JsonNode variables = variables(mockWebServer.takeRequest());
 
-        assertThat(requestBody).contains("dateTime: \\\"2023-05-26T10:00:00\\\"");
-        assertThat(requestBody).doesNotContain("arriveBy");
+        assertThat(variables.get("dateTime").asText()).isEqualTo("2023-05-26T10:00:00");
+        assertThat(variables.has("arriveBy")).isFalse();
     }
 
     @Test
@@ -227,12 +234,10 @@ class OtpSearchServiceTest {
         otpSearchService.handleTripRequest("Oslo", "Asker", null, "2023-05-26T14:00:00", 3, null);
 
         // Assert
-        RecordedRequest request = mockWebServer.takeRequest();
-        assert request.getBody() != null;
-        String requestBody = request.getBody().utf8();
+        JsonNode variables = variables(mockWebServer.takeRequest());
 
-        assertThat(requestBody).contains("arriveBy: true");
-        assertThat(requestBody).contains("dateTime: \\\"2023-05-26T14:00:00\\\"");
+        assertThat(variables.get("arriveBy").asBoolean()).isTrue();
+        assertThat(variables.get("dateTime").asText()).isEqualTo("2023-05-26T14:00:00");
     }
 
     @Test
@@ -250,11 +255,7 @@ class OtpSearchServiceTest {
         otpSearchService.handleTripRequest("Oslo", "Asker", null, null, null, null);
 
         // Assert
-        RecordedRequest request = mockWebServer.takeRequest();
-        assert request.getBody() != null;
-        String requestBody = request.getBody().utf8();
-
-        assertThat(requestBody).contains("numTripPatterns: 3");
+        assertThat(variables(mockWebServer.takeRequest()).get("numTripPatterns").asInt()).isEqualTo(3);
     }
 
     // ==================== Error Handling Tests ====================
@@ -399,14 +400,14 @@ class OtpSearchServiceTest {
         otpSearchService.handleTripRequest("Oslo S", "Asker", null, null, 3, null);
 
         // Assert
-        RecordedRequest request = mockWebServer.takeRequest();
-        assert request.getBody() != null;
-        String requestBody = request.getBody().utf8();
+        JsonNode variables = variables(mockWebServer.takeRequest());
 
-        assertThat(requestBody).contains("latitude: " + oslo.getLatitude());
-        assertThat(requestBody).contains("longitude: " + oslo.getLongitude());
-        assertThat(requestBody).contains("latitude: " + asker.getLatitude());
-        assertThat(requestBody).contains("longitude: " + asker.getLongitude());
+        JsonNode from = variables.get("from").get("coordinates");
+        JsonNode to = variables.get("to").get("coordinates");
+        assertThat(from.get("latitude").asDouble()).isEqualTo(oslo.getLatitude());
+        assertThat(from.get("longitude").asDouble()).isEqualTo(oslo.getLongitude());
+        assertThat(to.get("latitude").asDouble()).isEqualTo(asker.getLatitude());
+        assertThat(to.get("longitude").asDouble()).isEqualTo(asker.getLongitude());
     }
 
     @Test
@@ -547,11 +548,8 @@ class OtpSearchServiceTest {
 
         otpSearchService.handleSituationsRequest(List.of("normal", "severe"));
 
-        RecordedRequest request = mockWebServer.takeRequest();
-        String requestBody = request.getBody().utf8();
-        assertThat(requestBody).contains("severities:");
-        assertThat(requestBody).contains("normal");
-        assertThat(requestBody).contains("severe");
+        JsonNode severities = variables(mockWebServer.takeRequest()).get("severities");
+        assertThat(severities).extracting(JsonNode::asText).containsExactly("normal", "severe");
     }
 
     @Test
@@ -563,11 +561,8 @@ class OtpSearchServiceTest {
 
         otpSearchService.handleSituationsRequest(null);
 
-        RecordedRequest request = mockWebServer.takeRequest();
-        String requestBody = request.getBody().utf8();
-        assertThat(requestBody).contains("situations");
-        assertThat(requestBody).doesNotContain("severities:");
-        assertThat(requestBody).doesNotContain("situations()");
+        // Left out entirely rather than sent as null, so OTP applies no severity filter.
+        assertThat(variables(mockWebServer.takeRequest()).has("severities")).isFalse();
     }
 
     @Test
@@ -623,12 +618,12 @@ class OtpSearchServiceTest {
         otpSearchService.handleNearbyStopsRequest(59.911, 10.748, 500, 5, null);
 
         RecordedRequest request = mockWebServer.takeRequest();
-        String requestBody = request.getBody().utf8();
-        assertThat(requestBody).contains("59.911");
-        assertThat(requestBody).contains("10.748");
-        assertThat(requestBody).contains("500.0");
-        assertThat(requestBody).contains("maximumResults: 5");
-        assertThat(requestBody).contains("stopPlace");
+        JsonNode variables = variables(request);
+        assertThat(variables.get("latitude").asDouble()).isEqualTo(59.911);
+        assertThat(variables.get("longitude").asDouble()).isEqualTo(10.748);
+        assertThat(variables.get("maximumDistance").asDouble()).isEqualTo(500.0);
+        assertThat(variables.get("maximumResults").asInt()).isEqualTo(5);
+        assertThat(requestJson(request).get("query").asText()).contains("filterByPlaceTypes: [stopPlace]");
     }
 
     @Test
@@ -640,11 +635,8 @@ class OtpSearchServiceTest {
 
         otpSearchService.handleNearbyStopsRequest(59.911, 10.748, 500, 10, List.of("rail", "metro"));
 
-        RecordedRequest request = mockWebServer.takeRequest();
-        String requestBody = request.getBody().utf8();
-        assertThat(requestBody).contains("filterByModes");
-        assertThat(requestBody).contains("rail");
-        assertThat(requestBody).contains("metro");
+        JsonNode modes = variables(mockWebServer.takeRequest()).get("filterByModes");
+        assertThat(modes).extracting(JsonNode::asText).containsExactly("rail", "metro");
     }
 
     @Test
@@ -756,33 +748,40 @@ class OtpSearchServiceTest {
 
         otpSearchService.handleTripRequest("Oslo", "Asker", null, null, 3, null);
 
-        RecordedRequest request = mockWebServer.takeRequest();
-        assert request.getBody() != null;
-        assertThat(request.getBody().utf8()).doesNotContain("modes:");
+        assertThat(variables(mockWebServer.takeRequest()).has("modes")).isFalse();
     }
 
     @Test
-    @DisplayName("Should render exactly one blank line for the optional-params placeholder when unfiltered")
-    void handleTripRequest_withoutOptionalParams_rendersExactlyOneBlankLine() throws Exception {
-        // Pins the unfiltered query shape at the whitespace level: a substring check like
-        // doesNotContain("modes:") cannot see an extra blank line introduced by a second
-        // %s placeholder. Before this filter existed, an unfiltered request (no dateTime,
-        // no transportModes) rendered exactly one blank (whitespace-only) line where the
-        // single optional-params placeholder sat empty. That must still hold.
+    @DisplayName("Should send the same query text whatever the inputs, with values only in variables")
+    void handleTripRequest_queryTextIsIndependentOfInputs() throws Exception {
         when(geocoderService.geocodeIfNeeded(anyString()))
             .thenReturn(TestFixtures.createOsloLocation());
         mockWebServer.enqueue(new MockResponse.Builder()
             .code(200).body(TestFixtures.createOtpTripResponse()).build());
+        mockWebServer.enqueue(new MockResponse.Builder()
+            .code(200).body(TestFixtures.createOtpTripResponse()).build());
 
         otpSearchService.handleTripRequest("Oslo", "Asker", null, null, 3, null);
+        otpSearchService.handleTripRequest("Oslo", "Asker", null, "2023-05-26T14:00:00", 7,
+            List.of("rail", "bus"));
 
-        RecordedRequest request = mockWebServer.takeRequest();
-        assert request.getBody() != null;
-        JsonNode requestJson = new ObjectMapper().readTree(request.getBody().utf8());
-        String query = requestJson.get("query").asText();
+        String unfiltered = requestJson(mockWebServer.takeRequest()).get("query").asText();
+        String filtered = requestJson(mockWebServer.takeRequest()).get("query").asText();
+        assertThat(filtered).isEqualTo(unfiltered);
+    }
 
-        long blankLines = query.lines().filter(String::isBlank).count();
-        assertThat(blankLines).isEqualTo(1);
+    @Test
+    @DisplayName("A stop ID that tries to break out of its string stays a plain variable value")
+    void handleDepartureBoardRequest_withHostileStopId_doesNotReachQueryText() throws Exception {
+        mockWebServer.enqueue(new MockResponse.Builder()
+            .code(200).body(TestFixtures.createDepartureBoardResponse()).build());
+        String hostile = "NSR:StopPlace:1\") { id } hijacked: stopPlace(id: \"2";
+
+        otpSearchService.handleDepartureBoardRequest(hostile, 10, null, 60, null);
+
+        JsonNode request = requestJson(mockWebServer.takeRequest());
+        assertThat(request.get("variables").get("id").asText()).isEqualTo(hostile);
+        assertThat(request.get("query").asText()).doesNotContain("hijacked").contains("stopPlace(id: $id)");
     }
 
     @Test
@@ -795,15 +794,13 @@ class OtpSearchServiceTest {
 
         otpSearchService.handleTripRequest("Oslo", "Asker", null, null, 3, List.of("rail"));
 
-        RecordedRequest request = mockWebServer.takeRequest();
-        assert request.getBody() != null;
-        String body = request.getBody().utf8();
+        JsonNode modes = variables(mockWebServer.takeRequest()).get("modes");
 
         // All four are mandatory: omitting the street modes returns zero trip patterns.
-        assertThat(body).contains("accessMode: foot");
-        assertThat(body).contains("egressMode: foot");
-        assertThat(body).contains("directMode: foot");
-        assertThat(body).contains("transportModes: [{transportMode: rail}]");
+        assertThat(modes.get("accessMode").asText()).isEqualTo("foot");
+        assertThat(modes.get("egressMode").asText()).isEqualTo("foot");
+        assertThat(modes.get("directMode").asText()).isEqualTo("foot");
+        assertThat(modes.get("transportModes").toString()).isEqualTo("[{\"transportMode\":\"rail\"}]");
     }
 
     @Test
@@ -816,10 +813,8 @@ class OtpSearchServiceTest {
 
         otpSearchService.handleTripRequest("Oslo", "Asker", null, null, 3, List.of("rail", "bus"));
 
-        RecordedRequest request = mockWebServer.takeRequest();
-        assert request.getBody() != null;
-        assertThat(request.getBody().utf8())
-            .contains("transportModes: [{transportMode: rail}, {transportMode: bus}]");
+        assertThat(variables(mockWebServer.takeRequest()).get("modes").get("transportModes").toString())
+            .isEqualTo("[{\"transportMode\":\"rail\"},{\"transportMode\":\"bus\"}]");
     }
 
     @Test

@@ -244,6 +244,21 @@ class GeocoderServiceTest {
     }
 
     @Test
+    @DisplayName("resolveStopId should reject a malformed NSR ID without calling the geocoder")
+    void resolveStopId_withMalformedNsrId_shouldThrowValidationException() {
+        for (String id : List.of(
+                "NSR:StopPlace:337\") { id } x: stopPlace(id: \"1",
+                "NSR:StopPlace:337}",
+                "NSR:Quay:abc",
+                "NSR:StopPlace:")) {
+            assertThatThrownBy(() -> geocoderService.resolveStopId(id))
+                .as(id)
+                .isInstanceOf(ValidationException.class);
+        }
+        assertThat(mockWebServer.getRequestCount()).isZero();
+    }
+
+    @Test
     @DisplayName("resolveStopId should geocode stop name and return ID")
     void resolveStopId_withStopName_shouldGeocodeAndReturnId() {
         // Arrange
