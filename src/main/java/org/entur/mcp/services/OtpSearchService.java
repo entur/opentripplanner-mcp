@@ -426,7 +426,7 @@ public class OtpSearchService {
             List<?> errors = (List<?>) result.get("errors");
             if (errors != null && !errors.isEmpty()) {
                 log.error("GraphQL query returned errors: {}", errors);
-                throw new TripPlanningException(String.format("Trip planning query failed: %s", errors));
+                throw new TripPlanningException("Trip planning query failed");
             }
         }
 
@@ -635,7 +635,7 @@ public class OtpSearchService {
             List<?> errors = (List<?>) result.get("errors");
             if (errors != null && !errors.isEmpty()) {
                 log.error("GraphQL query returned errors: {}", errors);
-                throw new TripPlanningException(String.format("Departure board query failed: %s", errors));
+                throw new TripPlanningException("Departure board query failed");
             }
         }
 
@@ -693,7 +693,7 @@ public class OtpSearchService {
             List<?> errors = (List<?>) result.get("errors");
             if (errors != null && !errors.isEmpty()) {
                 log.error("Situations query returned errors: {}", errors);
-                throw new TripPlanningException(String.format("Situations query failed: %s", errors));
+                throw new TripPlanningException("Situations query failed");
             }
         }
 
@@ -750,7 +750,7 @@ public class OtpSearchService {
             List<?> errors = (List<?>) result.get("errors");
             if (errors != null && !errors.isEmpty()) {
                 log.error("Nearest query returned errors: {}", errors);
-                throw new TripPlanningException(String.format("Nearby stops query failed: %s", errors));
+                throw new TripPlanningException("Nearby stops query failed");
             }
         }
 

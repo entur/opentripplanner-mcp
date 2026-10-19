@@ -320,13 +320,13 @@ class OtpSearchServiceTest {
 
         mockWebServer.enqueue(new MockResponse.Builder()
             .code(200)
-            .body(TestFixtures.createOtpErrorResponse("Invalid query")).build());
+            .body(TestFixtures.createOtpErrorResponse("Invalid query at otp-internal-7:8080")).build());
 
-        // Act & Assert
+        // Act & Assert: the upstream error is logged, not handed to the caller
         assertThatThrownBy(() ->
             otpSearchService.handleTripRequest("Oslo", "Asker", null, null, 3, null))
             .isInstanceOf(TripPlanningException.class)
-            .hasMessageContaining("Trip planning query failed");
+            .hasMessage("Trip planning query failed");
     }
 
     @Test

@@ -151,7 +151,7 @@ public class MobilityTool {
             return UiPayload.text(toErrorJson(ErrorResponse.mobilityError(e.getMessage())));
         } catch (Exception e) {
             log.error("Unexpected error in nearby-mobility: {}", e.getMessage(), e);
-            return UiPayload.text(toErrorJson(ErrorResponse.genericError("An unexpected error occurred: " + e.getMessage())));
+            return UiPayload.text(toErrorJson(ErrorResponse.genericError("An unexpected error occurred")));
         }
     }
 
