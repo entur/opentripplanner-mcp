@@ -4,6 +4,7 @@ import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import io.micrometer.core.annotation.Timed;
 import org.entur.mcp.exception.TripPlanningException;
+import org.entur.mcp.exception.ValidationException;
 import org.entur.mcp.metrics.MetricsUtils;
 import org.entur.mcp.model.Location;
 import org.entur.mcp.validation.InputValidator;
@@ -570,6 +571,8 @@ public class OtpSearchService {
             if (location == null) {
                 throw new TripPlanningException("Error geocoding location: received null result");
             }
+        } catch (ValidationException e) {
+            throw e; // e.g. out-of-range coordinates: the caller can fix these, so keep the message
         } catch (Exception e) {
             log.error("Failed to geocode location '{}': {}", locationName, e.getMessage());
             throw new TripPlanningException("Failed to geocode location: " + locationName, e);

@@ -321,7 +321,7 @@ class InputValidatorTest {
     void validateSeverities_withInvalidValue_shouldThrow() {
         assertThatThrownBy(() -> InputValidator.validateSeverities(List.of("normal", "invalid")))
             .isInstanceOf(ValidationException.class)
-            .hasMessageContaining("Invalid severity values");
+            .hasMessageContaining("Invalid severities values");
     }
 
     // ==================== Form Factors Validation Tests ====================
@@ -407,5 +407,57 @@ class InputValidatorTest {
         assertThatThrownBy(() -> InputValidator.validateTransportModes(List.of("rail", "hovercraft")))
             .isInstanceOf(ValidationException.class)
             .hasMessageContaining("hovercraft");
+    }
+
+    // ==================== List Size and Echo Tests ====================
+
+    @Test
+    @DisplayName("enum lists over the size cap are rejected before validation")
+    void validateTransportModes_tooManyValues_throws() {
+        List<String> many = java.util.Collections.nCopies(10_000, "bus");
+        assertThatThrownBy(() -> InputValidator.validateTransportModes(many))
+            .isInstanceOf(ValidationException.class)
+            .hasMessageContaining("at most 20 values");
+    }
+
+    @Test
+    @DisplayName("enum lists are returned without duplicates")
+    void validateTransportModes_removesDuplicates() {
+        assertThat(InputValidator.validateTransportModes(List.of("bus", "BUS", " bus ", "rail")))
+            .containsExactly("bus", "rail");
+    }
+
+    @Test
+    @DisplayName("the error echoes only a few short samples of the invalid values")
+    void validateFormFactors_invalidValues_echoIsBounded() {
+        List<String> invalid = java.util.stream.IntStream.range(0, 15)
+            .mapToObj(n -> "x".repeat(1000) + n)
+            .toList();
+        assertThatThrownBy(() -> InputValidator.validateFormFactors(invalid))
+            .isInstanceOf(ValidationException.class)
+            .satisfies(e -> assertThat(e.getMessage().length()).isLessThan(600));
+    }
+
+    // ==================== Coordinate Validation Tests ====================
+
+    @Test
+    @DisplayName("validateCoordinates accepts real coordinates and the range limits")
+    void validateCoordinates_valid_doesNotThrow() {
+        assertThatCode(() -> InputValidator.validateCoordinates(59.91, 10.75, "location")).doesNotThrowAnyException();
+        assertThatCode(() -> InputValidator.validateCoordinates(-90, -180, "location")).doesNotThrowAnyException();
+        assertThatCode(() -> InputValidator.validateCoordinates(90, 180, "location")).doesNotThrowAnyException();
+    }
+
+    @Test
+    @DisplayName("validateCoordinates rejects NaN, infinity and out-of-range values")
+    void validateCoordinates_invalid_throws() {
+        assertThatThrownBy(() -> InputValidator.validateCoordinates(Double.NaN, 10, "location"))
+            .isInstanceOf(ValidationException.class).hasMessageContaining("latitude");
+        assertThatThrownBy(() -> InputValidator.validateCoordinates(91, 10, "location"))
+            .isInstanceOf(ValidationException.class).hasMessageContaining("latitude");
+        assertThatThrownBy(() -> InputValidator.validateCoordinates(59, Double.POSITIVE_INFINITY, "location"))
+            .isInstanceOf(ValidationException.class).hasMessageContaining("longitude");
+        assertThatThrownBy(() -> InputValidator.validateCoordinates(59, -181, "location"))
+            .isInstanceOf(ValidationException.class).hasMessageContaining("longitude");
     }
 }
