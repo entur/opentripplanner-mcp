@@ -305,7 +305,7 @@ class TripSearchToolUnitTest {
     void trip_withUnexpectedException_shouldReturnGenericError() throws Exception {
         // Arrange
         when(otpSearchService.handleTripRequest(anyString(), anyString(), any(), any(), any(), any()))
-            .thenThrow(new RuntimeException("Unexpected error"));
+            .thenThrow(new RuntimeException("connect to 10.0.0.7:8080 failed"));
 
         // Act
         String result = textOf(tripSearchTool.trip("Oslo", "Asker", null, null, 3, "en", null));
@@ -313,7 +313,7 @@ class TripSearchToolUnitTest {
         // Assert
         assertThat(result).contains("ERROR");
         assertThat(result).contains("An unexpected error occurred");
-        assertThat(result).contains("Unexpected error");
+        assertThat(result).doesNotContain("10.0.0.7");
 
         Map<String, Object> errorMap = objectMapper.readValue(result, Map.class);
         assertThat(errorMap).containsEntry("error", "ERROR");
@@ -390,7 +390,7 @@ class TripSearchToolUnitTest {
     void geocode_withUnexpectedException_shouldReturnGenericError() throws Exception {
         // Arrange
         when(geocoderService.handleGeocodeRequest(anyString(), anyInt()))
-            .thenThrow(new RuntimeException("Unexpected error"));
+            .thenThrow(new RuntimeException("connect to 10.0.0.7:8080 failed"));
 
         // Act
         String result = tripSearchTool.geocode("test", 5);
@@ -398,6 +398,7 @@ class TripSearchToolUnitTest {
         // Assert
         assertThat(result).contains("ERROR");
         assertThat(result).contains("An unexpected error occurred");
+        assertThat(result).doesNotContain("10.0.0.7");
 
         Map<String, Object> errorMap = objectMapper.readValue(result, Map.class);
         assertThat(errorMap).containsEntry("error", "ERROR");
@@ -563,7 +564,7 @@ class TripSearchToolUnitTest {
     void departures_withUnexpectedException_shouldReturnGenericError() throws Exception {
         // Arrange
         when(geocoderService.resolveStopId(anyString()))
-            .thenThrow(new RuntimeException("Unexpected error"));
+            .thenThrow(new RuntimeException("connect to 10.0.0.7:8080 failed"));
 
         // Act
         String result = textOf(tripSearchTool.departures("Oslo S", 10, null, null, null, "en"));
@@ -571,7 +572,7 @@ class TripSearchToolUnitTest {
         // Assert
         assertThat(result).contains("ERROR");
         assertThat(result).contains("An unexpected error occurred");
-        assertThat(result).contains("Unexpected error");
+        assertThat(result).doesNotContain("10.0.0.7");
 
         Map<String, Object> errorMap = objectMapper.readValue(result, Map.class);
         assertThat(errorMap).containsEntry("error", "ERROR");
@@ -628,12 +629,13 @@ class TripSearchToolUnitTest {
     @DisplayName("Alerts tool should return generic ERROR on unexpected exception")
     void alerts_withUnexpectedException_shouldReturnGenericError() throws Exception {
         when(otpSearchService.handleSituationsRequest(any()))
-            .thenThrow(new RuntimeException("Unexpected failure"));
+            .thenThrow(new RuntimeException("connect to 10.0.0.7:8080 failed"));
 
         String result = tripSearchTool.alerts(null);
 
         assertThat(result).contains("ERROR");
         assertThat(result).contains("An unexpected error occurred");
+        assertThat(result).doesNotContain("10.0.0.7");
         Map<String, Object> errorMap = objectMapper.readValue(result, Map.class);
         assertThat(errorMap).containsEntry("error", "ERROR");
         assertThat(errorMap).containsEntry("type", "Exception");

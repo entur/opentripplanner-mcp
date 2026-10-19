@@ -72,7 +72,7 @@ class MobilityServiceTest {
         assertThatThrownBy(() -> mobilityService.findNearby(
             59.91, 10.75, 500, null, null, null, 20))
             .isInstanceOf(MobilityException.class)
-            .hasMessageContaining("Range too large");
+            .hasMessage("Mobility query failed"); // upstream detail is logged, not returned
     }
 
     @Test

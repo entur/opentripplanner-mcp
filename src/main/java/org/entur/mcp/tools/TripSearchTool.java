@@ -182,8 +182,7 @@ public class TripSearchTool {
 
         } catch (Exception e) {
             log.error("Unexpected error in trip tool: {}", e.getMessage(), e);
-            return UiPayload.text(toErrorJson(ErrorResponse.genericError(
-                "An unexpected error occurred: " + e.getMessage())));
+            return UiPayload.text(toErrorJson(ErrorResponse.genericError("An unexpected error occurred")));
         }
     }
 
@@ -211,8 +210,7 @@ public class TripSearchTool {
 
         } catch (Exception e) {
             log.error("Unexpected error in geocode tool: {}", e.getMessage(), e);
-            return toErrorJson(ErrorResponse.genericError(
-                "An unexpected error occurred: " + e.getMessage()));
+            return toErrorJson(ErrorResponse.genericError("An unexpected error occurred"));
         }
     }
 
@@ -286,8 +284,7 @@ public class TripSearchTool {
 
         } catch (Exception e) {
             log.error("Unexpected error in departures tool: {}", e.getMessage(), e);
-            return UiPayload.text(toErrorJson(ErrorResponse.genericError(
-                "An unexpected error occurred: " + e.getMessage())));
+            return UiPayload.text(toErrorJson(ErrorResponse.genericError("An unexpected error occurred")));
         }
     }
 
@@ -320,7 +317,7 @@ public class TripSearchTool {
             return toErrorJson(ErrorResponse.tripPlanningError(e.getMessage()));
         } catch (Exception e) {
             log.error("Unexpected error in alerts tool: {}", e.getMessage(), e);
-            return toErrorJson(ErrorResponse.genericError("An unexpected error occurred: " + e.getMessage()));
+            return toErrorJson(ErrorResponse.genericError("An unexpected error occurred"));
         }
     }
 
@@ -407,7 +404,7 @@ public class TripSearchTool {
             return UiPayload.text(toErrorJson(ErrorResponse.tripPlanningError(e.getMessage())));
         } catch (Exception e) {
             log.error("Unexpected error in nearby-stops tool: {}", e.getMessage(), e);
-            return UiPayload.text(toErrorJson(ErrorResponse.genericError("An unexpected error occurred: " + e.getMessage())));
+            return UiPayload.text(toErrorJson(ErrorResponse.genericError("An unexpected error occurred")));
         }
     }
 

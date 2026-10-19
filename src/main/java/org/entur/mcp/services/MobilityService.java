@@ -202,7 +202,7 @@ public class MobilityService {
             List<?> errors = (List<?>) parsed.get("errors");
             if (errors != null && !errors.isEmpty()) {
                 log.error("Mobility GraphQL returned errors: {}", errors);
-                throw new MobilityException(String.format("Mobility query failed: %s", errors));
+                throw new MobilityException("Mobility query failed");
             }
         }
         Map<String, Object> data = (Map<String, Object>) parsed.get("data");
