@@ -236,6 +236,7 @@ public class GeocoderService {
         try {
             double lat = Double.parseDouble(coords[0].trim());
             double lng = Double.parseDouble(coords[1].trim());
+            InputValidator.validateCoordinates(lat, lng, "location");
             log.debug("Using provided coordinates: lat={}, lng={}", lat, lng);
             return Optional.of(new Location("coordinate", lat, lng));
         } catch (NumberFormatException e) {

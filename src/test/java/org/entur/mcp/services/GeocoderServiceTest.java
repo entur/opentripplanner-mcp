@@ -150,6 +150,17 @@ class GeocoderServiceTest {
     }
 
     @Test
+    @DisplayName("Should reject coordinates that are not a place on Earth, without calling upstream")
+    void geocodeIfNeeded_withImpossibleCoordinates_shouldThrowValidationException() {
+        for (String input : List.of("NaN,NaN", "Infinity,10", "1e400,10", "91,10.7", "59.9,181")) {
+            assertThatThrownBy(() -> geocoderService.geocodeIfNeeded(input))
+                .as(input)
+                .isInstanceOf(ValidationException.class);
+        }
+        assertThat(mockWebServer.getRequestCount()).isZero();
+    }
+
+    @Test
     @DisplayName("Should geocode when coordinate string is invalid")
     void geocodeIfNeeded_withInvalidCoordinates_shouldGeocodeInstead() {
         // Arrange
