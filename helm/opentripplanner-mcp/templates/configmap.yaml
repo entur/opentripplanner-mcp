@@ -30,3 +30,9 @@ data:
       org.entur.geocoder.url={{ .Values.configmap.urls.geocoder }}
       org.entur.vehicles.ws.url={{ .Values.configmap.urls.vehiclesWs }}
       org.entur.mobility.url={{ .Values.configmap.urls.mobility }}
+
+      # ET-Client-Name for upstream calls, synced from Secret Manager (common.secrets).
+      # No default: a pod without the secret fails at startup instead of calling as someone else.
+      org.entur.mcp.client_name=${ET_CLIENT_NAME}
+      # Sent from the user's browser by the trip map - public by design, never the secret above.
+      org.entur.vehicles.client_name=opentripplanner-mcp-app

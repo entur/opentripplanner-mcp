@@ -36,3 +36,8 @@ common:
         name: application-config
   postgres:
     enabled: false
+  # Synced from Secret Manager in ent-otpmcp-<env> into the opentripplanner-mcp-upstream
+  # Secret and exposed to the container as environment variables.
+  secrets:
+    upstream:
+      - ET_CLIENT_NAME

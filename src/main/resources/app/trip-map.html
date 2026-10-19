@@ -231,6 +231,7 @@
     let leafletMap = null;
     let routeLayers = [];
     let vehiclesWsUrl = null;
+    let vehiclesClientName = null;
     let vehicleSocket = null;
     let vehicleMarker = null;
 
@@ -1049,7 +1050,7 @@
             setVehicleStatus("vehicle: handshake…");
             socket.send(JSON.stringify({
                 type: "connection_init",
-                payload: { headers: { "Et-Client-Name": "entur-mcp" } }
+                payload: vehiclesClientName ? { headers: { "Et-Client-Name": vehiclesClientName } } : {}
             }));
         };
 
@@ -1198,6 +1199,7 @@
             if (data.error) { replanBtn.disabled = false; replanBtn.textContent = t('replan'); showStatus(data.message || data.error); return; }
             currentQuery = data.query ? { ...data.query, language: lang } : null;
             if (data.vehiclesWsUrl) vehiclesWsUrl = data.vehiclesWsUrl;
+            if (data.vehiclesClientName) vehiclesClientName = data.vehiclesClientName;
             replanBtn.disabled = !currentQuery;
             replanBtn.textContent = t('replan');
             render(data);

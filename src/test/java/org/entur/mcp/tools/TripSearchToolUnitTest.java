@@ -46,7 +46,8 @@ class TripSearchToolUnitTest {
 
     @BeforeEach
     void setUp() {
-        tripSearchTool = new TripSearchTool(otpSearchService, geocoderService, new AppHtmlLoader(), "wss://test.example.com/vehicles");
+        tripSearchTool = new TripSearchTool(otpSearchService, geocoderService, new AppHtmlLoader(), "wss://test.example.com/vehicles",
+            "test-vehicles-client");
         objectMapper = new ObjectMapper();
     }
 
@@ -162,6 +163,20 @@ class TripSearchToolUnitTest {
         Map<String, Object> parsed = objectMapper.readValue(result, Map.class);
         assertThat(parsed).containsKey("vehiclesWsUrl");
         assertThat(parsed.get("vehiclesWsUrl")).isEqualTo("wss://test.example.com/vehicles");
+    }
+
+    @Test
+    @DisplayName("Trip tool should pass the public vehicles client name to the UI only")
+    void trip_putsVehiclesClientNameInMetaOnly() throws Exception {
+        Map<String, Object> mockResponse = new HashMap<>();
+        mockResponse.put("trip", Map.of("tripPatterns", List.of()));
+        when(otpSearchService.handleTripRequest(anyString(), anyString(), any(), any(), any(), any()))
+            .thenReturn(mockResponse);
+
+        CallToolResult result = tripSearchTool.trip("Oslo S", "Asker", null, null, 3, "en", null);
+
+        assertThat(textOf(result)).doesNotContain("vehiclesClientName");
+        assertThat(uiMetaOf(result)).containsEntry("vehiclesClientName", "test-vehicles-client");
     }
 
     @Test

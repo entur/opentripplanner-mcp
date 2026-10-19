@@ -82,7 +82,7 @@ public class MobilityService {
     @Autowired
     public MobilityService(
             @Value("${org.entur.mobility.url}") String mobilityURL,
-            @Value("${org.entur.mcp.client_name:entur-mcp}") String etClientName) {
+            @Value("${org.entur.mcp.client_name:opentripplanner-mcp-local}") String etClientName) {
         this(mobilityURL, etClientName, UpstreamHttp.REQUEST_TIMEOUT);
     }
 
@@ -91,7 +91,7 @@ public class MobilityService {
         this.etClientName = etClientName;
         this.requestTimeout = requestTimeout;
         this.client = UpstreamHttp.newClient();
-        log.info("Initializing MobilityService with mobilityURL='{}', etClientName='{}'", mobilityURL, etClientName);
+        log.info("Initializing MobilityService with mobilityURL='{}'", mobilityURL);
     }
 
     public Map<String, Object> findNearby(double lat, double lon, int radius,

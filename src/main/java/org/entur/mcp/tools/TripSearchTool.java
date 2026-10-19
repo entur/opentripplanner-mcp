@@ -46,6 +46,12 @@ public class TripSearchTool {
     private final GeocoderService geocoderService;
     private final AppHtmlLoader appHtmlLoader;
     private final String vehiclesWsUrl;
+    /**
+     * ET-Client-Name the trip map sends when it opens the vehicle subscription. The browser
+     * makes that connection, so the value is visible to every user: it must never be the
+     * server's own {@code org.entur.mcp.client_name}, which is kept secret.
+     */
+    private final String vehiclesClientName;
 
     public static final class DeparturesUiMeta implements MetaProvider {
         @Override
@@ -109,12 +115,14 @@ public class TripSearchTool {
             @Autowired OtpSearchService otpSearchService,
             @Autowired GeocoderService geocoderService,
             @Autowired AppHtmlLoader appHtmlLoader,
-            @Value("${org.entur.vehicles.ws.url}") String vehiclesWsUrl
+            @Value("${org.entur.vehicles.ws.url}") String vehiclesWsUrl,
+            @Value("${org.entur.vehicles.client_name}") String vehiclesClientName
     ) {
         this.otpSearchService = otpSearchService;
         this.geocoderService = geocoderService;
         this.appHtmlLoader = appHtmlLoader;
         this.vehiclesWsUrl = vehiclesWsUrl;
+        this.vehiclesClientName = vehiclesClientName;
     }
 
     @McpTool(
@@ -150,10 +158,12 @@ public class TripSearchTool {
             query.put("transportModes", transportModes != null ? transportModes : List.of());
             wrapped.put("query", query);
             wrapped.put("vehiclesWsUrl", vehiclesWsUrl);
+            wrapped.put("vehiclesClientName", vehiclesClientName);
             wrapped.put("language", LanguageUtil.normalize(language));
             noTripsAdvice(response, departureTime, arrivalTime)
                 .ifPresent(advice -> wrapped.put("noTripsFound", advice));
             return UiPayload.split(wrapped, objectMapper,
+                "vehiclesClientName",
                 "trip.tripPatterns[].legs[].pointsOnLink",
                 "trip.tripPatterns[].legs[].intermediateEstimatedCalls",
                 "trip.tripPatterns[].legs[].line.presentation");
