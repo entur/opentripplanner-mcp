@@ -82,7 +82,7 @@ info:
   x-entur-metadata:
     id: opentripplanner-mcp
     owner: team-ror
-    audience: external
+    audience: open
 
 servers:
   - url: https://api.entur.io/journey-planner-mcp/v1
