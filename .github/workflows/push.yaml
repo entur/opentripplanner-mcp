@@ -42,7 +42,9 @@ jobs:
       path: 'specs/openapi.yaml'
       upload_to_bucket: false
 
+  # validate signs in to Google Cloud, which forks and fork pull requests cannot do
   openapi-validate:
+    if: github.repository_owner == 'entur' && (github.event_name == 'push' || github.event.pull_request.head.repo.full_name == github.repository)
     uses: entur/gha-api/.github/workflows/validate.yml@v6.5.0
     with:
       path: 'specs/openapi.yaml'

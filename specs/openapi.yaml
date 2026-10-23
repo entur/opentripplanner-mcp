@@ -156,13 +156,30 @@ paths:
       summary: Entur Journey Planner MCP server
       description: |
         Streamable HTTP MCP endpoint in stateless mode: each POST carries
-        one JSON-RPC message and receives a synchronous `application/json`
-        response. There is no session state and no SSE stream — safe behind
-        load balancing and scale-out.
+        one JSON-RPC message. A request (a message with an `id`) receives a
+        synchronous `application/json` response; a notification (no `id`,
+        e.g. `notifications/initialized`) is acknowledged with `202 Accepted`
+        and an empty body. There is no session state and no SSE stream —
+        safe behind load balancing and scale-out.
+
+        As the Streamable HTTP transport requires, every POST must send
+        `Accept: application/json, text/event-stream`, even though this
+        server only ever answers with JSON. A request that accepts only
+        `application/json` is refused with `400`.
 
         No authentication is required. Request bodies are capped at 64 KiB;
         real MCP messages are a few kilobytes at most.
       security: []
+      parameters:
+        - name: Accept
+          in: header
+          required: true
+          description: >-
+            Must list both `application/json` and `text/event-stream`, as the
+            MCP Streamable HTTP transport requires.
+          schema:
+            type: string
+          example: application/json, text/event-stream
       x-mcp-server:
         name: entur-journey-planner
         version: 1.0.0
@@ -232,6 +249,15 @@ paths:
                           text: '{"stopPlace":{"id":"NSR:StopPlace:337","name":"Oslo S","departures":[{"expectedDepartureTime":"2026-10-20T12:04:00+02:00","realtime":true,"destinationDisplay":{"frontText":"Lillestrøm"},"quay":{"publicCode":"4"},"serviceJourney":{"line":{"publicCode":"L1","transportMode":"rail"}}}]}}'
                       _meta:
                         org.entur/ui: {}
+        "202":
+          description: >-
+            The message was a JSON-RPC notification (no `id`) and has been
+            accepted. The response has no body.
+        "400":
+          description: >-
+            The `Accept` header does not list both `application/json` and
+            `text/event-stream`, or the body is not a valid JSON-RPC message.
+            The response has no body.
 
 components:
   schemas:
