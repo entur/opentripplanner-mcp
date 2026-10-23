@@ -1,14 +1,14 @@
 openapi: 3.1.2
 
 info:
-  title: Entur Journey Planner MCP
+  title: Journey Planner MCP
   summary: >-
     MCP server for Norwegian/Nordic public transport — trip planning,
     real-time departures, nearby stops, shared mobility, service alerts
     and geocoding, exposed as Model Context Protocol tools with embedded
     interactive UIs.
   description: |
-    Entur Journey Planner MCP is a [Model Context Protocol](https://modelcontextprotocol.io)
+    Journey Planner MCP is a [Model Context Protocol](https://modelcontextprotocol.io)
     (MCP) server in front of Entur's public travel APIs: the
     [Journey Planner](https://developer.entur.org/pages-journeyplanner-journeyplanner)
     (OpenTripPlanner transmodel GraphQL), the Geocoder and the Mobility
@@ -153,7 +153,7 @@ paths:
     post:
       tags: [MCP]
       operationId: mcp
-      summary: Entur Journey Planner MCP server
+      summary: Journey Planner MCP server
       description: |
         Streamable HTTP MCP endpoint in stateless mode: each POST carries
         one JSON-RPC message. A request (a message with an `id`) receives a
