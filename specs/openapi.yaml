@@ -1,0 +1,302 @@
+openapi: 3.1.2
+
+info:
+  title: Entur Journey Planner MCP
+  summary: >-
+    MCP server for Norwegian/Nordic public transport — trip planning,
+    real-time departures, nearby stops, shared mobility, service alerts
+    and geocoding, exposed as Model Context Protocol tools with embedded
+    interactive UIs.
+  description: |
+    Entur Journey Planner MCP is a [Model Context Protocol](https://modelcontextprotocol.io)
+    (MCP) server in front of Entur's public travel APIs: the
+    [Journey Planner](https://developer.entur.org/pages-journeyplanner-journeyplanner)
+    (OpenTripPlanner transmodel GraphQL), the Geocoder and the Mobility
+    API. Connect it to an MCP-capable AI client (Claude, ChatGPT, GitHub
+    Copilot, Cursor, …) and the assistant can plan trips, show live
+    departure boards, find stops and rental vehicles near a place, and
+    report service disruptions across Norway.
+
+    ### Connecting
+
+    Point your MCP client at `https://api.entur.io/journey-planner-mcp/v1/mcp`.
+    The endpoint is public and needs no authentication. It serves Entur's
+    open travel data only, holds no user data, and reads nothing on the
+    caller's behalf.
+
+    ### Interactive UIs (MCP Apps)
+
+    `trip`, `departures`, `nearby-stops` and `nearby-mobility` are
+    [MCP Apps](https://modelcontextprotocol.io/docs/extensions/apps)
+    tools: each names a `ui://` HTML resource in `_meta.ui.resourceUri`
+    (a trip map, a departure board, a nearby-stops map and a
+    shared-mobility map). Hosts that support MCP Apps render it in a
+    sandboxed iframe; other hosts simply show the tool's text result.
+
+    The UIs call two app-only tools, `poll-departures` and `poll-trip`, to
+    refresh a departure board or re-plan a trip. Their `_meta.ui.visibility`
+    is `["app"]`, so hosts do not offer them to the model.
+
+    The apps load no third-party script: their libraries (Leaflet and the
+    MCP Apps SDK) are inlined into the HTML. Each resource declares a
+    content-security policy in `_meta.ui.csp` that admits only
+    OpenStreetMap tiles and the Entur API hosts (plus their WebSocket
+    endpoints for live vehicle positions on the trip map).
+
+    ### Tool results
+
+    The UI tools return a slim JSON document as `content[0].text` for the
+    model and carry the fields only the UI needs (geometry, styling data
+    and the like) under `_meta["org.entur/ui"]`, so they do not consume the
+    model's context. A UI degrades gracefully when a host strips `_meta`.
+    `geocode` and `alerts` return plain JSON text.
+
+    `trip`, `departures`, `nearby-stops` and `nearby-mobility` take a
+    required `language` parameter (`en`, `nb` or `nn`; anything else falls
+    back to `en`), which the model detects from the conversation and which
+    sets the UI language.
+
+    An empty `trip` result carries a top-level `noTripsFound` advisory: the
+    query was valid and repeating it will not help. When a search with a
+    `departureTime` finds nothing, the server asks once more with a
+    day-long search window and reports the next available
+    `nextDepartureTime`.
+
+    Tool errors are returned as a JSON error document in the tool result
+    (`error`, `message`, `type`, `details`), never as internal stack
+    traces.
+
+    See the [opentripplanner-mcp repository](https://github.com/entur/opentripplanner-mcp)
+    for the source, configuration and local development.
+  version: 1.0.0
+  contact:
+    name: Team RoR
+    url: https://github.com/entur/opentripplanner-mcp
+  x-entur-metadata:
+    id: opentripplanner-mcp
+    owner: team-ror
+    audience: open
+
+servers:
+  - url: https://api.entur.io/journey-planner-mcp/v1
+    description: Production
+
+tags:
+  - name: MCP
+    description: The Model Context Protocol endpoint.
+
+x-mcp:
+  protocolVersion: "2025-11-25"
+  servers:
+    - url: https://api.entur.io/journey-planner-mcp/v1/mcp
+  capabilities:
+    tools: {}
+    resources: {}
+  tools: &journey-planner-tools
+    - name: trip
+      description: >-
+        Plan multi-leg public transport routes between two locations across
+        Norway and the Nordic region, with departure/arrival times,
+        transfers, occupancy, duration and service disruptions per leg.
+        Accepts addresses, place names or coordinates, an optional
+        departure or arrival time, and an optional transport-mode filter.
+        Renders the trip map UI.
+    - name: departures
+      description: >-
+        Real-time departures from a single stop or station in Norway, by
+        name (e.g. "Oslo S") or NSR ID (e.g. NSR:StopPlace:337): line
+        numbers, destinations, platforms, occupancy and live delays.
+        Renders the departure board UI.
+    - name: nearby-stops
+      description: >-
+        Find public transport stops near an address, place name or
+        coordinates, sorted by distance, with transport modes and live next
+        departures. Renders the nearby-stops map UI.
+    - name: nearby-mobility
+      description: >-
+        Find the closest shared-mobility vehicles (e-scooters, city bikes,
+        car-share, mopeds) and rental stations near a location in Norway,
+        filterable by form factor, propulsion type and operator. Renders the
+        shared-mobility map UI.
+    - name: alerts
+      description: >-
+        Active service disruptions and alerts for Norwegian public
+        transport: severity, affected lines and stops, validity period and
+        descriptions in Norwegian and English, optionally filtered by
+        severity.
+    - name: geocode
+      description: Convert place names or addresses into geographic coordinates.
+    - name: poll-departures
+      description: >-
+        App-only. Refreshes departure data for a stop; called by the
+        departure board UI.
+    - name: poll-trip
+      description: >-
+        App-only. Re-plans a trip with updated parameters; called by the
+        trip map UI.
+  resources:
+    - uri: ui://trip/trip-map.html
+      name: Trip Map
+      mimeType: text/html;profile=mcp-app
+    - uri: ui://departures/departures-board.html
+      name: Departures Board
+      mimeType: text/html;profile=mcp-app
+    - uri: ui://nearby/nearby-stops-map.html
+      name: Nearby Stops Map
+      mimeType: text/html;profile=mcp-app
+    - uri: ui://mobility/nearby-mobility-map.html
+      name: Nearby Mobility Map
+      mimeType: text/html;profile=mcp-app
+
+paths:
+  /mcp:
+    post:
+      tags: [MCP]
+      operationId: mcp
+      summary: Entur Journey Planner MCP server
+      description: |
+        Streamable HTTP MCP endpoint in stateless mode: each POST carries
+        one JSON-RPC message. A request (a message with an `id`) receives a
+        synchronous `application/json` response; a notification (no `id`,
+        e.g. `notifications/initialized`) is acknowledged with `202 Accepted`
+        and an empty body. There is no session state and no SSE stream —
+        safe behind load balancing and scale-out.
+
+        As the Streamable HTTP transport requires, every POST must send
+        `Accept: application/json, text/event-stream`, even though this
+        server only ever answers with JSON. A request that accepts only
+        `application/json` is refused with `400`.
+
+        No authentication is required. Request bodies are capped at 64 KiB;
+        real MCP messages are a few kilobytes at most.
+      security: []
+      parameters:
+        - name: Accept
+          in: header
+          required: true
+          description: >-
+            Must list both `application/json` and `text/event-stream`, as the
+            MCP Streamable HTTP transport requires.
+          schema:
+            type: string
+          example: application/json, text/event-stream
+      x-mcp-server:
+        name: entur-journey-planner
+        version: 1.0.0
+        tools: *journey-planner-tools
+      requestBody:
+        required: true
+        description: A single JSON-RPC 2.0 message per the MCP specification.
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/JsonRpcRequest"
+            examples:
+              toolsList:
+                summary: tools/list
+                value:
+                  jsonrpc: "2.0"
+                  id: 1
+                  method: tools/list
+              toolsCall:
+                summary: tools/call — departures from Oslo S
+                value:
+                  jsonrpc: "2.0"
+                  id: 2
+                  method: tools/call
+                  params:
+                    name: departures
+                    arguments:
+                      stop: Oslo S
+                      numberOfDepartures: 5
+                      language: en
+      responses:
+        "200":
+          description: JSON-RPC response.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/JsonRpcResponse"
+              examples:
+                toolsList:
+                  summary: tools/list — the tool catalog
+                  value:
+                    jsonrpc: "2.0"
+                    id: 1
+                    result:
+                      tools:
+                        - name: departures
+                          description: Get real-time departures from a single stop or station in Norway.
+                          inputSchema:
+                            type: object
+                            properties:
+                              stop:
+                                type: string
+                              language:
+                                type: string
+                            required: [stop, language]
+                          _meta:
+                            ui:
+                              resourceUri: ui://departures/departures-board.html
+                toolsCall:
+                  summary: tools/call — slim model text plus UI-only _meta
+                  value:
+                    jsonrpc: "2.0"
+                    id: 2
+                    result:
+                      content:
+                        - type: text
+                          text: '{"stopPlace":{"id":"NSR:StopPlace:337","name":"Oslo S","departures":[{"expectedDepartureTime":"2026-10-20T12:04:00+02:00","realtime":true,"destinationDisplay":{"frontText":"Lillestrøm"},"quay":{"publicCode":"4"},"serviceJourney":{"line":{"publicCode":"L1","transportMode":"rail"}}}]}}'
+                      _meta:
+                        org.entur/ui: {}
+        "202":
+          description: >-
+            The message was a JSON-RPC notification (no `id`) and has been
+            accepted. The response has no body.
+        "400":
+          description: >-
+            The `Accept` header does not list both `application/json` and
+            `text/event-stream`, or the body is not a valid JSON-RPC message.
+            The response has no body.
+
+components:
+  schemas:
+    JsonRpcRequest:
+      type: object
+      description: A JSON-RPC 2.0 request as defined by the MCP specification.
+      required: [jsonrpc, method]
+      properties:
+        jsonrpc:
+          type: string
+          const: "2.0"
+        id:
+          oneOf:
+            - type: string
+            - type: integer
+        method:
+          type: string
+          examples: [initialize, tools/list, tools/call, resources/read]
+        params:
+          type: object
+
+    JsonRpcResponse:
+      type: object
+      description: A JSON-RPC 2.0 response as defined by the MCP specification.
+      required: [jsonrpc]
+      properties:
+        jsonrpc:
+          type: string
+          const: "2.0"
+        id:
+          oneOf:
+            - type: string
+            - type: integer
+        result:
+          type: object
+        error:
+          type: object
+          properties:
+            code:
+              type: integer
+            message:
+              type: string
