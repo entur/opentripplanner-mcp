@@ -109,6 +109,7 @@ public class OtpSearchService {
                                 }
                                 serviceJourney {
                                     id
+                                    publicCode
                                 }
                                 aimedStartTime
                                 expectedStartTime
@@ -188,6 +189,7 @@ public class OtpSearchService {
                   }
                   serviceJourney {
                     id
+                    publicCode
                     line {
                       id
                       publicCode

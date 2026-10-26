@@ -534,7 +534,7 @@
                     <span class="dep-time">${fmt(expected)}</span>
                     <span class="dep-countdown ${cdCls}">${cdText}</span>
                 </div>
-                ${travelTag(line, line.publicCode || "?")}
+                ${travelTag(line, line.publicCode || call.serviceJourney?.publicCode || "?")}
                 <div class="dep-dest">
                     <span class="dep-dest-name">${esc(call.destinationDisplay?.frontText || "")}</span>
                     <span class="dep-plat">${call.quay?.publicCode ? esc(t('platform', call.quay.publicCode)) : ""}</span>

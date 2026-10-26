@@ -107,8 +107,8 @@
         .eds-travel-tag { align-items: center; font-weight: 700; }
         .eds-travel-tag > .eds-icon { width: 1.25rem; height: 1.25rem; flex-shrink: 0; }
         .mode-icon { width: 16px; height: 16px; flex-shrink: 0; }
-        .transit-arrival { margin-left: auto; font-size: var(--font-sizes-small);
-                           color: var(--basecolors-text-subdued); white-space: nowrap; }
+        .transit-alight { display: flex; align-items: baseline; gap: 8px; padding-top: 2px; }
+        .transit-alight > .transit-times { margin-left: auto; white-space: nowrap; }
         .transit-times { font-size: var(--font-sizes-small); display: flex; gap: 6px;
                          align-items: center; padding-left: 2px; }
         .time-delayed { color: var(--app-feedback-negative-text); }
@@ -406,6 +406,11 @@
         return v && /^[0-9a-fA-F]{3,8}$/.test(v) ? "#" + v : null;
     }
 
+    // Flights carry no line code; the flight number (e.g. DY334) is on the service journey.
+    function legCode(leg) {
+        return leg.line?.publicCode || leg.serviceJourney?.publicCode || leg.mode || "?";
+    }
+
     function legColor(leg) {
         return safeHex(leg.line?.presentation?.colour) || modeColor(leg.mode);
     }
@@ -590,6 +595,16 @@
         </div>`;
     }
 
+    // Expected time, with the struck-through timetabled one beside it when they differ by over a
+    // minute either way: flights often land early.
+    function timesHtml(aimed, expected) {
+        const deltaMs = aimed && expected ? new Date(expected) - new Date(aimed) : 0;
+        return Math.abs(deltaMs) > 60_000
+            ? `<span class="time-delayed">${esc(fmt(expected))}</span>
+               <span class="time-aimed">${esc(fmt(aimed))}</span>`
+            : `<span class="time-ontime">${esc(fmt(aimed || expected))}</span>`;
+    }
+
     function renderLegRows(legs) {
         let html = '<div class="leg-rows">';
         // A disruption spans every leg it touches; show it once, on the first.
@@ -608,20 +623,12 @@
                 </div>`;
             } else {
                 const stopName = esc(leg.fromPlace?.name || "");
-                const code = leg.line?.publicCode || leg.mode || "?";
-                const dest = leg.fromEstimatedCall?.destinationDisplay?.frontText || "";
+                const code = legCode(leg);
+                const alightName = esc(leg.toPlace?.name || "");
+                // A flight's destination is its arrival airport, already shown below the tag.
+                const isAir = (leg.mode || "").toLowerCase() === "air";
+                const dest = isAir ? "" : leg.fromEstimatedCall?.destinationDisplay?.frontText || "";
                 const label = dest ? `${code} ${dest}` : code;
-
-                const depAimed = leg.aimedStartTime;
-                const depExpected = leg.expectedStartTime;
-                const arrival = leg.expectedEndTime;
-                const delayMs = depAimed && depExpected
-                    ? new Date(depExpected) - new Date(depAimed) : 0;
-
-                const timesHtml = delayMs > 60_000
-                    ? `<span class="time-delayed">${esc(fmt(depExpected))}</span>
-                       <span class="time-aimed">${esc(fmt(depAimed))}</span>`
-                    : `<span class="time-ontime">${esc(fmt(depAimed))}</span>`;
 
                 const emissionCo2 = leg.emission?.co2;
                 const metaParts = [];
@@ -661,13 +668,14 @@
                     ${legBone(leg, false)}
                     <div class="transit-leg">
                         <div class="transit-stop">${stopName}</div>
-                        <div class="transit-badge-row">
-                            ${travelTag(leg, label)}
-                            <span class="transit-arrival">${esc(fmt(arrival))}</span>
-                        </div>
-                        <div class="transit-times">${timesHtml}</div>
+                        <div class="transit-badge-row">${travelTag(leg, label)}</div>
+                        <div class="transit-times">${timesHtml(leg.aimedStartTime, leg.expectedStartTime)}</div>
                         ${legMetaHtml}
                         ${situationsHtml}
+                        <div class="transit-alight">
+                            <span class="transit-stop">${alightName}</span>
+                            <span class="transit-times">${timesHtml(leg.aimedEndTime, leg.expectedEndTime)}</span>
+                        </div>
                     </div>
                 </div>`;
             }
@@ -699,7 +707,7 @@
             prevWasFoot = false;
             const color = esc(legColor(leg));
             const textColor = esc(legTextColor(leg));
-            const code = esc(leg.line?.publicCode || leg.mode || "?");
+            const code = esc(legCode(leg));
             const icon = modeIcon(leg.mode);
             html += `<div class="mini-badge" style="background:${color};color:${textColor};">
                 <svg class="mini-mode-icon" viewBox="0 0 16 16" fill="currentColor"
@@ -913,7 +921,7 @@
                 const mins = Math.round((leg.duration || 0) / 60);
                 el.innerHTML = `<span class="badge" style="background:var(--basecolors-frame-subdued);border:var(--border-widths-small) solid var(--basecolors-stroke-subdued);color:var(--basecolors-text-subdued);">${t('walk_m', mins)}</span>`;
             } else {
-                const code = esc(leg.line?.publicCode || leg.mode || "?");
+                const code = esc(legCode(leg));
                 let stopsSuffix = "";
                 if (leg.intermediateEstimatedCalls !== undefined) {
                     const stops = leg.intermediateEstimatedCalls.length + 1;
