@@ -24,6 +24,9 @@
                   flex-shrink: 0; }
         /* TravelHeader carries its own colour, weight and the red logo stroke. */
         #route-label { font-size: var(--font-sizes-medium); min-width: 0; }
+        /* The selected trip's times; the auto margin keeps them beside the title, not centred. */
+        #route-times { margin-right: auto; font-size: var(--font-sizes-small); font-weight: 700;
+                       color: var(--basecolors-text-subdued); white-space: nowrap; }
         #replan-btn { font-size: var(--font-sizes-small); padding: 4px 10px;
                       border: var(--border-widths-small) solid var(--basecolors-stroke-subdued);
                       border-radius: var(--border-radiuses-large); background: transparent;
@@ -218,6 +221,7 @@
         <div id="route-label" class="eds-travel-header eds-travel-header--medium eds-travel-header--no-wrap">
             <span class="eds-travel-header__from">…</span><span class="eds-travel-header__to"></span>
         </div>
+        <span id="route-times"></span>
         <button id="replan-btn" disabled>↻ Replan</button>
     </div>
     <div id="map"></div>
@@ -1163,6 +1167,8 @@
         setVehicleStatus("");
         renderPatterns();
         const p = currentPatterns[index];
+        document.getElementById("route-times").textContent =
+            p ? `${fmt(p.expectedStartTime)}–${fmt(p.expectedEndTime)}` : "";
         if (p) {
             drawRoute(p);
             renderLegStrip(p);
@@ -1203,6 +1209,7 @@
         currentPatterns = data.trip?.tripPatterns || [];
         if (currentPatterns.length === 0) {
             setEmpty(true);
+            document.getElementById("route-times").textContent = "";
             const when = query.departureTime || query.arrivalTime;
             const next = data.nextDepartureTime;
             showStatus(
