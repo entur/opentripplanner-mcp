@@ -102,13 +102,14 @@
                               color: var(--app-feedback-warning-text); }
         .pattern-situations--severe { color: var(--app-feedback-negative-text); }
         .transit-leg { display: flex; flex-direction: column; gap: 3px; padding: 5px 0; }
-        .transit-stop { font-size: var(--font-sizes-extra-small); color: var(--basecolors-text-subdued); }
+        /* A boarding or alighting call: time first, then the stop, then its delay chip. */
+        .transit-call { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; }
+        .transit-call > .transit-times { padding-left: 0; font-weight: 700; white-space: nowrap; }
+        .transit-stop { font-size: var(--font-sizes-small); }
         .transit-badge-row { display: flex; align-items: center; gap: 8px; }
         .eds-travel-tag { align-items: center; font-weight: 700; }
         .eds-travel-tag > .eds-icon { width: 1.25rem; height: 1.25rem; flex-shrink: 0; }
         .mode-icon { width: 16px; height: 16px; flex-shrink: 0; }
-        .transit-alight { display: flex; align-items: baseline; gap: 8px; padding-top: 2px; }
-        .transit-alight > .transit-times { margin-left: auto; white-space: nowrap; }
         .transit-times { font-size: var(--font-sizes-small); display: flex; gap: 6px;
                          align-items: center; padding-left: 2px; }
         .time-delayed { color: var(--app-feedback-negative-text); }
@@ -249,10 +250,8 @@
             walk_label:         "walk",
             stop_one:           "stop",
             stop_many:          "stops",
-            dep_usually_ok:     "Departure: usually on time",
-            arr_usually_ok:     "Arrival: usually on time",
-            dep_typically_late: "Departure: typically {0} min late",
-            arr_typically_late: "Arrival: typically {0} min late",
+            usually_ok:     "Usually on time",
+            typically_late: "Typically {0} min late",
             up_to:              "up to {0} min",
             from_fallback:      "From",
             to_fallback:        "To",
@@ -278,10 +277,8 @@
             walk_label:         "gå",
             stop_one:           "stopp",
             stop_many:          "stopp",
-            dep_usually_ok:     "Avgang: vanligvis i rute",
-            arr_usually_ok:     "Ankomst: vanligvis i rute",
-            dep_typically_late: "Avgang: vanligvis {0} min forsinket",
-            arr_typically_late: "Ankomst: vanligvis {0} min forsinket",
+            usually_ok:     "Vanligvis i rute",
+            typically_late: "Vanligvis {0} min forsinket",
             up_to:              "opptil {0} min",
             from_fallback:      "Fra",
             to_fallback:        "Til",
@@ -307,10 +304,8 @@
             walk_label:         "gå",
             stop_one:           "stopp",
             stop_many:          "stopp",
-            dep_usually_ok:     "Avgang: vanlegvis i rute",
-            arr_usually_ok:     "Ankomst: vanlegvis i rute",
-            dep_typically_late: "Avgang: vanlegvis {0} min forseinka",
-            arr_typically_late: "Ankomst: vanlegvis {0} min forseinka",
+            usually_ok:     "Vanlegvis i rute",
+            typically_late: "Vanlegvis {0} min forseinka",
             up_to:              "opptil {0} min",
             from_fallback:      "Frå",
             to_fallback:        "Til",
@@ -605,6 +600,19 @@
             : `<span class="time-ontime">${esc(fmt(aimed || expected))}</span>`;
     }
 
+    /** The empirical-delay chip for one call, shown beside that call's time. */
+    function delayHtml(ed) {
+        if (!ed) return "";
+        const p50 = parseDurationSecs(ed.p50);
+        const p90 = parseDurationSecs(ed.p90);
+        if (p50 < 60) {
+            return `<span class="leg-delay delay-ok">${t('usually_ok')}</span>`;
+        }
+        const mins = Math.round(p50 / 60);
+        const upTo = p90 > p50 + 120 ? `, ${t('up_to', Math.round(p90 / 60))}` : "";
+        return `<span class="leg-delay">${t('typically_late', mins)}${upTo}</span>`;
+    }
+
     function renderLegRows(legs) {
         let html = '<div class="leg-rows">';
         // A disruption spans every leg it touches; show it once, on the first.
@@ -635,20 +643,6 @@
                 const occHtml = occupancyWidget(leg.fromEstimatedCall?.occupancyStatus);
                 if (occHtml) metaParts.push(occHtml);
                 if (emissionCo2 != null) metaParts.push(`<span class="leg-emission">${Math.round(emissionCo2)}g CO₂</span>`);
-                for (const [label, ed] of [["Departure", leg.fromEstimatedCall?.empiricalDelay], ["Arrival", leg.toEstimatedCall?.empiricalDelay]]) {
-                    if (!ed) continue;
-                    const p50 = parseDurationSecs(ed.p50);
-                    const p90 = parseDurationSecs(ed.p90);
-                    const isDep = label === "Departure";
-                    if (p50 < 60) {
-                        metaParts.push(`<span class="leg-delay delay-ok">${isDep ? t('dep_usually_ok') : t('arr_usually_ok')}</span>`);
-                    } else {
-                        const mins = Math.round(p50 / 60);
-                        const upTo = p90 > p50 + 120 ? `, ${t('up_to', Math.round(p90 / 60))}` : "";
-                        const key = isDep ? 'dep_typically_late' : 'arr_typically_late';
-                        metaParts.push(`<span class="leg-delay">${t(key, mins)}${upTo}</span>`);
-                    }
-                }
                 const legMetaHtml = metaParts.length > 0 ? `<div class="leg-meta">${metaParts.join("")}</div>` : "";
 
                 let situationsHtml = "";
@@ -667,14 +661,18 @@
                 html += `<div class="leg-row">
                     ${legBone(leg, false)}
                     <div class="transit-leg">
-                        <div class="transit-stop">${stopName}</div>
+                        <div class="transit-call">
+                            <span class="transit-times">${timesHtml(leg.aimedStartTime, leg.expectedStartTime)}</span>
+                            <span class="transit-stop">${stopName}</span>
+                            ${delayHtml(leg.fromEstimatedCall?.empiricalDelay)}
+                        </div>
                         <div class="transit-badge-row">${travelTag(leg, label)}</div>
-                        <div class="transit-times">${timesHtml(leg.aimedStartTime, leg.expectedStartTime)}</div>
                         ${legMetaHtml}
                         ${situationsHtml}
-                        <div class="transit-alight">
-                            <span class="transit-stop">${alightName}</span>
+                        <div class="transit-call">
                             <span class="transit-times">${timesHtml(leg.aimedEndTime, leg.expectedEndTime)}</span>
+                            <span class="transit-stop">${alightName}</span>
+                            ${delayHtml(leg.toEstimatedCall?.empiricalDelay)}
                         </div>
                     </div>
                 </div>`;
