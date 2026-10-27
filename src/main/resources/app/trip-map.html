@@ -119,6 +119,7 @@
         .time-ontime { color: var(--basecolors-text-accent); }
         .walk-connector { display: flex; align-items: center; gap: 5px; padding: 3px 0;
                           color: var(--basecolors-text-subdued); font-size: var(--font-sizes-small); }
+        .transfer-connector strong { color: var(--basecolors-text-accent); }
 
         /* Unselected compact card */
         .compact-row { padding: 9px 12px; display: flex; align-items: center; gap: 8px; }
@@ -248,6 +249,8 @@
             next_departure:     "Show next departure {0}",
             no_data:            "Could not parse trip data.",
             walk_min:           "walk {0} min",
+            wait_min:           "wait {0} min",
+            change:             "Change",
             walk_m:             "walk {0}m",
             walk_label:         "walk",
             stop_one:           "stop",
@@ -275,6 +278,8 @@
             next_departure:     "Vis neste avgang {0}",
             no_data:            "Kunne ikke lese reisedata.",
             walk_min:           "gå {0} min",
+            wait_min:           "vent {0} min",
+            change:             "Bytte",
             walk_m:             "gå {0}m",
             walk_label:         "gå",
             stop_one:           "stopp",
@@ -302,6 +307,8 @@
             next_departure:     "Vis neste avgang {0}",
             no_data:            "Kunne ikkje lese reisedata.",
             walk_min:           "gå {0} min",
+            wait_min:           "vent {0} min",
+            change:             "Byte",
             walk_m:             "gå {0}m",
             walk_label:         "gå",
             stop_one:           "stopp",
@@ -359,6 +366,9 @@
     function cssVar(name) {
         return getComputedStyle(document.documentElement).getPropertyValue(name).trim();
     }
+
+    const CLOCK_ICON = '<circle cx="8" cy="8" r="6.5" fill="none" stroke="currentColor" stroke-width="1.5"/>' +
+                       '<path d="M8 4.5V8l2.5 1.5" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>';
 
     const MODE_ICONS = {
         tram: `<path fill-rule="evenodd" clip-rule="evenodd" fill="currentColor" d="M14.0619507,5.2719116 c-0.0360718-0.1594849-0.1778564-0.2727661-0.3414307-0.2727661H8.5660925L9.8547363,4.109314 c0.1005249-0.0756836,0.1490479-0.1333008,0.1490479-0.2557373c0-0.1252441-0.0609131-0.2161255-0.1420288-0.2755737 L8.368042,2.3991089H7.4037476l1.7016602,1.4334717l-1.699707,1.1665649H2.27948 c-0.1635742,0-0.3053589,0.1132812-0.3414307,0.2727661l-0.928833,4.1077271 C0.9841309,9.501709,1.0106812,9.6287231,1.0825195,9.7305908l0.8125,1.1231689 c0.0657959,0.0910034,0.1712036,0.1448364,0.2834473,0.1448975l4.2353516,0.0003662v0.0001221l0.6726074-0.000061 l0.4901733,0.000061v-0.000061l6.244873-0.0004272c0.1123047-0.000061,0.2177124-0.053894,0.2835083-0.1448975l0.812439-1.1231689 c0.0718994-0.1018677,0.0984497-0.2288818,0.0733643-0.3509521L14.0619507,5.2719116z M3.75,8.1812744 c0,0.1942749-0.1566772,0.3509521-0.3500977,0.3509521H2.3496094c-0.105896,0-0.206543-0.0481567-0.2730713-0.1312866 C2.0100098,8.3186646,1.9855347,8.210144,2.0083008,8.1060181l0.30896-1.4003906 c0.0349731-0.1610718,0.1776733-0.2748413,0.3413086-0.2748413h0.7413330C3.5933228,6.4307861,3.75,6.5874634,3.75,6.7808838V8.1812744z M7.2496338,8.1812744c0,0.1934204-0.1575317,0.3500977-0.3500977,0.3500977H4.7990112 c-0.1934204,0-0.3500977-0.1566772-0.3500977-0.3500977V6.7808838c0-0.1934204,0.1566772-0.3500977,0.3500977-0.3500977h2.1005249 c0.1925659,0,0.3500977,0.1566772,0.3500977,0.3500977V8.1812744z M10.7602539,8.1812744 c0,0.1934204-0.1575317,0.3500977-0.3500977,0.3500977H8.3096313c-0.1934204,0-0.3500977-0.1566772-0.3500977-0.3500977 V6.7808838c0-0.1934204,0.1566772-0.3500977,0.3500977-0.3500977h2.1005249c0.1925659,0,0.3500977,0.1566772,0.3500977,0.3500977 V8.1812744z M13.8328247,8.4009399c-0.0665283,0.0831299-0.1671753,0.1312866-0.2722168,0.1312866h-1.7504883 c-0.1942749,0-0.3509521-0.1566772-0.3509521-0.3500977V6.7808838c0-0.1934204,0.1566772-0.3500977,0.3509521-0.3500977 h1.3906860c0.1654053,0,0.3063354,0.1137695,0.3421631,0.2748413l0.30896,1.4003906 C13.9246826,8.210144,13.9002075,8.3186646,13.8328247,8.4009399z"/>
@@ -615,23 +625,64 @@
         return `<span class="leg-delay">${t('typically_late', mins)}${upTo}</span>`;
     }
 
+    /**
+     * Minutes spent waiting before each transit leg after the first: the gap since the
+     * previous transit leg arrived, less any walking in between. Keyed by leg index.
+     */
+    function transferWaits(legs) {
+        const waits = new Map();
+        let prevEnd = null;
+        let walkSecs = 0;
+        legs.forEach((leg, i) => {
+            if ((leg.mode || "").toLowerCase() === "foot") {
+                walkSecs += leg.duration || 0;
+                return;
+            }
+            const start = new Date(leg.expectedStartTime || leg.aimedStartTime);
+            if (prevEnd) {
+                const secs = (start - prevEnd) / 1000 - walkSecs;
+                waits.set(i, Math.max(0, Math.round(secs / 60)));
+            }
+            prevEnd = new Date(leg.expectedEndTime || leg.aimedEndTime);
+            walkSecs = 0;
+        });
+        return waits;
+    }
+
     function renderLegRows(legs) {
         let html = '<div class="leg-rows">';
         // A disruption spans every leg it touches; show it once, on the first.
         const shownSituations = new Set();
-        for (const leg of legs) {
-            const isFoot = (leg.mode || "").toLowerCase() === "foot";
+        const waits = transferWaits(legs);
+        const isFootLeg = l => (l?.mode || "").toLowerCase() === "foot";
+        legs.forEach((leg, i) => {
+            const isFoot = isFootLeg(leg);
             if (isFoot) {
                 const mins = Math.round((leg.duration || 0) / 60);
                 const icon = MODE_ICONS.foot || "";
+                // Walking between two vehicles: the wait for the next one belongs here.
+                const wait = waits.get(i + 1);
+                const waitText = wait > 0 ? ` · ${t('wait_min', wait)}` : "";
                 html += `<div class="leg-row leg-row--walk">
                     ${legBone(leg, true)}
                     <div class="walk-connector">
                         <svg width="12" height="12" viewBox="0 0 16 16" style="flex-shrink:0;color:var(--basecolors-text-subdued);">${icon}</svg>
-                        ${t('walk_min', mins)}
+                        ${t('walk_min', mins)}${waitText}
                     </div>
                 </div>`;
             } else {
+                // Straight from one vehicle onto the next: say so, or the two legs read as one.
+                if (i > 0 && !isFootLeg(legs[i - 1])) {
+                    const wait = waits.get(i);
+                    const waitText = wait > 0 ? ` · ${t('wait_min', wait)}` : "";
+                    html += `<div class="leg-row leg-row--walk">
+                        ${legBone(leg, true)}
+                        <div class="walk-connector transfer-connector">
+                            <svg width="12" height="12" viewBox="0 0 16 16" style="flex-shrink:0;" aria-hidden="true">${CLOCK_ICON}</svg>
+                            <span><strong>${t('change')}</strong>${waitText}</span>
+                        </div>
+                    </div>`;
+                }
                 const stopName = esc(leg.fromPlace?.name || "");
                 const code = legCode(leg);
                 const alightName = esc(leg.toPlace?.name || "");
@@ -679,7 +730,7 @@
                     </div>
                 </div>`;
             }
-        }
+        });
         const last = legs[legs.length - 1];
         if (last) {
             html += `<div class="leg-end">
