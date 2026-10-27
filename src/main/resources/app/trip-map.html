@@ -55,7 +55,9 @@
                    border-radius: var(--border-radiuses-large);
                    overflow: hidden; cursor: pointer; transition: border-color var(--timings-fast); }
         .pattern:hover { border-color: var(--basecolors-stroke-default); }
-        .pattern.active { border-color: var(--basecolors-stroke-highlight);
+        /* Neutral, not stroke-highlight: that is coral and reads as an error. The card
+           already stands out by being expanded while the others are dimmed. */
+        .pattern.active { border-color: var(--basecolors-stroke-default);
                           box-shadow: var(--shadows-card-shadow); }
         .pattern:focus-visible { outline: none; box-shadow: var(--shadows-focus); }
         .pattern:not(.active) { opacity: 0.6; }
