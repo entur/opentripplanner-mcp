@@ -17,7 +17,7 @@
 		<spring-ai.version>2.0.0</spring-ai.version>
         <springdoc-openapi.version>3.0.3</springdoc-openapi.version>
         <mockwebserver.version>5.4.0</mockwebserver.version>
-        <cloud-logging.version>7.1.0</cloud-logging.version>
+        <cloud-logging.version>7.2.1</cloud-logging.version>
 	</properties>
 
     <dependencyManagement>
