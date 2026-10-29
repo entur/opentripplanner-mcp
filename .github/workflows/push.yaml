@@ -75,7 +75,7 @@ jobs:
       image_artifact: ${{ needs.docker-build.outputs.image_artifact }}
 
   helm-lint:
-    uses: entur/gha-helm/.github/workflows/lint.yml@bd1e0a9b022ee0fafe43723b7c80c0eb48171593 # v1.7.0
+    uses: entur/gha-helm/.github/workflows/lint.yml@080c3d42794f3be06b42e3a81ff23a3a0e3b0235 # v2.1.0
     with:
       environment: dev
 
