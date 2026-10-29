@@ -16,7 +16,7 @@
 		<java.version>25</java.version>
 		<spring-ai.version>2.0.2</spring-ai.version>
         <springdoc-openapi.version>3.0.3</springdoc-openapi.version>
-        <mockwebserver.version>5.4.0</mockwebserver.version>
+        <mockwebserver.version>5.5.1</mockwebserver.version>
         <cloud-logging.version>7.2.1</cloud-logging.version>
 	</properties>
 
