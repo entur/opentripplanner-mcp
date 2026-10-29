@@ -70,7 +70,7 @@ jobs:
 
   docker-scan:
     needs: [ docker-build ]
-    uses: entur/gha-security/.github/workflows/docker-scan.yml@df4f926eb07962457babbab22d799390466a6b1b # v2.15.0
+    uses: entur/gha-security/.github/workflows/docker-scan.yml@0962fb4f3f9004eeaea88582db8639e140ec6fda # v2.17.1
     with:
       image_artifact: ${{ needs.docker-build.outputs.image_artifact }}
 
