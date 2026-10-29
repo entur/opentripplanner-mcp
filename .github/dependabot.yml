@@ -43,7 +43,7 @@ updates:
     open-pull-requests-limit: 100
     cooldown:
       default-days: 4
-      exclude: ["org.entur*", "org.rutebanken*"]
+      exclude: ["org.entur*", "no.entur*", "org.rutebanken*"]
     commit-message:
       prefix: "chore"
       include: "scope"
