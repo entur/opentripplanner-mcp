@@ -212,6 +212,33 @@ class GeocoderServiceTest {
     }
 
     @Test
+    @DisplayName("A stop hit keeps its NSR ID so the trip can route from the stop")
+    void geocodeIfNeeded_withStopHit_shouldKeepStopId() {
+        mockWebServer.enqueue(new MockResponse.Builder().code(200).body(stopResponse("NSR:StopPlace:63632")).build());
+
+        Location location = geocoderService.geocodeIfNeeded("Hirtshals");
+
+        assertThat(location.getStopId()).isEqualTo("NSR:StopPlace:63632");
+        assertThat(location.hasCoordinates()).isTrue();
+    }
+
+    @Test
+    @DisplayName("A hit that is not a stop has no stop ID")
+    void geocodeIfNeeded_withAddressHit_shouldHaveNoStopId() {
+        mockWebServer.enqueue(new MockResponse.Builder().code(200).body(stopResponse("OSM:TopographicPlace:286502513")).build());
+
+        assertThat(geocoderService.geocodeIfNeeded("Christian Michelsens gate 4").getStopId()).isNull();
+    }
+
+    private static String stopResponse(String id) {
+        return """
+            {"type":"FeatureCollection","features":[{"type":"Feature",
+              "geometry":{"type":"Point","coordinates":[9.974052,57.596282]},
+              "properties":{"id":"%s","name":"Hirtshals Fjordlineterminalen"}}]}
+            """.formatted(id);
+    }
+
+    @Test
     @DisplayName("Should throw ValidationException for null location")
     void geocodeIfNeeded_withNullLocation_shouldThrowValidationException() {
         assertThatThrownBy(() -> geocoderService.geocodeIfNeeded(null))

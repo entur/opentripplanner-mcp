@@ -156,8 +156,15 @@ public class GeocoderService {
             }
         }
 
-        log.info("Successfully geocoded '{}' to '{}' (lat={}, lng={})", location, name, lat, lng);
-        return new Location(name, lat, lng);
+        // Keep the stop ID when the hit is a stop: OTP routes from a stop ID directly, while a
+        // coordinate must first be linked to the street network, which fails where OTP has
+        // none (e.g. the ferry terminals in Denmark).
+        String stopId = properties.get("id") instanceof String id && InputValidator.isNsrStopId(id)
+            ? id : null;
+
+        log.info("Successfully geocoded '{}' to '{}' (lat={}, lng={}, stopId={})",
+            location, name, lat, lng, stopId);
+        return new Location(name, lat, lng, stopId);
     }
 
     /**

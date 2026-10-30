@@ -28,6 +28,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.when;
 
 @ExtendWith(MockitoExtension.class)
@@ -411,6 +412,88 @@ class OtpSearchServiceTest {
         assertThat(from.get("longitude").asDouble()).isEqualTo(oslo.getLongitude());
         assertThat(to.get("latitude").asDouble()).isEqualTo(asker.getLatitude());
         assertThat(to.get("longitude").asDouble()).isEqualTo(asker.getLongitude());
+    }
+
+    @Test
+    @DisplayName("Stop IDs go to OTP as place, without geocoding")
+    void handleTripRequest_withStopIds_shouldPassThemAsPlace() throws Exception {
+        mockWebServer.enqueue(new MockResponse.Builder()
+            .code(200)
+            .body(TestFixtures.createOtpTripResponse()).build());
+
+        otpSearchService.handleTripRequest(
+            "NSR:StopPlace:63632", "NSR:Quay:109848", null, null, 3, null);
+
+        // The geocoder searches free text and finds nothing for an ID
+        verifyNoInteractions(geocoderService);
+        JsonNode variables = variables(mockWebServer.takeRequest());
+        assertThat(variables.get("from").get("place").asText()).isEqualTo("NSR:StopPlace:63632");
+        assertThat(variables.get("from").has("coordinates")).isFalse();
+        assertThat(variables.get("to").get("place").asText()).isEqualTo("NSR:Quay:109848");
+    }
+
+    @Test
+    @DisplayName("A malformed stop ID is rejected rather than geocoded")
+    void handleTripRequest_withMalformedStopId_shouldThrowValidationException() {
+        assertThatThrownBy(() -> otpSearchService.handleTripRequest(
+            "NSR:StopPlace:abc", "Asker", null, null, 3, null))
+            .isInstanceOf(ValidationException.class)
+            .hasMessageContaining("Invalid stop ID");
+        verifyNoInteractions(geocoderService);
+    }
+
+    @Test
+    @DisplayName("A geocoded stop is sent by its ID, with the name as a label")
+    void handleTripRequest_withGeocodedStop_shouldSendStopIdAndName() throws Exception {
+        when(geocoderService.geocodeIfNeeded("Hirtshals"))
+            .thenReturn(new Location("Hirtshals Fjordlineterminalen", 57.596282, 9.974052,
+                "NSR:StopPlace:63632"));
+        when(geocoderService.geocodeIfNeeded("Asker")).thenReturn(TestFixtures.createAskerLocation());
+        mockWebServer.enqueue(new MockResponse.Builder()
+            .code(200)
+            .body(TestFixtures.createOtpTripResponse()).build());
+
+        otpSearchService.handleTripRequest("Hirtshals", "Asker", null, null, 3, null);
+
+        JsonNode variables = variables(mockWebServer.takeRequest());
+        JsonNode from = variables.get("from");
+        assertThat(from.get("place").asText()).isEqualTo("NSR:StopPlace:63632");
+        assertThat(from.get("name").asText()).isEqualTo("Hirtshals Fjordlineterminalen");
+        assertThat(from.has("coordinates")).isTrue();
+        // Not a stop: no place, so OTP routes from the coordinates
+        assertThat(variables.get("to").has("place")).isFalse();
+        assertThat(variables.get("to").get("name").asText()).isEqualTo("Asker");
+    }
+
+    @Test
+    @DisplayName("OTP's locationNotFound becomes an error naming the location, not an empty result")
+    void handleTripRequest_withLocationNotFound_shouldThrowNamingTheLocation() {
+        geocodeOsloToAsker();
+        mockWebServer.enqueue(new MockResponse.Builder().code(200).body(
+            "{\"data\":{\"trip\":{\"routingErrors\":[{\"code\":\"locationNotFound\","
+            + "\"inputField\":\"to\"}],\"tripPatterns\":[]}}}").build());
+
+        assertThatThrownBy(() -> otpSearchService.handleTripRequest(
+            "Oslo S", "Asker", "2026-08-20T03:15:00", null, 3, null))
+            .isInstanceOf(TripPlanningException.class)
+            .hasMessageContaining("route to 'Asker'")
+            .hasMessageContaining("NSR:StopPlace");
+        // No look-ahead: it would fail the same way
+        assertThat(mockWebServer.getRequestCount()).isEqualTo(1);
+    }
+
+    @Test
+    @DisplayName("Other routing errors are left out of the result")
+    void handleTripRequest_withOtherRoutingErrors_shouldDropThem() {
+        geocodeOsloToAsker();
+        mockWebServer.enqueue(new MockResponse.Builder().code(200).body(
+            "{\"data\":{\"trip\":{\"routingErrors\":[{\"code\":\"noTransitConnection\","
+            + "\"inputField\":null}],\"tripPatterns\":[]}}}").build());
+
+        Map<String, Object> result = otpSearchService.handleTripRequest(
+            "Oslo S", "Asker", null, null, 3, null);
+
+        assertThat((Map<String, Object>) result.get("trip")).doesNotContainKey("routingErrors");
     }
 
     @Test

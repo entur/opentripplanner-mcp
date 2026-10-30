@@ -55,6 +55,10 @@ public class OtpSearchService {
                         modes: $modes
                         numTripPatterns: $numTripPatterns
                     ) {
+                        routingErrors {
+                            code
+                            inputField
+                        }
                         tripPatterns {
                             duration
                             expectedStartTime
@@ -379,8 +383,8 @@ public class OtpSearchService {
         Location toLocation = getLocation(to);
 
         Map<String, Object> variables = new HashMap<>();
-        variables.put("from", locationInput("place", fromLocation));
-        variables.put("to", locationInput("place", toLocation));
+        variables.put("from", locationInput(fromLocation));
+        variables.put("to", locationInput(toLocation));
         variables.put("numTripPatterns", validatedMaxResults);
         if (departureTime != null && !departureTime.isEmpty()) {
             variables.put("dateTime", departureTime);
@@ -439,6 +443,8 @@ public class OtpSearchService {
             throw new TripPlanningException("No trip data returned from API");
         }
 
+        rejectUnknownLocation(data, from, to);
+
         log.info("Successfully planned trip from '{}' to '{}'", fromLocation.getPlace(), toLocation.getPlace());
 
         // An empty result for a requested time usually means nothing runs then rather than
@@ -451,12 +457,55 @@ public class OtpSearchService {
         return data;
     }
 
-    private static Map<String, Object> locationInput(String labelField, Location location) {
-        return Map.of(
-            labelField, location.getPlace(),
-            "coordinates", Map.of(
+    /**
+     * The OTP {@code Location} input. A stop ID goes in {@code place}, which OTP routes from
+     * directly; when both are given OTP uses the stop and ignores the coordinates.
+     */
+    private static Map<String, Object> locationInput(Location location) {
+        Map<String, Object> input = new HashMap<>();
+        input.put("name", location.getPlace());
+        if (location.getStopId() != null) {
+            input.put("place", location.getStopId());
+        }
+        if (location.hasCoordinates()) {
+            input.put("coordinates", Map.of(
                 "latitude", location.getLatitude(),
                 "longitude", location.getLongitude()));
+        }
+        return input;
+    }
+
+    /**
+     * Turns OTP's {@code locationNotFound} into an error, and drops {@code routingErrors} from
+     * the result either way.
+     *
+     * <p>OTP reports it when a stop ID does not exist or a coordinate cannot be linked to its
+     * street network. Left in, the result would be a plain empty list, and the model would be
+     * told the locations resolved and that no service runs.
+     */
+    @SuppressWarnings("unchecked")
+    private static void rejectUnknownLocation(Map<String, Object> data, String from, String to) {
+        if (!(data.get("trip") instanceof Map<?, ?> tripObj)) {
+            return;
+        }
+        Map<String, Object> trip = (Map<String, Object>) tripObj;
+        if (!(trip.remove("routingErrors") instanceof List<?> errors)) {
+            return;
+        }
+        for (Object error : errors) {
+            if (error instanceof Map<?, ?> e && "locationNotFound".equals(e.get("code"))) {
+                boolean isTo = "to".equals(e.get("inputField"));
+                String location = isTo ? to : from;
+                log.warn("OTP could not find location '{}'", location);
+                String advice = InputValidator.isNsrStopId(location)
+                    ? "Check the stop ID with the geocode tool."
+                    : "If it is a stop, pass its NSR:StopPlace ID from the geocode tool; "
+                        + "otherwise try a nearby stop or address.";
+                throw new TripPlanningException(String.format(
+                    "The journey planner could not route %s '%s'. %s",
+                    isTo ? "to" : "from", location, advice));
+            }
+        }
     }
 
     /**
@@ -502,8 +551,8 @@ public class OtpSearchService {
     private Optional<String> findNextDeparture(Location fromLocation, Location toLocation,
                                                String departureTime, Map<String, Object> modes) {
         Map<String, Object> variables = new HashMap<>();
-        variables.put("from", locationInput("name", fromLocation));
-        variables.put("to", locationInput("name", toLocation));
+        variables.put("from", locationInput(fromLocation));
+        variables.put("to", locationInput(toLocation));
         variables.put("dateTime", departureTime);
         variables.put("searchWindow", NEXT_DEPARTURE_SEARCH_WINDOW_MINUTES);
         if (modes != null) {
@@ -567,6 +616,14 @@ public class OtpSearchService {
     }
 
     private Location getLocation(String locationName) {
+        // A stop ID goes to OTP as is: the geocoder searches free text and finds nothing for it
+        if (InputValidator.isNsrStopId(locationName)) {
+            return Location.ofStopId(locationName);
+        }
+        if (locationName.startsWith("NSR:")) {
+            throw new ValidationException("location",
+                "Invalid stop ID. Expected NSR:StopPlace:<digits> or NSR:Quay:<digits>");
+        }
         Location location;
         try {
             location = geocoderService.geocodeIfNeeded(locationName);
