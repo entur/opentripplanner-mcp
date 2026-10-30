@@ -46,7 +46,7 @@ class TripSearchToolUnitTest {
 
     @BeforeEach
     void setUp() {
-        tripSearchTool = new TripSearchTool(otpSearchService, geocoderService, new AppHtmlLoader(), "wss://test.example.com/vehicles",
+        tripSearchTool = new TripSearchTool(otpSearchService, geocoderService, "wss://test.example.com/vehicles",
             "test-vehicles-client");
         objectMapper = new ObjectMapper();
     }

@@ -47,7 +47,7 @@ class MobilityToolTest {
 
     @BeforeEach
     void setUp() {
-        tool = new MobilityTool(mobilityService, geocoderService, new AppHtmlLoader());
+        tool = new MobilityTool(mobilityService, geocoderService);
     }
 
     @Test

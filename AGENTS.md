@@ -29,6 +29,11 @@ MCP server for OpenTripPlanner's transmodel GraphQL API. Java/Spring Boot with M
   `scripts/update-vendor-js.py` and inlined by `AppHtmlLoader`. Apps must load no script from a
   CDN: app script can call tools and post into the conversation. Upgrades change the pinned
   versions and integrity hashes in that script.
+- App UI URIs are versioned (`ui://trip/<hash>/trip-map.html`) and registered in code by
+  `AppResources`, not with `@McpResource`. Hosts cache an app's HTML by URI, so a fixed URI kept
+  an old UI on screen across deploys; the hash covers every app file, so any UI change gets a new
+  URI. A template serves any version, so older conversations still get a UI. Tools take their
+  `resourceUri` from `AppResources.App`; never write a `ui://` URI by hand.
 - UI/styling conventions (Entur Linje tokens, colour mode, stylesheet inlining, previewing the apps)
   live in `src/main/resources/app/CLAUDE.md`.
 - An empty `trip` result carries a top-level `noTripsFound` advisory telling the model the

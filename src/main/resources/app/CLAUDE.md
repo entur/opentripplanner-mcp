@@ -23,6 +23,8 @@ Conventions for the MCP App HTML files and the vendored Entur CSS in this direct
   `<!--LEAFLET_CSS-->`, `<!--LEAFLET_JS-->` and `<!--EXT_APPS-->`. The SDK is rewrapped as a classic
   script, so apps take it from the global (`const { App } = McpExtApps;`), not an `import`. Never
   add a CDN `<script>`/`<link>` back - `EnturCssTest` fails on one, and the CSP no longer allows it.
+- The apps are served under versioned URIs (`ui://trip/<hash>/trip-map.html`, see `AppResources`),
+  so a host that caches by URI picks up every change. A new app needs an `AppResources.App` entry.
 - `scripts/preview-apps.py` renders the apps in a normal browser (light and dark) using real tool
   results pulled over `/mcp`, which is the only practical way to eyeball UI changes.
 - **Colour mode:** apps set `data-color-mode` on `<html>` from `app.getHostContext()?.theme` and keep

@@ -32,7 +32,8 @@ import sys
 import urllib.error
 import urllib.request
 
-# name -> (resource uri, tool to call for sample data, tool arguments)
+# name -> (tool to call for sample data, tool arguments). The app's URI is versioned, so it
+# is read from the tool's _meta.ui.resourceUri rather than written down here.
 #
 # The sample calls hit the live API, so what they exercise varies: the trip route is
 # chosen to be multi-leg (rail, walk, air, bus) rather than for any particular
@@ -40,22 +41,18 @@ import urllib.request
 # occupancy reading - edit the arguments below to a route that currently has one.
 APPS = {
     "trip": (
-        "ui://trip/trip-map.html",
         "trip",
         {"from": "Oslo S", "to": "Trondheim S", "language": "en", "maxResults": 3},
     ),
     "departures": (
-        "ui://departures/departures-board.html",
         "departures",
         {"stop": "Jernbanetorget", "language": "en", "numberOfDepartures": 8},
     ),
     "stops": (
-        "ui://nearby/nearby-stops-map.html",
         "nearby-stops",
         {"location": "Jernbanetorget, Oslo", "language": "en"},
     ),
     "mobility": (
-        "ui://mobility/nearby-mobility-map.html",
         "nearby-mobility",
         {"location": "Jernbanetorget, Oslo", "radius": 600, "language": "en"},
     ),
@@ -117,9 +114,16 @@ def rpc(server, method, params):
 def build(server, out_dir, names):
     os.makedirs(out_dir, exist_ok=True)
 
+    uris = {
+        tool["name"]: tool["_meta"]["ui"]["resourceUri"]
+        for tool in rpc(server, "tools/list", {})["tools"]
+        if (tool.get("_meta") or {}).get("ui", {}).get("resourceUri")
+    }
+
     written = []
     for name in names:
-        uri, tool, args = APPS[name]
+        tool, args = APPS[name]
+        uri = uris[tool]
         print(f"{name}: reading {uri}")
         html = rpc(server, "resources/read", {"uri": uri})["contents"][0]["text"]
 

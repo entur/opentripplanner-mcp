@@ -13,16 +13,13 @@ import org.entur.mcp.services.GeocoderService;
 import org.entur.mcp.services.OtpSearchService;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import org.springframework.ai.mcp.annotation.McpResource;
 import org.springframework.ai.mcp.annotation.McpTool;
 import org.springframework.ai.mcp.annotation.McpToolParam;
 import org.springframework.ai.mcp.annotation.context.MetaProvider;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
-import org.springframework.core.io.Resource;
 import org.springframework.stereotype.Component;
 
-import java.io.IOException;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
@@ -34,18 +31,11 @@ public class TripSearchTool {
     private static final Logger log = LoggerFactory.getLogger(TripSearchTool.class);
     private static final ObjectMapper objectMapper = new ObjectMapper();
 
-    @Value("classpath:/app/departures-board.html")
-    private Resource departuresBoardHtml;
 
-    @Value("classpath:/app/trip-map.html")
-    private Resource tripMapHtml;
 
-    @Value("classpath:/app/nearby-stops-map.html")
-    private Resource nearbyStopsMapHtml;
 
     private final OtpSearchService otpSearchService;
     private final GeocoderService geocoderService;
-    private final AppHtmlLoader appHtmlLoader;
     private final String vehiclesWsUrl;
     /**
      * ET-Client-Name the trip map sends when it opens the vehicle subscription. The browser
@@ -57,19 +47,10 @@ public class TripSearchTool {
     public static final class DeparturesUiMeta implements MetaProvider {
         @Override
         public Map<String, Object> getMeta() {
-            return McpMetaProviders.uiMeta("ui://departures/departures-board.html");
+            return McpMetaProviders.uiMeta(AppResources.App.DEPARTURES.uri());
         }
     }
 
-    public static final class DeparturesCspMeta implements MetaProvider {
-        @Override
-        public Map<String, Object> getMeta() {
-            return McpMetaProviders.cspMeta(
-                McpMetaProviders.CSP_NO_RESOURCE_DOMAINS,
-                McpMetaProviders.CSP_API_DOMAINS
-            );
-        }
-    }
 
     public static final class AppOnlyMeta implements MetaProvider {
         @Override
@@ -81,47 +62,27 @@ public class TripSearchTool {
     public static final class TripUiMeta implements MetaProvider {
         @Override
         public Map<String, Object> getMeta() {
-            return McpMetaProviders.uiMeta("ui://trip/trip-map.html");
+            return McpMetaProviders.uiMeta(AppResources.App.TRIP.uri());
         }
     }
 
-    public static final class TripCspMeta implements MetaProvider {
-        @Override
-        public Map<String, Object> getMeta() {
-            return McpMetaProviders.cspMeta(
-                McpMetaProviders.CSP_MAP_DOMAINS,
-                McpMetaProviders.CSP_API_DOMAINS_WITH_WS
-            );
-        }
-    }
 
     public static final class NearbyStopsUiMeta implements MetaProvider {
         @Override
         public Map<String, Object> getMeta() {
-            return McpMetaProviders.uiMeta("ui://nearby/nearby-stops-map.html");
+            return McpMetaProviders.uiMeta(AppResources.App.NEARBY_STOPS.uri());
         }
     }
 
-    public static final class NearbyStopsCspMeta implements MetaProvider {
-        @Override
-        public Map<String, Object> getMeta() {
-            return McpMetaProviders.cspMeta(
-                McpMetaProviders.CSP_MAP_DOMAINS,
-                McpMetaProviders.CSP_API_DOMAINS
-            );
-        }
-    }
 
     public TripSearchTool(
             @Autowired OtpSearchService otpSearchService,
             @Autowired GeocoderService geocoderService,
-            @Autowired AppHtmlLoader appHtmlLoader,
             @Value("${org.entur.vehicles.ws.url}") String vehiclesWsUrl,
             @Value("${org.entur.vehicles.client_name}") String vehiclesClientName
     ) {
         this.otpSearchService = otpSearchService;
         this.geocoderService = geocoderService;
-        this.appHtmlLoader = appHtmlLoader;
         this.vehiclesWsUrl = vehiclesWsUrl;
         this.vehiclesClientName = vehiclesClientName;
     }
@@ -412,15 +373,6 @@ public class TripSearchTool {
         }
     }
 
-    @McpResource(
-        name = "Departures Board",
-        uri = "ui://departures/departures-board.html",
-        mimeType = "text/html;profile=mcp-app",
-        metaProvider = TripSearchTool.DeparturesCspMeta.class
-    )
-    public String getDeparturesBoardResource() throws IOException {
-        return appHtmlLoader.load(departuresBoardHtml);
-    }
 
     @McpTool(
         name = "poll-departures",
@@ -438,25 +390,7 @@ public class TripSearchTool {
         return departures(stop, numberOfDepartures, startTime, timeRangeMinutes, transportModes, language);
     }
 
-    @McpResource(
-        name = "Trip Map",
-        uri = "ui://trip/trip-map.html",
-        mimeType = "text/html;profile=mcp-app",
-        metaProvider = TripSearchTool.TripCspMeta.class
-    )
-    public String getTripMapResource() throws IOException {
-        return appHtmlLoader.load(tripMapHtml);
-    }
 
-    @McpResource(
-        name = "Nearby Stops Map",
-        uri = "ui://nearby/nearby-stops-map.html",
-        mimeType = "text/html;profile=mcp-app",
-        metaProvider = TripSearchTool.NearbyStopsCspMeta.class
-    )
-    public String getNearbyStopsMapResource() throws IOException {
-        return appHtmlLoader.load(nearbyStopsMapHtml);
-    }
 
     @McpTool(
         name = "poll-trip",

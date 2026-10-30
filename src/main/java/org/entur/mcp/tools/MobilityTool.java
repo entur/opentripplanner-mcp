@@ -13,16 +13,13 @@ import org.entur.mcp.services.MobilityService;
 import org.entur.mcp.validation.InputValidator;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import org.springframework.ai.mcp.annotation.McpResource;
 import org.springframework.ai.mcp.annotation.McpTool;
 import org.springframework.ai.mcp.annotation.McpToolParam;
 import org.springframework.ai.mcp.annotation.context.MetaProvider;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
-import org.springframework.core.io.Resource;
 import org.springframework.stereotype.Component;
 
-import java.io.IOException;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -33,36 +30,22 @@ public class MobilityTool {
     private static final Logger log = LoggerFactory.getLogger(MobilityTool.class);
     private static final ObjectMapper objectMapper = new ObjectMapper();
 
-    @Value("classpath:/app/nearby-mobility-map.html")
-    private Resource nearbyMobilityMapHtml;
 
     private final MobilityService mobilityService;
     private final GeocoderService geocoderService;
-    private final AppHtmlLoader appHtmlLoader;
 
     public static final class NearbyMobilityUiMeta implements MetaProvider {
         @Override
         public Map<String, Object> getMeta() {
-            return McpMetaProviders.uiMeta("ui://mobility/nearby-mobility-map.html");
+            return McpMetaProviders.uiMeta(AppResources.App.NEARBY_MOBILITY.uri());
         }
     }
 
-    public static final class NearbyMobilityCspMeta implements MetaProvider {
-        @Override
-        public Map<String, Object> getMeta() {
-            return McpMetaProviders.cspMeta(
-                McpMetaProviders.CSP_MAP_DOMAINS,
-                McpMetaProviders.CSP_API_DOMAINS
-            );
-        }
-    }
 
     public MobilityTool(@Autowired MobilityService mobilityService,
-                        @Autowired GeocoderService geocoderService,
-                        @Autowired AppHtmlLoader appHtmlLoader) {
+                        @Autowired GeocoderService geocoderService) {
         this.mobilityService = mobilityService;
         this.geocoderService = geocoderService;
-        this.appHtmlLoader = appHtmlLoader;
     }
 
     @McpTool(
@@ -155,15 +138,6 @@ public class MobilityTool {
         }
     }
 
-    @McpResource(
-        name = "Nearby Mobility Map",
-        uri = "ui://mobility/nearby-mobility-map.html",
-        mimeType = "text/html;profile=mcp-app",
-        metaProvider = MobilityTool.NearbyMobilityCspMeta.class
-    )
-    public String getNearbyMobilityMapResource() throws IOException {
-        return appHtmlLoader.load(nearbyMobilityMapHtml);
-    }
 
     private String toErrorJson(ErrorResponse errorResponse) {
         try {
