@@ -414,22 +414,40 @@ class OtpSearchServiceTest {
         assertThat(to.get("longitude").asDouble()).isEqualTo(asker.getLongitude());
     }
 
+    private static MockResponse stopNameResponse(String field, String name) {
+        return new MockResponse.Builder().code(200).body(
+            "{\"data\":{\"stopPlace\":null,\"quay\":null,\"" + field + "\":{\"name\":\"" + name + "\"}}}")
+            .build();
+    }
+
     @Test
-    @DisplayName("Stop IDs go to OTP as place, without geocoding")
+    @DisplayName("Stop IDs go to OTP as place, without geocoding, and are reported by name")
     void handleTripRequest_withStopIds_shouldPassThemAsPlace() throws Exception {
+        mockWebServer.enqueue(stopNameResponse("stopPlace", "Hirtshals Fjordlineterminalen"));
+        mockWebServer.enqueue(stopNameResponse("quay", "Kristiansand ferjeterminal"));
         mockWebServer.enqueue(new MockResponse.Builder()
             .code(200)
             .body(TestFixtures.createOtpTripResponse()).build());
 
-        otpSearchService.handleTripRequest(
+        Map<String, Object> result = otpSearchService.handleTripRequest(
             "NSR:StopPlace:63632", "NSR:Quay:109848", null, null, 3, null);
 
         // The geocoder searches free text and finds nothing for an ID
         verifyNoInteractions(geocoderService);
+        assertThat(variables(mockWebServer.takeRequest()).get("id").asText())
+            .isEqualTo("NSR:StopPlace:63632");
+        mockWebServer.takeRequest();
         JsonNode variables = variables(mockWebServer.takeRequest());
+        assertThat(variables.get("from").get("name").asText()).isEqualTo("Hirtshals Fjordlineterminalen");
         assertThat(variables.get("from").get("place").asText()).isEqualTo("NSR:StopPlace:63632");
         assertThat(variables.get("from").has("coordinates")).isFalse();
         assertThat(variables.get("to").get("place").asText()).isEqualTo("NSR:Quay:109848");
+
+        // An ID means nothing to the user, so the UI shows the stop's name
+        Map<String, Object> resolved = (Map<String, Object>) result.get("resolvedLocations");
+        assertThat((Map<String, Object>) resolved.get("to"))
+            .containsEntry("name", "Kristiansand ferjeterminal")
+            .containsEntry("stopId", "NSR:Quay:109848");
     }
 
     @Test
@@ -472,6 +490,7 @@ class OtpSearchServiceTest {
         when(geocoderService.geocodeIfNeeded("Hirtshals Fjordline terminal"))
             .thenReturn(new Location("Hirtshals Color Line terminal", 57.592936, 9.96836,
                 "NSR:StopPlace:57958"));
+        mockWebServer.enqueue(stopNameResponse("stopPlace", "Kristiansand ferjeterminal"));
         mockWebServer.enqueue(new MockResponse.Builder().code(200).body(EMPTY_TRIP).build());
 
         Map<String, Object> result = otpSearchService.handleTripRequest(
@@ -481,15 +500,17 @@ class OtpSearchServiceTest {
         assertThat((Map<String, Object>) resolved.get("to"))
             .containsEntry("name", "Hirtshals Color Line terminal")
             .containsEntry("stopId", "NSR:StopPlace:57958");
-        // A stop ID is used as given, so there is nothing to report
-        assertThat(resolved).doesNotContainKey("from");
+        assertThat((Map<String, Object>) resolved.get("from"))
+            .containsEntry("name", "Kristiansand ferjeterminal");
     }
 
     @Test
-    @DisplayName("Coordinates and stop IDs are used as given and not reported as resolved")
-    void handleTripRequest_withCoordinatesAndStopId_shouldNotReportResolvedLocations() {
+    @DisplayName("Coordinates are used as given and not reported; a failed name lookup keeps the ID")
+    void handleTripRequest_withCoordinatesAndUnnamedStop_shouldReportOnlyTheStopById() {
         when(geocoderService.geocodeIfNeeded("59.91,10.75"))
             .thenReturn(new Location("coordinate", 59.91, 10.75));
+        // The name is only for display, so a failed lookup must not fail the trip
+        mockWebServer.enqueue(new MockResponse.Builder().code(500).body("upstream exploded").build());
         mockWebServer.enqueue(new MockResponse.Builder()
             .code(200)
             .body(TestFixtures.createOtpTripResponse()).build());
@@ -497,7 +518,10 @@ class OtpSearchServiceTest {
         Map<String, Object> result = otpSearchService.handleTripRequest(
             "59.91,10.75", "NSR:StopPlace:337", null, null, 3, null);
 
-        assertThat(result).doesNotContainKey("resolvedLocations");
+        Map<String, Object> resolved = (Map<String, Object>) result.get("resolvedLocations");
+        assertThat(resolved).doesNotContainKey("from");
+        assertThat((Map<String, Object>) resolved.get("to"))
+            .containsEntry("name", "NSR:StopPlace:337");
     }
 
     @Test

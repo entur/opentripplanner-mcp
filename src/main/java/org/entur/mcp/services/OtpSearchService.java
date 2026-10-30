@@ -346,6 +346,14 @@ public class OtpSearchService {
     private static final int NEXT_DEPARTURE_SEARCH_WINDOW_MINUTES = 1440;
 
     /** Asks only when the next trip leaves; the caller already reported that none exist. */
+    /** The name of a stop given by ID; one of the two is null depending on the ID's type. */
+    private static final String STOP_NAME_QUERY = """
+            query stopName($id: String!) {
+                stopPlace(id: $id) { name }
+                quay(id: $id) { name }
+            }
+            """;
+
     private static final String NEXT_DEPARTURE_QUERY = """
             query nextDeparture($from: Location!, $to: Location!, $dateTime: DateTime,
                                 $searchWindow: Int, $modes: Modes) {
@@ -483,15 +491,15 @@ public class OtpSearchService {
     }
 
     /**
-     * The place the geocoder picked for a name, or empty for coordinates and stop IDs, which
-     * are used as given.
+     * The stop a name or stop ID stands for, or empty for coordinates, which are used as given.
      *
      * <p>The geocoder's first match is not always the place meant: "Hirtshals Fjordline
      * terminal" ranks the Color Line terminal first. Reporting the pick lets the model and the
-     * UI see the substitution instead of an empty result for a place nobody asked about.
+     * UI see the substitution instead of an empty result for a place nobody asked about. A
+     * stop ID is reported too, so the UI can show its name rather than the ID.
      */
     private static Optional<Map<String, Object>> resolvedLocation(String input, Location location) {
-        if (InputValidator.isNsrStopId(input) || GeocoderService.isCoordinates(input)) {
+        if (GeocoderService.isCoordinates(input)) {
             return Optional.empty();
         }
         Map<String, Object> resolved = new HashMap<>();
@@ -642,10 +650,39 @@ public class OtpSearchService {
         return response;
     }
 
+    /**
+     * The name of the stop with this ID. Best-effort, only used for display: without it the
+     * trip is still planned, and the ID stands in for the name.
+     */
+    @SuppressWarnings("unchecked")
+    private Optional<String> stopName(String stopId) {
+        try {
+            ObjectMapper mapper = new ObjectMapper();
+            HttpResponse<String> response = sendOtpGraphQlRequest(mapper.writeValueAsString(
+                Map.of("query", STOP_NAME_QUERY, "variables", Map.of("id", stopId))));
+            Map<String, Object> result = mapper.readValue(response.body(), new TypeReference<>() {});
+            if (!(result.get("data") instanceof Map<?, ?> data)) {
+                return Optional.empty();
+            }
+            for (String field : List.of("stopPlace", "quay")) {
+                if (data.get(field) instanceof Map<?, ?> stop
+                        && stop.get("name") instanceof String name && !name.isBlank()) {
+                    return Optional.of(name);
+                }
+            }
+            return Optional.empty();
+        } catch (Exception e) {
+            log.warn("Could not look up the name of stop '{}': {}", stopId, e.getMessage());
+            return Optional.empty();
+        }
+    }
+
     private Location getLocation(String locationName) {
         // A stop ID goes to OTP as is: the geocoder searches free text and finds nothing for it
         if (InputValidator.isNsrStopId(locationName)) {
-            return Location.ofStopId(locationName);
+            Location stop = Location.ofStopId(locationName);
+            stopName(locationName).ifPresent(stop::setPlace);
+            return stop;
         }
         if (locationName.startsWith("NSR:")) {
             throw new ValidationException("location",
