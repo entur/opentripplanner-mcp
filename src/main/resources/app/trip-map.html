@@ -46,11 +46,6 @@
         .strip-sep { color: var(--basecolors-text-disabled); }
         .strip-dest { color: var(--basecolors-text-accent); font-weight: 700; }
 
-        #vehicle-status { font-size: var(--font-sizes-extra-small); color: var(--basecolors-text-subdued);
-                          padding: 2px 12px 4px; min-height: 16px; flex-shrink: 0; }
-        #vehicle-status.ok  { color: var(--app-feedback-success-text); }
-        #vehicle-status.err { color: var(--app-feedback-negative-text); }
-
         #patterns { padding: 4px 0 8px; overflow-y: auto; }
 
         .pattern { margin: 4px 8px;
@@ -158,7 +153,6 @@
         /* Empty result: no map, no leg strip, just enough to say what was searched for. */
         #app.is-empty #map,
         #app.is-empty #leg-strip,
-        #app.is-empty #vehicle-status { display: none; }
         #app.is-empty #status { padding: 14px 14px 16px; text-align: left;
                                 font-size: var(--font-sizes-medium); }
         .empty-hint { margin-top: 3px; font-size: var(--font-sizes-small);
@@ -226,7 +220,6 @@
     </div>
     <div id="map"></div>
     <div id="leg-strip"></div>
-    <div id="vehicle-status"></div>
     <div id="patterns"><div id="status">Connecting…</div></div>
 </div>
 <script type="module">
@@ -339,10 +332,10 @@
         return s;
     }
 
-    const vsEl = document.getElementById("vehicle-status");
-    function setVehicleStatus(msg, cls = "") {
-        vsEl.textContent = msg;
-        vsEl.className = cls;
+    // Live-position progress is for debugging only: the vehicle marker on the map is what the
+    // user sees, and a missing position needs no explanation.
+    function setVehicleStatus(msg) {
+        console.debug("[trip-map]", msg);
     }
 
     const replanBtn = document.getElementById("replan-btn");
@@ -1137,27 +1130,27 @@
             } else if (msg.type === "next") {
                 const vehicles = msg.payload?.data?.vehicles;
                 if (vehicles?.length > 0) {
-                    setVehicleStatus("vehicle: tracking " + (vehicles[0].vehicleId || ""), "ok");
+                    setVehicleStatus("vehicle: tracking " + (vehicles[0].vehicleId || ""));
                     updateVehicleMarker(vehicles[0], leg);
                 } else {
                     setVehicleStatus("vehicle: no vehicle found for journey");
                 }
             } else if (msg.type === "complete" || msg.type === "error") {
                 const detail = msg.type === "error" ? JSON.stringify(msg.payload) : "complete";
-                setVehicleStatus("vehicle: " + detail, "err");
+                setVehicleStatus("vehicle: " + detail);
                 if (vehicleSocket === socket) { vehicleSocket = null; clearVehicleMarker(); }
             }
         };
 
         socket.onclose = (e) => {
             if (vehicleSocket === socket) {
-                setVehicleStatus("vehicle: connection closed (" + e.code + (e.reason ? " " + e.reason : "") + ")", "err");
+                setVehicleStatus("vehicle: connection closed (" + e.code + (e.reason ? " " + e.reason : "") + ")");
                 vehicleSocket = null; clearVehicleMarker();
             }
         };
         socket.onerror = (e) => {
             if (vehicleSocket === socket) {
-                setVehicleStatus("vehicle: connection error", "err");
+                setVehicleStatus("vehicle: connection error");
                 vehicleSocket = null; clearVehicleMarker();
             }
         };
@@ -1167,7 +1160,6 @@
         activeIndex = index;
         clearVehicleMarker();
         closeVehicleSubscription();
-        setVehicleStatus("");
         renderPatterns();
         const p = currentPatterns[index];
         document.getElementById("route-times").textContent =
