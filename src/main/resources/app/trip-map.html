@@ -418,8 +418,9 @@
     }
 
     // Flights carry no line code; the flight number (e.g. DY334) is on the service journey.
+    // Some lines have neither (Fjord Line, Color Line): empty, and the mode icon says what it is.
     function legCode(leg) {
-        return leg.line?.publicCode || leg.serviceJourney?.publicCode || leg.mode || "?";
+        return leg.line?.publicCode || leg.serviceJourney?.publicCode || "";
     }
 
     function legColor(leg) {
@@ -693,7 +694,7 @@
                 // A flight's destination is its arrival airport, already shown below the tag.
                 const isAir = (leg.mode || "").toLowerCase() === "air";
                 const dest = isAir ? "" : leg.fromEstimatedCall?.destinationDisplay?.frontText || "";
-                const label = dest ? `${code} ${dest}` : code;
+                const label = [code, dest].filter(Boolean).join(" ");
 
                 const emissionCo2 = leg.emission?.co2;
                 const metaParts = [];
@@ -976,7 +977,9 @@
                 const mins = Math.round((leg.duration || 0) / 60);
                 el.innerHTML = `<span class="badge" style="background:var(--basecolors-frame-subdued);border:var(--border-widths-small) solid var(--basecolors-stroke-subdued);color:var(--basecolors-text-subdued);">${t('walk_m', mins)}</span>`;
             } else {
-                const code = esc(legCode(leg));
+                // This badge has no icon of its own, so an uncoded line shows its mode icon
+                const code = esc(legCode(leg)) ||
+                    `<svg class="mini-mode-icon" viewBox="0 0 16 16" fill="currentColor" aria-hidden="true">${modeIcon(leg.mode)}</svg>`;
                 let stopsSuffix = "";
                 if (leg.intermediateEstimatedCalls !== undefined) {
                     const stops = leg.intermediateEstimatedCalls.length + 1;
