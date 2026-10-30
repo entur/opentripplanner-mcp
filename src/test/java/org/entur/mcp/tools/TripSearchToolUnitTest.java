@@ -109,6 +109,29 @@ class TripSearchToolUnitTest {
     }
 
     @Test
+    @DisplayName("Advice names the stop a name resolved to, so a wrong pick can be corrected")
+    void trip_withNoPatternsAndResolvedName_shouldNameTheStop() throws Exception {
+        Map<String, Object> response = new HashMap<>();
+        response.put("trip", Map.of("tripPatterns", List.of()));
+        response.put("resolvedLocations", Map.of("to", Map.of(
+            "name", "Hirtshals Color Line terminal", "stopId", "NSR:StopPlace:57958")));
+        when(otpSearchService.handleTripRequest(anyString(), anyString(), any(), any(), any(), any()))
+            .thenReturn(response);
+
+        Map<String, Object> payload = objectMapper.readValue(
+            textOf(tripSearchTool.trip("NSR:StopPlace:57959", "Hirtshals Fjordline terminal",
+                                       "2026-11-02T12:30:00", null, 3, "nb", null)), Map.class);
+
+        Map<String, Object> advice = (Map<String, Object>) payload.get("noTripsFound");
+        assertThat((String) advice.get("advice"))
+            .contains("'to' resolved to Hirtshals Color Line terminal (NSR:StopPlace:57958)")
+            .contains("look it up with geocode")
+            .doesNotContain("The locations resolved");
+        // The model needs the pick itself too, not only the advice
+        assertThat(payload).containsKey("resolvedLocations");
+    }
+
+    @Test
     @DisplayName("A result with trips carries no advice")
     void trip_withPatterns_shouldNotAdvise() throws Exception {
         when(otpSearchService.handleTripRequest(anyString(), anyString(), any(), any(), any(), any()))

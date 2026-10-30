@@ -228,6 +228,21 @@ public class GeocoderService {
         return (Map<String, Object>) featureObj;
     }
 
+    /** Whether {@code location} is "lat,lng" and so is used as is, without geocoding. */
+    public static boolean isCoordinates(String location) {
+        String[] coords = location.split(",");
+        if (coords.length != 2) {
+            return false;
+        }
+        try {
+            Double.parseDouble(coords[0].trim());
+            Double.parseDouble(coords[1].trim());
+            return true;
+        } catch (NumberFormatException e) {
+            return false;
+        }
+    }
+
     /**
      * Attempts to parse a location string as coordinates in "lat,lng" format.
      *

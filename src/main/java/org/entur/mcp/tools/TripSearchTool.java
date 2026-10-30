@@ -23,6 +23,7 @@ import org.springframework.core.io.Resource;
 import org.springframework.stereotype.Component;
 
 import java.io.IOException;
+import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -513,15 +514,16 @@ public class TripSearchTool {
                 + "departure, or search again with it as the departure time.";
         } else if (timed) {
             advice = "No trips were found for the requested time, and none were found within "
-                + "the following 24 hours either. The locations resolved and the query was "
-                + "valid. Repeating this search returns the same result: tell the user, and "
+                + "the following 24 hours either. " + locationsAdvice(response)
+                + "Repeating this search returns the same result: tell the user, and "
                 + "consider whether the locations are served by public transport or whether "
                 + "a transport mode filter was too narrow.";
         } else {
-            advice = "No trips were found. The locations resolved and the query was valid, so "
-                + "no route appears to exist between them. Repeating this search returns the "
-                + "same result: tell the user, and consider whether the locations are served "
-                + "by public transport or whether a transport mode filter was too narrow.";
+            advice = "No trips were found, so no route appears to exist between the locations. "
+                + locationsAdvice(response) + "Repeating this "
+                + "search returns the same result: tell the user, and consider whether the "
+                + "locations are served by public transport or whether a transport mode "
+                + "filter was too narrow.";
         }
 
         Map<String, Object> result = new HashMap<>();
@@ -531,6 +533,29 @@ public class TripSearchTool {
             result.put("nextDepartureTime", next);
         }
         return Optional.of(result);
+    }
+
+    /**
+     * Names the places the geocoder picked, so the model can check them against what the user
+     * meant: a name can resolve to a different stop nearby, and then no amount of retrying the
+     * same text helps.
+     */
+    @SuppressWarnings("unchecked")
+    private static String locationsAdvice(Map<String, Object> response) {
+        if (!(response.get("resolvedLocations") instanceof Map<?, ?> resolved) || resolved.isEmpty()) {
+            return "The locations resolved and the query was valid. ";
+        }
+        List<String> picks = new ArrayList<>();
+        for (String field : List.of("from", "to")) {
+            if (resolved.get(field) instanceof Map<?, ?> r) {
+                Map<String, Object> place = (Map<String, Object>) r;
+                picks.add("'" + field + "' resolved to " + place.get("name")
+                    + (place.get("stopId") != null ? " (" + place.get("stopId") + ")" : ""));
+            }
+        }
+        return "The query was valid; " + String.join(" and ", picks) + ". If that is not the "
+            + "place the user meant, look it up with geocode and search again with the right "
+            + "NSR:StopPlace ID. ";
     }
 
     private String toErrorJson(ErrorResponse errorResponse) {

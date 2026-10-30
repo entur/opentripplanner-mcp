@@ -445,6 +445,13 @@ public class OtpSearchService {
 
         rejectUnknownLocation(data, from, to);
 
+        Map<String, Object> resolved = new HashMap<>();
+        resolvedLocation(from, fromLocation).ifPresent(r -> resolved.put("from", r));
+        resolvedLocation(to, toLocation).ifPresent(r -> resolved.put("to", r));
+        if (!resolved.isEmpty()) {
+            data.put("resolvedLocations", resolved);
+        }
+
         log.info("Successfully planned trip from '{}' to '{}'", fromLocation.getPlace(), toLocation.getPlace());
 
         // An empty result for a requested time usually means nothing runs then rather than
@@ -473,6 +480,26 @@ public class OtpSearchService {
                 "longitude", location.getLongitude()));
         }
         return input;
+    }
+
+    /**
+     * The place the geocoder picked for a name, or empty for coordinates and stop IDs, which
+     * are used as given.
+     *
+     * <p>The geocoder's first match is not always the place meant: "Hirtshals Fjordline
+     * terminal" ranks the Color Line terminal first. Reporting the pick lets the model and the
+     * UI see the substitution instead of an empty result for a place nobody asked about.
+     */
+    private static Optional<Map<String, Object>> resolvedLocation(String input, Location location) {
+        if (InputValidator.isNsrStopId(input) || GeocoderService.isCoordinates(input)) {
+            return Optional.empty();
+        }
+        Map<String, Object> resolved = new HashMap<>();
+        resolved.put("name", location.getPlace());
+        if (location.getStopId() != null) {
+            resolved.put("stopId", location.getStopId());
+        }
+        return Optional.of(resolved);
     }
 
     /**

@@ -1206,8 +1206,13 @@
     function render(data) {
         const query = data.query || {};
         const header = document.getElementById("route-label");
-        header.querySelector(".eds-travel-header__from").textContent = query.from || t('from_fallback');
-        header.querySelector(".eds-travel-header__to").textContent = query.to || t('to_fallback');
+        // The geocoded name rather than the text searched for: a name can resolve to a different
+        // stop nearby, and the header is where the user can see that it did.
+        const resolved = data.resolvedLocations || {};
+        header.querySelector(".eds-travel-header__from").textContent =
+            resolved.from?.name || query.from || t('from_fallback');
+        header.querySelector(".eds-travel-header__to").textContent =
+            resolved.to?.name || query.to || t('to_fallback');
 
         currentPatterns = data.trip?.tripPatterns || [];
         if (currentPatterns.length === 0) {

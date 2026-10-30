@@ -16,6 +16,11 @@ MCP server for OpenTripPlanner's transmodel GraphQL API. Java/Spring Boot with M
   geocoder, and a geocoded stop keeps its ID. A coordinate must first be linked to OTP's street
   network, which fails where there is none (the Fjord Line terminals in Denmark). OTP then
   reports `locationNotFound`, which the MCP turns into an error rather than an empty result.
+- `trip` reports the place the geocoder picked for each name in `resolvedLocations` (name and
+  stop ID); coordinates and stop IDs are used as given and get no entry. The geocoder's first hit
+  is not always the place meant ("Hirtshals Fjordline terminal" ranks the Color Line terminal
+  first), so the UI header shows the resolved name and the `noTripsFound` advice names the stops
+  and points the model at `geocode`. `query.from`/`to` stay as typed: re-planning resends them.
 - `nearby-mobility` hoists repeated `system` objects into a top-level `systems` map keyed by system id;
   items carry `systemId` instead of `system`
 - `src/main/resources/app/entur-tokens.css` and `entur-travel.css` are **generated — do not hand-edit**.

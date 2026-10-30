@@ -466,6 +466,41 @@ class OtpSearchServiceTest {
     }
 
     @Test
+    @DisplayName("The result names the stop a geocoded name resolved to")
+    void handleTripRequest_withGeocodedName_shouldReportResolvedLocation() {
+        // The geocoder ranks the Color Line terminal first for this text
+        when(geocoderService.geocodeIfNeeded("Hirtshals Fjordline terminal"))
+            .thenReturn(new Location("Hirtshals Color Line terminal", 57.592936, 9.96836,
+                "NSR:StopPlace:57958"));
+        mockWebServer.enqueue(new MockResponse.Builder().code(200).body(EMPTY_TRIP).build());
+
+        Map<String, Object> result = otpSearchService.handleTripRequest(
+            "NSR:StopPlace:57959", "Hirtshals Fjordline terminal", null, null, 3, null);
+
+        Map<String, Object> resolved = (Map<String, Object>) result.get("resolvedLocations");
+        assertThat((Map<String, Object>) resolved.get("to"))
+            .containsEntry("name", "Hirtshals Color Line terminal")
+            .containsEntry("stopId", "NSR:StopPlace:57958");
+        // A stop ID is used as given, so there is nothing to report
+        assertThat(resolved).doesNotContainKey("from");
+    }
+
+    @Test
+    @DisplayName("Coordinates and stop IDs are used as given and not reported as resolved")
+    void handleTripRequest_withCoordinatesAndStopId_shouldNotReportResolvedLocations() {
+        when(geocoderService.geocodeIfNeeded("59.91,10.75"))
+            .thenReturn(new Location("coordinate", 59.91, 10.75));
+        mockWebServer.enqueue(new MockResponse.Builder()
+            .code(200)
+            .body(TestFixtures.createOtpTripResponse()).build());
+
+        Map<String, Object> result = otpSearchService.handleTripRequest(
+            "59.91,10.75", "NSR:StopPlace:337", null, null, 3, null);
+
+        assertThat(result).doesNotContainKey("resolvedLocations");
+    }
+
+    @Test
     @DisplayName("OTP's locationNotFound becomes an error naming the location, not an empty result")
     void handleTripRequest_withLocationNotFound_shouldThrowNamingTheLocation() {
         geocodeOsloToAsker();
