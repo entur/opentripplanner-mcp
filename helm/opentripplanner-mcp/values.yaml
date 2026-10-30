@@ -1,7 +1,7 @@
 common:
   app: opentripplanner-mcp
   shortname: otpmcp
-  team: team-ror
+  team: ror
   ingress:
     enabled: true
     trafficType: api
