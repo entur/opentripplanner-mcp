@@ -52,6 +52,9 @@ MCP server for OpenTripPlanner's transmodel GraphQL API. Java/Spring Boot with M
   every option. OTP returns each summary in all languages and repeats a disruption across every leg
   it touches, so the app picks by `language` and de-duplicates on `situationNumber`.
 - `language` parameter (`required = true`) on `trip`, `departures`, `nearby-stops` — detect from conversation context; `LanguageUtil.normalize()` accepts `en`, `nb`, `nn`, defaults to `en`
+- Deployed pods do NOT read `src/main/resources/application.properties`: `JDK_JAVA_OPTIONS` sets
+  `spring.config.location` to the file from `helm/opentripplanner-mcp/templates/configmap.yaml`,
+  which replaces it. A setting needed in the cluster must be added to the configmap as well.
 - What the user typed (place names, addresses, coordinates, stop IDs) is logged at DEBUG only,
   never INFO/WARN/ERROR: it can be a home address or a live position. Exception messages that
   quote it (geocoding, `locationNotFound`) go to the model but reach the logs via `ToolLog` at

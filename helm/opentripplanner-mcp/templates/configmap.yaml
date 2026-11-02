@@ -26,6 +26,8 @@ data:
 
       # Metrics Configuration
       management.metrics.tags.application=opentripplanner-mcp
+      # Latency buckets for the tool timer (the dashboard's percentiles): see application.properties
+      management.metrics.distribution.slo.mcp.tool.calls=250ms,500ms,1s,2s,5s,10s
 
       org.entur.otp.url={{ .Values.configmap.urls.otp }}
       org.entur.geocoder.url={{ .Values.configmap.urls.geocoder }}
