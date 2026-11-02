@@ -665,6 +665,65 @@ class OtpSearchServiceTest {
         assertThat(result).containsEntry("startTime", "2026-11-03T05:00:00");
     }
 
+    private static String boardCall(String time, String mode, String submode, String line) {
+        return """
+            {"expectedDepartureTime":"2026-11-02T%s:00+01:00",
+             "serviceJourney":{"transportMode":"%s","transportSubmode":"%s",
+                               "line":{"publicCode":"%s","transportMode":"%s"}}}
+            """.formatted(time, mode, submode, line, "bus".equals(mode) && line.startsWith("RE") ? "rail" : mode);
+    }
+
+    @Test
+    @DisplayName("A rail filter also fetches buses, then keeps only rail replacement buses")
+    @SuppressWarnings("unchecked")
+    void handleDepartureBoardRequest_withRail_keepsReplacementBusesOnly() throws Exception {
+        // whiteListedModes takes no submodes, so rail replacement buses are fetched as buses
+        String calls = String.join(",",
+            boardCall("11:55", "bus", "localBus", "31"),
+            boardCall("12:06", "bus", "railReplacementBus", "RE11"),
+            boardCall("12:10", "bus", "localBus", "30"),
+            boardCall("12:20", "rail", "regionalRail", "RE10"),
+            boardCall("12:21", "bus", "railReplacementBus", "RE11"));
+        mockWebServer.enqueue(new MockResponse.Builder().code(200).body("""
+            {"data":{"stopPlace":{"id":"NSR:StopPlace:58870","name":"Holmestrand stasjon",
+              "departures":[%s],"arrivals":[%s]}}}
+            """.formatted(calls, calls)).build());
+
+        Map<String, Object> result = otpSearchService.handleDepartureBoardRequest(
+            "NSR:StopPlace:58870", 2, null, 60, List.of("rail"));
+
+        JsonNode variables = variables(mockWebServer.takeRequest());
+        assertThat(variables.get("whiteListedModes")).extracting(JsonNode::asText).containsExactly("rail", "bus");
+        assertThat(variables.get("numberOfDepartures").asInt()).isEqualTo(8);
+
+        Map<String, Object> stopPlace = (Map<String, Object>) result.get("stopPlace");
+        for (String list : List.of("departures", "arrivals")) {
+            assertThat((List<Map<String, Object>>) stopPlace.get(list))
+                .extracting(c -> ((String) c.get("expectedDepartureTime")).substring(11, 16))
+                .containsExactly("12:06", "12:20");
+        }
+        // The board refreshes with the filter as asked, not with the added bus
+        assertThat(result.get("transportModes")).isEqualTo(List.of("rail"));
+    }
+
+    @Test
+    @DisplayName("Rail and bus together need nothing added or dropped")
+    @SuppressWarnings("unchecked")
+    void handleDepartureBoardRequest_withRailAndBus_keepsAllBuses() throws Exception {
+        mockWebServer.enqueue(new MockResponse.Builder().code(200).body("""
+            {"data":{"stopPlace":{"id":"NSR:StopPlace:58870","name":"Holmestrand stasjon",
+              "departures":[%s],"arrivals":[]}}}
+            """.formatted(boardCall("11:55", "bus", "localBus", "31"))).build());
+
+        Map<String, Object> result = otpSearchService.handleDepartureBoardRequest(
+            "NSR:StopPlace:58870", 2, null, 60, List.of("rail", "bus"));
+
+        JsonNode variables = variables(mockWebServer.takeRequest());
+        assertThat(variables.get("whiteListedModes")).extracting(JsonNode::asText).containsExactly("rail", "bus");
+        assertThat(variables.get("numberOfDepartures").asInt()).isEqualTo(2);
+        assertThat((List<?>) ((Map<String, Object>) result.get("stopPlace")).get("departures")).hasSize(1);
+    }
+
     @Test
     @DisplayName("Should include arrivals and departures aliases in GraphQL query")
     void handleDepartureBoardRequest_queryIncludesArrivalsAndDepartures() throws Exception {

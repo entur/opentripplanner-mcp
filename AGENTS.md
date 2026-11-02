@@ -13,7 +13,9 @@ MCP server for OpenTripPlanner's transmodel GraphQL API. Java/Spring Boot with M
 - `trip` accepts `transportModes`; when set, the OTP `modes:` block MUST also carry
   `accessMode`/`egressMode`/`directMode: foot` or OTP returns zero trip patterns. A `rail` filter
   also sends `bus` with submode `railReplacementBus`: OTP filters on each trip's own mode, and a
-  replaced train is a bus trip on the rail line, so `rail` alone finds nothing during a closure
+  replaced train is a bus trip on the rail line, so `rail` alone finds nothing during a closure.
+  `departures` does the same, but its `whiteListedModes` takes no submodes: it fetches buses too
+  (asking for 4x the departures) and drops every bus that is not a replacement bus
 - `trip` sends stops to OTP by ID in `place`, not as coordinates: an NSR ID input skips the
   geocoder, and a geocoded stop keeps its ID. A coordinate must first be linked to OTP's street
   network, which fails where there is none (the Fjord Line terminals in Denmark). OTP then

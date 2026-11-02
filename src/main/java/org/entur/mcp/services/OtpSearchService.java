@@ -196,6 +196,8 @@ public class OtpSearchService {
                   serviceJourney {
                     id
                     publicCode
+                    transportMode
+                    transportSubmode
                     line {
                       id
                       publicCode
@@ -346,6 +348,9 @@ public class OtpSearchService {
 
     /** A day, so an overnight gap or a service that only runs next morning is still found. */
     private static final int NEXT_DEPARTURE_SEARCH_WINDOW_MINUTES = 1440;
+    /** How many times the requested departures to fetch when ordinary buses will be dropped. */
+    private static final int REPLACEMENT_BUS_OVERFETCH = 4;
+    private static final int MAX_OVERFETCHED_DEPARTURES = 100;
 
     /** Asks only when the next trip leaves; the caller already reported that none exist. */
     /** The name of a stop given by ID; one of the two is null depending on the ID's type. */
@@ -735,9 +740,18 @@ public class OtpSearchService {
         log.debug("Fetching departures for stop '{}' (numDepartures: {}, timeRange: {} min)",
             stopId, validatedNumDepartures, validatedTimeRange);
 
+        // OTP's whiteListedModes takes modes only, no submodes, so a rail filter cannot ask for
+        // rail replacement buses directly (see modesInput for why it should get them). Ask for
+        // buses too and keep only the replacement ones; ordinary buses take up some of the
+        // requested departures, so ask for more and trim afterwards.
+        boolean admitReplacementBuses = validatedModes != null
+            && validatedModes.contains("rail") && !validatedModes.contains("bus");
+
         Map<String, Object> variables = new HashMap<>();
         variables.put("id", stopId);
-        variables.put("numberOfDepartures", validatedNumDepartures);
+        variables.put("numberOfDepartures", admitReplacementBuses
+            ? Math.min(validatedNumDepartures * REPLACEMENT_BUS_OVERFETCH, MAX_OVERFETCHED_DEPARTURES)
+            : validatedNumDepartures);
         // Convert timeRange from minutes to seconds
         variables.put("timeRange", validatedTimeRange * 60);
         if (startTime != null && !startTime.isEmpty()) {
@@ -745,7 +759,11 @@ public class OtpSearchService {
             variables.put("startTime", startTime);
         }
         if (validatedModes != null && !validatedModes.isEmpty()) {
-            variables.put("whiteListedModes", validatedModes);
+            List<String> whiteListed = new ArrayList<>(validatedModes);
+            if (admitReplacementBuses) {
+                whiteListed.add("bus");
+            }
+            variables.put("whiteListedModes", whiteListed);
         }
 
         log.debug("Executing departure board query for stop '{}'", stopId);
@@ -792,6 +810,10 @@ public class OtpSearchService {
             throw new TripPlanningException("No departure data returned from API");
         }
 
+        if (admitReplacementBuses) {
+            keepOnlyReplacementBuses(data, validatedNumDepartures);
+        }
+
         Map<String, Object> enriched = new HashMap<>(data);
         enriched.put("numberOfDepartures", validatedNumDepartures);
         enriched.put("timeRangeMinutes", validatedTimeRange);
@@ -806,6 +828,33 @@ public class OtpSearchService {
 
         log.debug("Successfully fetched departures for stop '{}'", stopId);
         return enriched;
+    }
+
+    /**
+     * Drops the ordinary buses from a board fetched with buses added for a rail filter, keeping
+     * rail replacement buses, and trims each list back to the number asked for.
+     */
+    @SuppressWarnings("unchecked")
+    private static void keepOnlyReplacementBuses(Map<String, Object> data, int numberOfDepartures) {
+        if (!(data.get("stopPlace") instanceof Map<?, ?> stopPlaceObj)) {
+            return;
+        }
+        Map<String, Object> stopPlace = (Map<String, Object>) stopPlaceObj;
+        for (String list : List.of("departures", "arrivals")) {
+            if (stopPlace.get(list) instanceof List<?> calls) {
+                stopPlace.put(list, calls.stream()
+                    .filter(call -> !isOrdinaryBus(call))
+                    .limit(numberOfDepartures)
+                    .toList());
+            }
+        }
+    }
+
+    private static boolean isOrdinaryBus(Object call) {
+        return call instanceof Map<?, ?> c
+            && c.get("serviceJourney") instanceof Map<?, ?> journey
+            && "bus".equals(journey.get("transportMode"))
+            && !"railReplacementBus".equals(journey.get("transportSubmode"));
     }
 
     public Map<String, Object> handleSituationsRequest(List<String> severities) {
