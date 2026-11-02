@@ -344,6 +344,8 @@
             if (data.numberOfDepartures != null) currentParams.numberOfDepartures = data.numberOfDepartures;
             if (data.timeRangeMinutes != null) currentParams.timeRangeMinutes = data.timeRangeMinutes;
             if (data.transportModes != null) currentParams.transportModes = data.transportModes;
+            // Without it, a board asked for a later time ("tomorrow morning") shows now on refresh
+            if (data.startTime) currentParams.startTime = data.startTime;
             refreshBtn.disabled = false;
             refreshBtn.textContent = t('refresh');
             updateTabLabels();
@@ -385,8 +387,13 @@
         if (!currentParams.stop) return;
         refreshBtn.disabled = true;
         refreshBtn.textContent = t('refreshing');
+        // Keep a requested later time until it has passed, then follow now: a board left open
+        // past that time would otherwise only ever show departures that have already gone.
+        // A time without an offset parses as local time, which is what the model meant.
+        const args = { ...currentParams };
+        if (args.startTime && !(new Date(args.startTime) > new Date())) delete args.startTime;
         try {
-            const result = await app.callServerTool({ name: "poll-departures", arguments: currentParams });
+            const result = await app.callServerTool({ name: "poll-departures", arguments: args });
             applyToolResult(result);
         } catch (e) {
             refreshBtn.disabled = false;

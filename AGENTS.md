@@ -11,7 +11,9 @@ MCP server for OpenTripPlanner's transmodel GraphQL API. Java/Spring Boot with M
 - Each app HTML file carries an identical `graftUiMeta()` helper that puts the `_meta` fields back
   before rendering, and degrades gracefully when `_meta` is absent (hosts may strip it)
 - `trip` accepts `transportModes`; when set, the OTP `modes:` block MUST also carry
-  `accessMode`/`egressMode`/`directMode: foot` or OTP returns zero trip patterns
+  `accessMode`/`egressMode`/`directMode: foot` or OTP returns zero trip patterns. A `rail` filter
+  also sends `bus` with submode `railReplacementBus`: OTP filters on each trip's own mode, and a
+  replaced train is a bus trip on the rail line, so `rail` alone finds nothing during a closure
 - `trip` sends stops to OTP by ID in `place`, not as coordinates: an NSR ID input skips the
   geocoder, and a geocoded stop keeps its ID. A coordinate must first be linked to OTP's street
   network, which fails where there is none (the Fjord Line terminals in Denmark). OTP then

@@ -21,6 +21,7 @@ import java.net.http.HttpClient;
 import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
 import java.time.Duration;
+import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -550,18 +551,29 @@ public class OtpSearchService {
      * The {@code modes} argument, or null when not filtering so the argument is left out.
      * All four fields are required: with a null accessMode/egressMode OTP only considers
      * transit boardable at the exact origin coordinate and returns zero trip patterns.
+     *
+     * <p>A rail filter also admits rail replacement buses. OTP filters on each trip's own mode,
+     * and a replaced train runs as {@code bus}/{@code railReplacementBus} on the rail line, so
+     * "rail" alone finds no trip at all while the line is closed - though to the traveller it
+     * is still the train. Not added when plain bus is requested too: that already covers it,
+     * and a second bus entry limited to a submode could narrow buses down to that submode.
      */
     private static Map<String, Object> modesInput(List<String> validatedModes) {
         if (validatedModes == null || validatedModes.isEmpty()) {
             return null;
         }
+        List<Map<String, Object>> transportModes = new ArrayList<>();
+        validatedModes.forEach(m -> transportModes.add(Map.of("transportMode", m)));
+        if (validatedModes.contains("rail") && !validatedModes.contains("bus")) {
+            transportModes.add(Map.of(
+                "transportMode", "bus",
+                "transportSubModes", List.of("railReplacementBus")));
+        }
         return Map.of(
             "accessMode", "foot",
             "egressMode", "foot",
             "directMode", "foot",
-            "transportModes", validatedModes.stream()
-                .map(m -> Map.of("transportMode", m))
-                .toList());
+            "transportModes", transportModes);
     }
 
     @SuppressWarnings("unchecked")
@@ -785,6 +797,11 @@ public class OtpSearchService {
         enriched.put("timeRangeMinutes", validatedTimeRange);
         if (validatedModes != null && !validatedModes.isEmpty()) {
             enriched.put("transportModes", validatedModes);
+        }
+        // The departure board refreshes with what is echoed here: without the start time, a
+        // board asked for "tomorrow morning" switches to now on its first refresh
+        if (startTime != null && !startTime.isEmpty()) {
+            enriched.put("startTime", startTime);
         }
 
         log.debug("Successfully fetched departures for stop '{}'", stopId);

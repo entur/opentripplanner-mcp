@@ -649,6 +649,20 @@ class OtpSearchServiceTest {
 
         assertThat(result).isNotNull();
         assertThat(result).containsKey("stopPlace");
+        assertThat(result).doesNotContainKey("startTime");
+    }
+
+    @Test
+    @DisplayName("Echoes the start time, so the board's refresh keeps asking for that time")
+    void handleDepartureBoardRequest_withStartTime_echoesIt() {
+        mockWebServer.enqueue(new MockResponse.Builder()
+            .code(200)
+            .body(TestFixtures.createDepartureBoardResponse()).build());
+
+        Map<String, Object> result = otpSearchService.handleDepartureBoardRequest(
+            "NSR:StopPlace:337", 10, "2026-11-03T05:00:00", 60, null);
+
+        assertThat(result).containsEntry("startTime", "2026-11-03T05:00:00");
     }
 
     @Test
@@ -956,7 +970,23 @@ class OtpSearchServiceTest {
         assertThat(modes.get("accessMode").asText()).isEqualTo("foot");
         assertThat(modes.get("egressMode").asText()).isEqualTo("foot");
         assertThat(modes.get("directMode").asText()).isEqualTo("foot");
-        assertThat(modes.get("transportModes").toString()).isEqualTo("[{\"transportMode\":\"rail\"}]");
+        assertThat(modes.get("transportModes").get(0).toString()).isEqualTo("{\"transportMode\":\"rail\"}");
+    }
+
+    @Test
+    @DisplayName("A rail filter also admits rail replacement buses")
+    void handleTripRequest_withRail_alsoAdmitsReplacementBuses() throws Exception {
+        // A replaced train runs as bus/railReplacementBus, so rail alone finds no trip
+        when(geocoderService.geocodeIfNeeded(anyString()))
+            .thenReturn(TestFixtures.createOsloLocation());
+        mockWebServer.enqueue(new MockResponse.Builder()
+            .code(200).body(TestFixtures.createOtpTripResponse()).build());
+
+        otpSearchService.handleTripRequest("Oslo", "Asker", null, null, 3, List.of("rail", "tram"));
+
+        assertThat(variables(mockWebServer.takeRequest()).get("modes").get("transportModes").toString())
+            .isEqualTo("[{\"transportMode\":\"rail\"},{\"transportMode\":\"tram\"},"
+                + "{\"transportMode\":\"bus\",\"transportSubModes\":[\"railReplacementBus\"]}]");
     }
 
     @Test
