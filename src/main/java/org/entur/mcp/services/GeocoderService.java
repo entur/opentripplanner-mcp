@@ -61,7 +61,7 @@ public class GeocoderService {
         InputValidator.validateLocation(text, "text");
         int validatedMaxResults = InputValidator.validateAndNormalizeMaxResults(maxResults, 10);
 
-        log.info("Geocoding location: '{}' (maxResults: {})", text, validatedMaxResults);
+        log.debug("Geocoding location: '{}' (maxResults: {})", text, validatedMaxResults);
 
         // Create the geocoder URL with parameters
         String encodedText = URLEncoder.encode(text, StandardCharsets.UTF_8);
@@ -80,18 +80,19 @@ public class GeocoderService {
         try {
             response = client.send(request, HttpResponse.BodyHandlers.ofString());
         } catch (IOException e) {
-            log.error("IO error during geocoding request for '{}': {}", text, e.getMessage());
+            log.error("IO error during geocoding request: {}", e.getMessage());
             throw new GeocodingException(text, "Network error while geocoding location", e);
         } catch (InterruptedException e) {
             Thread.currentThread().interrupt();
-            log.error("Geocoding request interrupted for '{}'", text);
+            log.error("Geocoding request interrupted");
             throw new GeocodingException(text, "Geocoding request was interrupted", e);
         }
 
         // Check status code
         if (response.statusCode() != 200) {
-            log.error("Geocoder API returned status {} for '{}': {}",
-                response.statusCode(), text, response.body());
+            // The body echoes the query text, so it is for DEBUG only
+            log.error("Geocoder API returned status {}", response.statusCode());
+            log.debug("Geocoder API response body: {}", response.body());
             throw new GeocodingException(text,
                 String.format("Geocoder API returned status %d", response.statusCode()));
         }
@@ -103,7 +104,7 @@ public class GeocoderService {
             result = objectMapper.readValue(response.body(),
                     new TypeReference<>() {});
         } catch (JsonProcessingException e) {
-            log.error("Error parsing geocoder response for '{}': {}", text, e.getMessage());
+            log.error("Error parsing geocoder response: {}", e.getMessage());
             throw new GeocodingException(text, "Invalid response format from geocoder API", e);
         }
 
@@ -162,7 +163,7 @@ public class GeocoderService {
         String stopId = properties.get("id") instanceof String id && InputValidator.isNsrStopId(id)
             ? id : null;
 
-        log.info("Successfully geocoded '{}' to '{}' (lat={}, lng={}, stopId={})",
+        log.debug("Successfully geocoded '{}' to '{}' (lat={}, lng={}, stopId={})",
             location, name, lat, lng, stopId);
         return new Location(name, lat, lng, stopId);
     }
@@ -199,7 +200,7 @@ public class GeocoderService {
             throw new GeocodingException(input, "No stop ID found for location");
         }
 
-        log.info("Resolved '{}' to stop ID: {}", input, stopId);
+        log.debug("Resolved '{}' to stop ID: {}", input, stopId);
         return stopId;
     }
 

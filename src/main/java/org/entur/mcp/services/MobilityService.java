@@ -187,7 +187,8 @@ public class MobilityService {
 
     private Map<String, Object> parseResponse(HttpResponse<String> response) {
         if (response.statusCode() != 200) {
-            log.error("Mobility API returned status {}: {}", response.statusCode(), response.body());
+            log.error("Mobility API returned status {}", response.statusCode());
+            log.debug("Mobility API response body: {}", response.body());
             throw new MobilityException(
                 String.format("Mobility API returned status %d", response.statusCode()));
         }
@@ -201,7 +202,8 @@ public class MobilityService {
         if (parsed.containsKey("errors")) {
             List<?> errors = (List<?>) parsed.get("errors");
             if (errors != null && !errors.isEmpty()) {
-                log.error("Mobility GraphQL returned errors: {}", errors);
+                log.error("Mobility GraphQL returned {}", GraphQlErrors.summary(errors));
+                log.debug("Mobility GraphQL errors: {}", errors);
                 throw new MobilityException("Mobility query failed");
             }
         }

@@ -2,6 +2,11 @@ package org.entur.mcp.model;
 
 import io.swagger.v3.oas.annotations.media.Schema;
 
+import org.entur.mcp.exception.GeocodingException;
+import org.entur.mcp.exception.MobilityException;
+import org.entur.mcp.exception.TripPlanningException;
+import org.entur.mcp.exception.ValidationException;
+
 import java.util.HashMap;
 import java.util.Map;
 
@@ -47,6 +52,18 @@ public class ErrorResponse {
 
     public static ErrorResponse genericError(String message) {
         return new ErrorResponse("ERROR", message, "Exception", new HashMap<>());
+    }
+
+    /**
+     * The response for an exception thrown while handling a tool call. Unexpected exceptions get
+     * a generic message: theirs may expose internals.
+     */
+    public static ErrorResponse from(Exception e) {
+        if (e instanceof ValidationException v) return validationError(v.getField(), v.getMessage());
+        if (e instanceof GeocodingException g) return geocodingError(g.getLocation(), g.getMessage());
+        if (e instanceof TripPlanningException) return tripPlanningError(e.getMessage());
+        if (e instanceof MobilityException) return mobilityError(e.getMessage());
+        return genericError("An unexpected error occurred");
     }
 
     public String getError() {

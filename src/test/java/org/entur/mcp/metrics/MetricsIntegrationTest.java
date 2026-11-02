@@ -225,4 +225,27 @@ class MetricsIntegrationTest {
             .isNotEmpty()
             .allSatisfy(c -> assertThat(c.getId().getTag("client_name")).isNull());
     }
+
+    @Test
+    void mcpToolCall_shouldCountByToolAndClientType() throws Exception {
+        when(geocoderService.handleGeocodeRequest(any(), anyInt()))
+            .thenReturn(Map.of("features", List.of(Map.of())));
+
+        mockMvc.perform(org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post("/mcp")
+                .contentType("application/json")
+                .header("Accept", "application/json, text/event-stream")
+                .header("User-Agent", "Claude-User")
+                .content("""
+                    {"jsonrpc":"2.0","id":1,"method":"tools/call",
+                     "params":{"name":"geocode","arguments":{"text":"Oslo","maxResults":1}}}
+                    """))
+            .andExpect(status().isOk());
+
+        var timer = meterRegistry.find(ToolMetrics.TOOL_CALLS)
+            .tag("tool", "geocode")
+            .tag("outcome", "ok")
+            .timer();
+        assertThat(timer).isNotNull();
+        assertThat(timer.getId().getTag("client_type")).isEqualTo("claude");
+    }
 }

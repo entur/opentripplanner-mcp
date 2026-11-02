@@ -6,6 +6,8 @@ import org.entur.mcp.TestFixtures;
 import org.entur.mcp.exception.GeocodingException;
 import org.entur.mcp.exception.TripPlanningException;
 import org.entur.mcp.exception.ValidationException;
+import org.entur.mcp.metrics.ToolMetrics;
+import io.micrometer.core.instrument.simple.SimpleMeterRegistry;
 import org.entur.mcp.services.GeocoderService;
 import org.entur.mcp.services.OtpSearchService;
 import org.junit.jupiter.api.BeforeEach;
@@ -43,10 +45,13 @@ class TripSearchToolUnitTest {
 
     private TripSearchTool tripSearchTool;
     private ObjectMapper objectMapper;
+    private SimpleMeterRegistry meterRegistry;
 
     @BeforeEach
     void setUp() {
-        tripSearchTool = new TripSearchTool(otpSearchService, geocoderService, "wss://test.example.com/vehicles",
+        meterRegistry = new SimpleMeterRegistry();
+        tripSearchTool = new TripSearchTool(otpSearchService, geocoderService,
+            new ToolMetrics(meterRegistry), "wss://test.example.com/vehicles",
             "test-vehicles-client");
         objectMapper = new ObjectMapper();
     }
@@ -823,5 +828,117 @@ class TripSearchToolUnitTest {
 
         Map<String, Object> parsed = objectMapper.readValue(result, Map.class);
         assertThat(parsed).containsEntry("language", "nn");
+    }
+
+    // ==================== Metrics ====================
+
+    private double toolCalls(String tool, String outcome) {
+        var timer = meterRegistry.find(ToolMetrics.TOOL_CALLS)
+            .tag("tool", tool).tag("outcome", outcome).timer();
+        return timer == null ? 0 : timer.count();
+    }
+
+    @Test
+    @DisplayName("A trip with results counts as ok, tagged with tool, language and client type")
+    void trip_metrics_ok() {
+        when(otpSearchService.handleTripRequest(anyString(), anyString(), any(), any(), any(), any()))
+            .thenReturn(new HashMap<>(Map.of("trip", Map.of("tripPatterns", List.of(Map.of())))));
+
+        tripSearchTool.trip("Oslo S", "NSR:StopPlace:337", null, null, 3, "nb", List.of("rail"));
+
+        var timer = meterRegistry.find(ToolMetrics.TOOL_CALLS)
+            .tags("tool", "trip", "outcome", "ok", "language", "nb", "client_type", "unknown").timer();
+        assertThat(timer).isNotNull();
+        assertThat(timer.count()).isEqualTo(1);
+        assertThat(meterRegistry.find(ToolMetrics.TRIP_LOCATIONS)
+            .tags("field", "from", "kind", "name").counter().count()).isEqualTo(1);
+        assertThat(meterRegistry.find(ToolMetrics.TRIP_LOCATIONS)
+            .tags("field", "to", "kind", "stop_id").counter().count()).isEqualTo(1);
+        assertThat(meterRegistry.find(ToolMetrics.TRIP_SEARCHES)
+            .tags("tool", "trip", "time", "now", "modes_filtered", "true", "next_departure", "not_run")
+            .counter().count()).isEqualTo(1);
+    }
+
+    @Test
+    @DisplayName("An empty departure-timed trip records no_results and whether a next departure was found")
+    void trip_metrics_noResultsWithNextDeparture() {
+        Map<String, Object> response = new HashMap<>();
+        response.put("trip", Map.of("tripPatterns", List.of()));
+        response.put("nextDepartureTime", "2026-08-20T05:22:28+02:00");
+        when(otpSearchService.handleTripRequest(anyString(), anyString(), any(), any(), any(), any()))
+            .thenReturn(response);
+
+        tripSearchTool.trip("59.9,10.7", "Asker", "2026-08-20T03:15:00", null, 3, "en", null);
+
+        assertThat(toolCalls("trip", "no_results")).isEqualTo(1);
+        assertThat(meterRegistry.find(ToolMetrics.TRIP_LOCATIONS)
+            .tags("field", "from", "kind", "coordinates").counter().count()).isEqualTo(1);
+        assertThat(meterRegistry.find(ToolMetrics.TRIP_SEARCHES)
+            .tags("time", "departure", "modes_filtered", "false", "next_departure", "found")
+            .counter().count()).isEqualTo(1);
+    }
+
+    @Test
+    @DisplayName("poll-trip is counted as its own tool, not as trip")
+    void pollTrip_metrics_countedSeparately() {
+        when(otpSearchService.handleTripRequest(anyString(), anyString(), any(), any(), any(), any()))
+            .thenReturn(new HashMap<>(Map.of("trip", Map.of("tripPatterns", List.of(Map.of())))));
+
+        tripSearchTool.pollTrip("A", "B", null, null, 3, "en", null);
+
+        assertThat(toolCalls("poll-trip", "ok")).isEqualTo(1);
+        assertThat(toolCalls("trip", "ok")).isZero();
+    }
+
+    @Test
+    @DisplayName("Failures are counted by kind")
+    void metrics_failuresByKind() {
+        when(otpSearchService.handleTripRequest(anyString(), anyString(), any(), any(), any(), any()))
+            .thenThrow(new GeocodingException("Nowhere", "No locations found for: Nowhere"));
+        when(geocoderService.resolveStopId(anyString()))
+            .thenThrow(new TripPlanningException("Trip planning API returned status 502"));
+
+        tripSearchTool.trip("Nowhere", "B", null, null, 3, "en", null);
+        tripSearchTool.departures("Oslo S", 5, null, 60, null, "en");
+
+        assertThat(toolCalls("trip", "geocoding_error")).isEqualTo(1);
+        assertThat(toolCalls("departures", "upstream_error")).isEqualTo(1);
+    }
+
+    @Test
+    @DisplayName("No tag carries what the user typed")
+    void metrics_neverTagUserInput() {
+        when(otpSearchService.handleTripRequest(anyString(), anyString(), any(), any(), any(), any()))
+            .thenReturn(new HashMap<>(Map.of("trip", Map.of("tripPatterns", List.of(Map.of())))));
+
+        tripSearchTool.trip("Storgata 1, Oslo", "Karl Johans gate 22", null, null, 3, "xx", null);
+
+        meterRegistry.getMeters().forEach(meter -> meter.getId().getTags().forEach(tag ->
+            assertThat(tag.getValue()).doesNotContain("Storgata", "Karl Johans", "xx")));
+    }
+
+    @Test
+    @DisplayName("An unknown language is tagged other, not counted as the en it falls back to")
+    void metrics_unknownLanguageIsOther() {
+        when(otpSearchService.handleTripRequest(anyString(), anyString(), any(), any(), any(), any()))
+            .thenReturn(new HashMap<>(Map.of("trip", Map.of("tripPatterns", List.of(Map.of())))));
+
+        tripSearchTool.trip("A", "B", null, null, 3, "sv", null);
+
+        assertThat(meterRegistry.find(ToolMetrics.TOOL_CALLS)
+            .tags("tool", "trip", "language", "other").timer()).isNotNull();
+    }
+
+    @Test
+    @DisplayName("Rejected trip calls count in neither trip meter, so the two stay comparable")
+    void metrics_rejectedTripCountsInNoTripMeter() {
+        when(otpSearchService.handleTripRequest(anyString(), anyString(), any(), any(), any(), any()))
+            .thenThrow(new ValidationException("from", "from cannot be null or empty"));
+
+        tripSearchTool.trip(" ", "B", null, null, 3, "en", null);
+
+        assertThat(toolCalls("trip", "validation_error")).isEqualTo(1);
+        assertThat(meterRegistry.find(ToolMetrics.TRIP_LOCATIONS).counters()).isEmpty();
+        assertThat(meterRegistry.find(ToolMetrics.TRIP_SEARCHES).counters()).isEmpty();
     }
 }

@@ -106,6 +106,15 @@ class InputValidatorTest {
     }
 
     @Test
+    @DisplayName("The date error does not quote the input, since it is logged")
+    void validateDateTime_errorDoesNotQuoteInput() {
+        assertThatThrownBy(() -> InputValidator.validateDateTime("tomorrow at Storgata 1", "departureTime"))
+            .isInstanceOf(ValidationException.class)
+            .hasMessageContaining("ISO 8601 format")
+            .hasMessageNotContaining("Storgata");
+    }
+
+    @Test
     @DisplayName("Should pass validation with valid ISO 8601 dateTime")
     void validateDateTime_withValidISO8601_shouldPass() {
         assertThatCode(() -> InputValidator.validateDateTime("2023-05-26T12:00:00", "departureTime"))

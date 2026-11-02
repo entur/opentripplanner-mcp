@@ -295,6 +295,17 @@ class OtpSearchServiceTest {
     }
 
     @Test
+    @DisplayName("A place the geocoder can't find stays a GeocodingException, not an upstream failure")
+    void handleTripRequest_withUnknownPlace_shouldKeepGeocodingException() {
+        when(geocoderService.geocodeIfNeeded("Nowhereville"))
+            .thenThrow(new org.entur.mcp.exception.GeocodingException("Nowhereville", "No locations found"));
+
+        assertThatThrownBy(() ->
+            otpSearchService.handleTripRequest("Nowhereville", "Asker", null, null, 3, null))
+            .isInstanceOf(org.entur.mcp.exception.GeocodingException.class);
+    }
+
+    @Test
     @DisplayName("Should throw TripPlanningException on 500 response")
     void handleTripRequest_with500Response_shouldThrowTripPlanningException() {
         // Arrange

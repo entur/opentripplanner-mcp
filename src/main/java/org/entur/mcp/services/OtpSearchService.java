@@ -3,6 +3,7 @@ package org.entur.mcp.services;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import io.micrometer.core.annotation.Timed;
+import org.entur.mcp.exception.GeocodingException;
 import org.entur.mcp.exception.TripPlanningException;
 import org.entur.mcp.exception.ValidationException;
 import org.entur.mcp.metrics.MetricsUtils;
@@ -384,7 +385,7 @@ public class OtpSearchService {
         int validatedMaxResults = InputValidator.validateAndNormalizeMaxResults(maxResults, 3);
         List<String> validatedModes = InputValidator.validateTransportModes(transportModes);
 
-        log.info("Planning trip from '{}' to '{}' (maxResults: {})", from, to, validatedMaxResults);
+        log.debug("Planning trip from '{}' to '{}' (maxResults: {})", from, to, validatedMaxResults);
 
         // First, geocode the from and to locations if they're not coordinates
         Location fromLocation = getLocation(from);
@@ -440,7 +441,8 @@ public class OtpSearchService {
         if (result.containsKey("errors")) {
             List<?> errors = (List<?>) result.get("errors");
             if (errors != null && !errors.isEmpty()) {
-                log.error("GraphQL query returned errors: {}", errors);
+                log.error("GraphQL query returned {}", GraphQlErrors.summary(errors));
+                log.debug("GraphQL errors: {}", errors);
                 throw new TripPlanningException("Trip planning query failed");
             }
         }
@@ -460,7 +462,7 @@ public class OtpSearchService {
             data.put("resolvedLocations", resolved);
         }
 
-        log.info("Successfully planned trip from '{}' to '{}'", fromLocation.getPlace(), toLocation.getPlace());
+        log.debug("Successfully planned trip from '{}' to '{}'", fromLocation.getPlace(), toLocation.getPlace());
 
         // An empty result for a requested time usually means nothing runs then rather than
         // that no route exists, so look ahead for when service resumes. Only worth doing
@@ -531,7 +533,8 @@ public class OtpSearchService {
             if (error instanceof Map<?, ?> e && "locationNotFound".equals(e.get("code"))) {
                 boolean isTo = "to".equals(e.get("inputField"));
                 String location = isTo ? to : from;
-                log.warn("OTP could not find location '{}'", location);
+                log.warn("OTP could not find the '{}' location", isTo ? "to" : "from");
+                log.debug("OTP could not find location '{}'", location);
                 String advice = InputValidator.isNsrStopId(location)
                     ? "Check the stop ID with the geocode tool."
                     : "If it is a stop, pass its NSR:StopPlace ID from the geocode tool; "
@@ -643,7 +646,8 @@ public class OtpSearchService {
         }
 
         if (response.statusCode() != 200) {
-            log.error("GraphQL API returned status {}: {}", response.statusCode(), response.body());
+            log.error("GraphQL API returned status {}", response.statusCode());
+            log.debug("GraphQL API response body: {}", response.body());
             throw new TripPlanningException(
                 String.format("Trip planning API returned status %d", response.statusCode()));
         }
@@ -672,7 +676,8 @@ public class OtpSearchService {
             }
             return Optional.empty();
         } catch (Exception e) {
-            log.warn("Could not look up the name of stop '{}': {}", stopId, e.getMessage());
+            log.warn("Could not look up a stop name: {}", e.getMessage());
+            log.debug("Stop name lookup failed for '{}'", stopId);
             return Optional.empty();
         }
     }
@@ -694,10 +699,13 @@ public class OtpSearchService {
             if (location == null) {
                 throw new TripPlanningException("Error geocoding location: received null result");
             }
-        } catch (ValidationException e) {
-            throw e; // e.g. out-of-range coordinates: the caller can fix these, so keep the message
+        } catch (ValidationException | GeocodingException e) {
+            // Out-of-range coordinates or a place the geocoder can't find: the caller can fix
+            // these, so they keep their type (and are counted as such, not as upstream errors)
+            throw e;
         } catch (Exception e) {
-            log.error("Failed to geocode location '{}': {}", locationName, e.getMessage());
+            log.error("Failed to geocode a trip location: {}", e.getClass().getSimpleName());
+            log.debug("Failed to geocode location '{}': {}", locationName, e.getMessage());
             throw new TripPlanningException("Failed to geocode location: " + locationName, e);
         }
         return location;
@@ -712,7 +720,7 @@ public class OtpSearchService {
         int validatedTimeRange = InputValidator.validateTimeRange(timeRangeMinutes, 60);
         List<String> validatedModes = InputValidator.validateTransportModes(transportModes);
 
-        log.info("Fetching departures for stop '{}' (numDepartures: {}, timeRange: {} min)",
+        log.debug("Fetching departures for stop '{}' (numDepartures: {}, timeRange: {} min)",
             stopId, validatedNumDepartures, validatedTimeRange);
 
         Map<String, Object> variables = new HashMap<>();
@@ -760,7 +768,8 @@ public class OtpSearchService {
         if (result.containsKey("errors")) {
             List<?> errors = (List<?>) result.get("errors");
             if (errors != null && !errors.isEmpty()) {
-                log.error("GraphQL query returned errors: {}", errors);
+                log.error("GraphQL query returned {}", GraphQlErrors.summary(errors));
+                log.debug("GraphQL errors: {}", errors);
                 throw new TripPlanningException("Departure board query failed");
             }
         }
@@ -778,7 +787,7 @@ public class OtpSearchService {
             enriched.put("transportModes", validatedModes);
         }
 
-        log.info("Successfully fetched departures for stop '{}'", stopId);
+        log.debug("Successfully fetched departures for stop '{}'", stopId);
         return enriched;
     }
 
@@ -837,7 +846,7 @@ public class OtpSearchService {
     public Map<String, Object> handleNearbyStopsRequest(double latitude, double longitude,
                                                          int radiusMeters, int maxResults,
                                                          List<String> transportModes) {
-        log.info("Fetching nearby stops at ({}, {}), radius={}m, max={}", latitude, longitude, radiusMeters, maxResults);
+        log.debug("Fetching nearby stops at ({}, {}), radius={}m, max={}", latitude, longitude, radiusMeters, maxResults);
 
         List<String> validatedModes = InputValidator.validateTransportModes(transportModes);
         Map<String, Object> variables = new HashMap<>();
@@ -875,7 +884,8 @@ public class OtpSearchService {
         if (result.containsKey("errors")) {
             List<?> errors = (List<?>) result.get("errors");
             if (errors != null && !errors.isEmpty()) {
-                log.error("Nearest query returned errors: {}", errors);
+                log.error("Nearest query returned {}", GraphQlErrors.summary(errors));
+                log.debug("Nearest query errors: {}", errors);
                 throw new TripPlanningException("Nearby stops query failed");
             }
         }
@@ -886,7 +896,7 @@ public class OtpSearchService {
             throw new TripPlanningException("No data returned from nearby stops API");
         }
 
-        log.info("Successfully fetched nearby stops at ({}, {})", latitude, longitude);
+        log.debug("Successfully fetched nearby stops at ({}, {})", latitude, longitude);
         return data;
     }
 }

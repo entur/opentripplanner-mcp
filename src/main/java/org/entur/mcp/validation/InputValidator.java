@@ -66,8 +66,9 @@ public class InputValidator {
             ISO_DATE_TIME_FORMATTER.parse(dateTime);
         } catch (DateTimeParseException e) {
             throw new ValidationException(fieldName,
-                String.format("%s must be in ISO 8601 format (e.g., 2023-05-26T12:00:00). Error: %s",
-                    fieldName, e.getMessage()));
+                // Not e.getMessage(): it quotes the input, and this message is logged
+                String.format("%s must be in ISO 8601 format (e.g., 2023-05-26T12:00:00). "
+                    + "It could not be parsed at character %d.", fieldName, e.getErrorIndex()));
         }
     }
 

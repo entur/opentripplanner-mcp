@@ -3,9 +3,8 @@ package org.entur.mcp.tools;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import io.modelcontextprotocol.spec.McpSchema.CallToolResult;
-import org.entur.mcp.exception.GeocodingException;
-import org.entur.mcp.exception.TripPlanningException;
-import org.entur.mcp.exception.ValidationException;
+import org.entur.mcp.metrics.ToolMetrics;
+import org.entur.mcp.metrics.ToolMetrics.Outcome;
 import org.entur.mcp.model.ErrorResponse;
 import org.entur.mcp.model.Location;
 import org.entur.mcp.validation.InputValidator;
@@ -36,6 +35,7 @@ public class TripSearchTool {
 
     private final OtpSearchService otpSearchService;
     private final GeocoderService geocoderService;
+    private final ToolMetrics toolMetrics;
     private final String vehiclesWsUrl;
     /**
      * ET-Client-Name the trip map sends when it opens the vehicle subscription. The browser
@@ -78,11 +78,13 @@ public class TripSearchTool {
     public TripSearchTool(
             @Autowired OtpSearchService otpSearchService,
             @Autowired GeocoderService geocoderService,
+            @Autowired ToolMetrics toolMetrics,
             @Value("${org.entur.vehicles.ws.url}") String vehiclesWsUrl,
             @Value("${org.entur.vehicles.client_name}") String vehiclesClientName
     ) {
         this.otpSearchService = otpSearchService;
         this.geocoderService = geocoderService;
+        this.toolMetrics = toolMetrics;
         this.vehiclesWsUrl = vehiclesWsUrl;
         this.vehiclesClientName = vehiclesClientName;
     }
@@ -104,12 +106,20 @@ public class TripSearchTool {
         @McpToolParam(description = "Language for the UI. Detect from the conversation: 'nb' for Norwegian Bokmål, 'nn' for Norwegian Nynorsk, 'en' for English.", required = true) String language,
         @McpToolParam(description = "Filter by transport modes: air, bus, cableway, coach, funicular, lift, metro, monorail, rail, taxi, tram, trolleybus, unknown, water. Omit for all modes.", required = false) List<String> transportModes
     ) {
+        return planTrip("trip", from, to, departureTime, arrivalTime, maxResults, language, transportModes);
+    }
+
+    private CallToolResult planTrip(String tool, String from, String to, String departureTime,
+                                    String arrivalTime, Integer maxResults, String language,
+                                    List<String> transportModes) {
+        ToolMetrics.Call call = toolMetrics.start(tool, language);
         try {
-            log.debug("Trip tool called with from='{}', to='{}', departureTime='{}', arrivalTime='{}', maxResults={}, language={}",
-                from, to, departureTime, arrivalTime, maxResults, language);
+            log.debug("{} called with from='{}', to='{}', departureTime='{}', arrivalTime='{}', maxResults={}, language={}",
+                tool, from, to, departureTime, arrivalTime, maxResults, language);
 
             Map<String, Object> response = otpSearchService.handleTripRequest(
                 from, to, departureTime, arrivalTime, maxResults, transportModes);
+            recordTripSearch(tool, response, from, to, departureTime, arrivalTime, transportModes);
             Map<String, Object> wrapped = new HashMap<>(response);
             Map<String, Object> query = new HashMap<>();
             query.put("from", from);
@@ -124,28 +134,37 @@ public class TripSearchTool {
             wrapped.put("language", LanguageUtil.normalize(language));
             noTripsAdvice(response, departureTime, arrivalTime)
                 .ifPresent(advice -> wrapped.put("noTripsFound", advice));
-            return UiPayload.split(wrapped, objectMapper,
+            CallToolResult result = UiPayload.split(wrapped, objectMapper,
                 "vehiclesClientName",
                 "trip.tripPatterns[].legs[].pointsOnLink",
                 "trip.tripPatterns[].legs[].intermediateEstimatedCalls",
                 "trip.tripPatterns[].legs[].line.presentation");
-
-        } catch (ValidationException e) {
-            log.warn("Validation error in trip tool: {} - {}", e.getField(), e.getMessage());
-            return UiPayload.text(toErrorJson(ErrorResponse.validationError(e.getField(), e.getMessage())));
-
-        } catch (GeocodingException e) {
-            log.warn("Geocoding error in trip tool: {} - {}", e.getLocation(), e.getMessage());
-            return UiPayload.text(toErrorJson(ErrorResponse.geocodingError(e.getLocation(), e.getMessage())));
-
-        } catch (TripPlanningException e) {
-            log.error("Trip planning error: {}", e.getMessage());
-            return UiPayload.text(toErrorJson(ErrorResponse.tripPlanningError(e.getMessage())));
+            call.finish(isEmptyTripResult(response) ? Outcome.NO_RESULTS : Outcome.OK);
+            return result;
 
         } catch (Exception e) {
-            log.error("Unexpected error in trip tool: {}", e.getMessage(), e);
-            return UiPayload.text(toErrorJson(ErrorResponse.genericError("An unexpected error occurred")));
+            call.failed(e);
+            ToolLog.failure(log, tool, e);
+            return UiPayload.text(toErrorJson(ErrorResponse.from(e)));
         }
+    }
+
+    /**
+     * Records the trip meters together, only for searches OTP answered, so that both count the
+     * same set of requests and ratios between them hold.
+     */
+    private void recordTripSearch(String tool, Map<String, Object> response, String from, String to,
+                                  String departureTime, String arrivalTime, List<String> transportModes) {
+        toolMetrics.tripLocation("from", from);
+        toolMetrics.tripLocation("to", to);
+        boolean departing = departureTime != null && !departureTime.isEmpty();
+        String time = departing ? "departure"
+            : arrivalTime != null && !arrivalTime.isEmpty() ? "arrival" : "now";
+        // The service looks ahead for the next departure only for an empty, departure-timed search
+        String nextDeparture = !(departing && isEmptyTripResult(response)) ? "not_run"
+            : response.get("nextDepartureTime") instanceof String ? "found" : "none";
+        toolMetrics.tripSearch(tool, time,
+            transportModes != null && !transportModes.isEmpty(), nextDeparture);
     }
 
     @McpTool(
@@ -159,23 +178,19 @@ public class TripSearchTool {
         @McpToolParam(description = "Location text to search for", required = true) String text,
         @McpToolParam(description = "Maximum number of results to return", required = false) int maxResults
     ) {
+        ToolMetrics.Call call = toolMetrics.start("geocode", null);
         try {
             log.debug("Geocode tool called with text='{}', maxResults={}", text, maxResults);
 
             Map<String, Object> response = geocoderService.handleGeocodeRequest(text, maxResults);
-            return objectMapper.writeValueAsString(response);
-
-        } catch (ValidationException e) {
-            log.warn("Validation error in geocode tool: {} - {}", e.getField(), e.getMessage());
-            return toErrorJson(ErrorResponse.validationError(e.getField(), e.getMessage()));
-
-        } catch (GeocodingException e) {
-            log.warn("Geocoding error in geocode tool: {} - {}", e.getLocation(), e.getMessage());
-            return toErrorJson(ErrorResponse.geocodingError(e.getLocation(), e.getMessage()));
+            String json = objectMapper.writeValueAsString(response);
+            call.finish(ToolResults.hasItems(response.get("features")) ? Outcome.OK : Outcome.NO_RESULTS);
+            return json;
 
         } catch (Exception e) {
-            log.error("Unexpected error in geocode tool: {}", e.getMessage(), e);
-            return toErrorJson(ErrorResponse.genericError("An unexpected error occurred"));
+            call.failed(e);
+            ToolLog.failure(log, "geocode", e);
+            return toErrorJson(ErrorResponse.from(e));
         }
     }
 
@@ -220,9 +235,17 @@ public class TripSearchTool {
             required = true
         ) String language
     ) {
+        return departureBoard("departures", stop, numberOfDepartures, startTime, timeRangeMinutes,
+            transportModes, language);
+    }
+
+    private CallToolResult departureBoard(String tool, String stop, Integer numberOfDepartures,
+                                          String startTime, Integer timeRangeMinutes,
+                                          List<String> transportModes, String language) {
+        ToolMetrics.Call call = toolMetrics.start(tool, language);
         try {
-            log.debug("Departures tool called with stop='{}', numberOfDepartures={}, startTime='{}', timeRangeMinutes={}, transportModes={}, language={}",
-                stop, numberOfDepartures, startTime, timeRangeMinutes, transportModes, language);
+            log.debug("{} called with stop='{}', numberOfDepartures={}, startTime='{}', timeRangeMinutes={}, transportModes={}, language={}",
+                tool, stop, numberOfDepartures, startTime, timeRangeMinutes, transportModes, language);
 
             // Resolve stop name to NSR ID if needed
             String stopId = geocoderService.resolveStopId(stop);
@@ -231,25 +254,16 @@ public class TripSearchTool {
                 stopId, numberOfDepartures, startTime, timeRangeMinutes, transportModes);
             Map<String, Object> wrapped = new HashMap<>(response);
             wrapped.put("language", LanguageUtil.normalize(language));
-            return UiPayload.split(wrapped, objectMapper,
+            CallToolResult result = UiPayload.split(wrapped, objectMapper,
                 "stopPlace.arrivals[].serviceJourney.line.presentation",
                 "stopPlace.departures[].serviceJourney.line.presentation");
-
-        } catch (ValidationException e) {
-            log.warn("Validation error in departures tool: {} - {}", e.getField(), e.getMessage());
-            return UiPayload.text(toErrorJson(ErrorResponse.validationError(e.getField(), e.getMessage())));
-
-        } catch (GeocodingException e) {
-            log.warn("Geocoding error in departures tool: {} - {}", e.getLocation(), e.getMessage());
-            return UiPayload.text(toErrorJson(ErrorResponse.geocodingError(e.getLocation(), e.getMessage())));
-
-        } catch (TripPlanningException e) {
-            log.error("Departure board error: {}", e.getMessage());
-            return UiPayload.text(toErrorJson(ErrorResponse.tripPlanningError(e.getMessage())));
+            call.finish(hasDepartures(response) ? Outcome.OK : Outcome.NO_RESULTS);
+            return result;
 
         } catch (Exception e) {
-            log.error("Unexpected error in departures tool: {}", e.getMessage(), e);
-            return UiPayload.text(toErrorJson(ErrorResponse.genericError("An unexpected error occurred")));
+            call.failed(e);
+            ToolLog.failure(log, tool, e);
+            return UiPayload.text(toErrorJson(ErrorResponse.from(e)));
         }
     }
 
@@ -269,20 +283,18 @@ public class TripSearchTool {
             required = false
         ) List<String> severities
     ) {
+        ToolMetrics.Call call = toolMetrics.start("alerts", null);
         try {
             log.debug("Alerts tool called with severities={}", severities);
             InputValidator.validateSeverities(severities);
             Map<String, Object> response = otpSearchService.handleSituationsRequest(severities);
-            return objectMapper.writeValueAsString(response);
-        } catch (ValidationException e) {
-            log.warn("Validation error in alerts tool: {} - {}", e.getField(), e.getMessage());
-            return toErrorJson(ErrorResponse.validationError(e.getField(), e.getMessage()));
-        } catch (TripPlanningException e) {
-            log.error("Alerts error: {}", e.getMessage());
-            return toErrorJson(ErrorResponse.tripPlanningError(e.getMessage()));
+            String json = objectMapper.writeValueAsString(response);
+            call.finish(ToolResults.hasItems(response.get("situations")) ? Outcome.OK : Outcome.NO_RESULTS);
+            return json;
         } catch (Exception e) {
-            log.error("Unexpected error in alerts tool: {}", e.getMessage(), e);
-            return toErrorJson(ErrorResponse.genericError("An unexpected error occurred"));
+            call.failed(e);
+            ToolLog.failure(log, "alerts", e);
+            return toErrorJson(ErrorResponse.from(e));
         }
     }
 
@@ -334,6 +346,7 @@ public class TripSearchTool {
             required = true
         ) String language
     ) {
+        ToolMetrics.Call call = toolMetrics.start("nearby-stops", language);
         try {
             log.debug("nearby-stops tool called: location='{}', radius={}, maxResults={}, modes={}, language={}",
                 location, radiusMeters, maxResults, transportModes, language);
@@ -355,21 +368,15 @@ public class TripSearchTool {
                 "radiusMeters", validatedRadius
             ));
             wrapped.put("language", LanguageUtil.normalize(language));
-            return UiPayload.split(wrapped, objectMapper,
+            CallToolResult result = UiPayload.split(wrapped, objectMapper,
                 "nearest.edges[].node.place.estimatedCalls[].serviceJourney.line.presentation");
+            call.finish(hasNearbyStops(response) ? Outcome.OK : Outcome.NO_RESULTS);
+            return result;
 
-        } catch (ValidationException e) {
-            log.warn("Validation error in nearby-stops tool: {} - {}", e.getField(), e.getMessage());
-            return UiPayload.text(toErrorJson(ErrorResponse.validationError(e.getField(), e.getMessage())));
-        } catch (GeocodingException e) {
-            log.warn("Geocoding error in nearby-stops tool: {} - {}", e.getLocation(), e.getMessage());
-            return UiPayload.text(toErrorJson(ErrorResponse.geocodingError(e.getLocation(), e.getMessage())));
-        } catch (TripPlanningException e) {
-            log.error("Nearby stops error: {}", e.getMessage());
-            return UiPayload.text(toErrorJson(ErrorResponse.tripPlanningError(e.getMessage())));
         } catch (Exception e) {
-            log.error("Unexpected error in nearby-stops tool: {}", e.getMessage(), e);
-            return UiPayload.text(toErrorJson(ErrorResponse.genericError("An unexpected error occurred")));
+            call.failed(e);
+            ToolLog.failure(log, "nearby-stops", e);
+            return UiPayload.text(toErrorJson(ErrorResponse.from(e)));
         }
     }
 
@@ -387,7 +394,8 @@ public class TripSearchTool {
         @McpToolParam(description = "Filter by transport modes", required = false) List<String> transportModes,
         @McpToolParam(description = "Language code (en, nb, nn)", required = false) String language
     ) {
-        return departures(stop, numberOfDepartures, startTime, timeRangeMinutes, transportModes, language);
+        return departureBoard("poll-departures", stop, numberOfDepartures, startTime, timeRangeMinutes,
+            transportModes, language);
     }
 
 
@@ -406,12 +414,29 @@ public class TripSearchTool {
         @McpToolParam(description = "Language code (en, nb, nn)", required = false) String language,
         @McpToolParam(description = "Filter by transport modes", required = false) List<String> transportModes
     ) {
-        return trip(from, to, departureTime, arrivalTime, maxResults, language, transportModes);
+        return planTrip("poll-trip", from, to, departureTime, arrivalTime, maxResults, language,
+            transportModes);
     }
 
-    /**
-     * Helper method to convert ErrorResponse to JSON string
-     */
+    /** Whether a search OTP answered found no trips; a response without a trip is not one. */
+    @SuppressWarnings("unchecked")
+    private static boolean isEmptyTripResult(Map<String, Object> response) {
+        return response.get("trip") instanceof Map<?, ?> trip
+            && !ToolResults.hasItems(((Map<String, Object>) trip).get("tripPatterns"));
+    }
+
+    @SuppressWarnings("unchecked")
+    private static boolean hasDepartures(Map<String, Object> response) {
+        return response.get("stopPlace") instanceof Map<?, ?> stopPlace
+            && ToolResults.hasItems(((Map<String, Object>) stopPlace).get("departures"));
+    }
+
+    @SuppressWarnings("unchecked")
+    private static boolean hasNearbyStops(Map<String, Object> response) {
+        return response.get("nearest") instanceof Map<?, ?> nearest
+            && ToolResults.hasItems(((Map<String, Object>) nearest).get("edges"));
+    }
+
     /**
      * Advice for the model when a search returns no trips.
      *

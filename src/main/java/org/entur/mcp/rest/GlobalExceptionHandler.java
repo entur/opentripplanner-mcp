@@ -47,7 +47,9 @@ public class GlobalExceptionHandler extends ResponseEntityExceptionHandler {
 
     @ExceptionHandler(GeocodingException.class)
     public ResponseEntity<ErrorResponse> handleGeocodingException(GeocodingException ex) {
-        log.warn("Geocoding error: {} - {}", ex.getLocation(), ex.getMessage());
+        // The location and message quote what the caller searched for: DEBUG only
+        log.warn("Geocoding error");
+        log.debug("Geocoding error: {} - {}", ex.getLocation(), ex.getMessage());
         ErrorResponse error = ErrorResponse.geocodingError(ex.getLocation(), ex.getMessage());
         return ResponseEntity
             .status(HttpStatus.BAD_REQUEST)
@@ -56,7 +58,9 @@ public class GlobalExceptionHandler extends ResponseEntityExceptionHandler {
 
     @ExceptionHandler(TripPlanningException.class)
     public ResponseEntity<ErrorResponse> handleTripPlanningException(TripPlanningException ex) {
-        log.error("Trip planning error: {}", ex.getMessage());
+        // The message can quote a location, so it is for DEBUG only
+        log.error("Trip planning error");
+        log.debug("Trip planning error: {}", ex.getMessage());
         ErrorResponse error = ErrorResponse.tripPlanningError(ex.getMessage());
         return ResponseEntity
             .status(HttpStatus.INTERNAL_SERVER_ERROR)

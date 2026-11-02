@@ -6,6 +6,8 @@ import io.modelcontextprotocol.spec.McpSchema.CallToolResult;
 import org.entur.mcp.TestFixtures;
 import org.entur.mcp.exception.GeocodingException;
 import org.entur.mcp.exception.MobilityException;
+import org.entur.mcp.metrics.ToolMetrics;
+import io.micrometer.core.instrument.simple.SimpleMeterRegistry;
 import org.entur.mcp.model.Location;
 import org.entur.mcp.services.GeocoderService;
 import org.entur.mcp.services.MobilityService;
@@ -47,7 +49,7 @@ class MobilityToolTest {
 
     @BeforeEach
     void setUp() {
-        tool = new MobilityTool(mobilityService, geocoderService);
+        tool = new MobilityTool(mobilityService, geocoderService, new ToolMetrics(new SimpleMeterRegistry()));
     }
 
     @Test

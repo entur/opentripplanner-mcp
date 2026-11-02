@@ -3,9 +3,8 @@ package org.entur.mcp.tools;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import io.modelcontextprotocol.spec.McpSchema.CallToolResult;
-import org.entur.mcp.exception.GeocodingException;
-import org.entur.mcp.exception.MobilityException;
-import org.entur.mcp.exception.ValidationException;
+import org.entur.mcp.metrics.ToolMetrics;
+import org.entur.mcp.metrics.ToolMetrics.Outcome;
 import org.entur.mcp.model.ErrorResponse;
 import org.entur.mcp.model.Location;
 import org.entur.mcp.services.GeocoderService;
@@ -33,6 +32,7 @@ public class MobilityTool {
 
     private final MobilityService mobilityService;
     private final GeocoderService geocoderService;
+    private final ToolMetrics toolMetrics;
 
     public static final class NearbyMobilityUiMeta implements MetaProvider {
         @Override
@@ -43,9 +43,11 @@ public class MobilityTool {
 
 
     public MobilityTool(@Autowired MobilityService mobilityService,
-                        @Autowired GeocoderService geocoderService) {
+                        @Autowired GeocoderService geocoderService,
+                        @Autowired ToolMetrics toolMetrics) {
         this.mobilityService = mobilityService;
         this.geocoderService = geocoderService;
+        this.toolMetrics = toolMetrics;
     }
 
     @McpTool(
@@ -90,6 +92,7 @@ public class MobilityTool {
             required = true
         ) String language
     ) {
+        ToolMetrics.Call call = toolMetrics.start("nearby-mobility", language);
         try {
             log.debug("nearby-mobility called: location='{}', radius={}, formFactors={}, propulsionTypes={}, operators={}, maxResults={}, language={}",
                 location, radius, formFactors, propulsionTypes, operators, maxResults, language);
@@ -119,24 +122,20 @@ public class MobilityTool {
             wrapped.put("query", query);
             wrapped.put("language", LanguageUtil.normalize(language));
 
-            return UiPayload.split(wrapped, objectMapper,
+            CallToolResult result = UiPayload.split(wrapped, objectMapper,
                 "vehicles[].rentalUris",
                 "stations[].rentalUris");
+            call.finish(ToolResults.hasItems(response.get("vehicles"))
+                || ToolResults.hasItems(response.get("stations")) ? Outcome.OK : Outcome.NO_RESULTS);
+            return result;
 
-        } catch (ValidationException e) {
-            log.warn("Validation error in nearby-mobility: {} - {}", e.getField(), e.getMessage());
-            return UiPayload.text(toErrorJson(ErrorResponse.validationError(e.getField(), e.getMessage())));
-        } catch (GeocodingException e) {
-            log.warn("Geocoding error in nearby-mobility: {} - {}", e.getLocation(), e.getMessage());
-            return UiPayload.text(toErrorJson(ErrorResponse.geocodingError(e.getLocation(), e.getMessage())));
-        } catch (MobilityException e) {
-            log.error("Mobility error: {}", e.getMessage());
-            return UiPayload.text(toErrorJson(ErrorResponse.mobilityError(e.getMessage())));
         } catch (Exception e) {
-            log.error("Unexpected error in nearby-mobility: {}", e.getMessage(), e);
-            return UiPayload.text(toErrorJson(ErrorResponse.genericError("An unexpected error occurred")));
+            call.failed(e);
+            ToolLog.failure(log, "nearby-mobility", e);
+            return UiPayload.text(toErrorJson(ErrorResponse.from(e)));
         }
     }
+
 
 
     private String toErrorJson(ErrorResponse errorResponse) {

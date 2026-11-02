@@ -52,3 +52,10 @@ MCP server for OpenTripPlanner's transmodel GraphQL API. Java/Spring Boot with M
   every option. OTP returns each summary in all languages and repeats a disruption across every leg
   it touches, so the app picks by `language` and de-duplicates on `situationNumber`.
 - `language` parameter (`required = true`) on `trip`, `departures`, `nearby-stops` — detect from conversation context; `LanguageUtil.normalize()` accepts `en`, `nb`, `nn`, defaults to `en`
+- What the user typed (place names, addresses, coordinates, stop IDs) is logged at DEBUG only,
+  never INFO/WARN/ERROR: it can be a home address or a live position. Exception messages that
+  quote it (geocoding, `locationNotFound`) go to the model but reach the logs via `ToolLog` at
+  DEBUG. Usage is measured by `ToolMetrics` instead: `mcp.tool.calls` (timer per tool/outcome/
+  client_type/language), `mcp.trip.locations` (name/stop_id/coordinates) and
+  `mcp.trip.searches`. Every tag comes from a fixed set; never tag a metric with user input.
+  `poll-trip`/`poll-departures` count as their own tools, which measures UI interaction.
