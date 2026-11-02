@@ -984,9 +984,11 @@ class OtpSearchServiceTest {
 
         otpSearchService.handleTripRequest("Oslo", "Asker", null, null, 3, List.of("rail", "tram"));
 
-        assertThat(variables(mockWebServer.takeRequest()).get("modes").get("transportModes").toString())
-            .isEqualTo("[{\"transportMode\":\"rail\"},{\"transportMode\":\"tram\"},"
-                + "{\"transportMode\":\"bus\",\"transportSubModes\":[\"railReplacementBus\"]}]");
+        // Compared as JSON trees: the field order inside each entry is not defined
+        assertThat(variables(mockWebServer.takeRequest()).get("modes").get("transportModes"))
+            .isEqualTo(new ObjectMapper().readTree("""
+                [{"transportMode":"rail"},{"transportMode":"tram"},
+                 {"transportMode":"bus","transportSubModes":["railReplacementBus"]}]"""));
     }
 
     @Test
