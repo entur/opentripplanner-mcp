@@ -247,5 +247,7 @@ class MetricsIntegrationTest {
             .timer();
         assertThat(timer).isNotNull();
         assertThat(timer.getId().getTag("client_type")).isEqualTo("claude");
+        // The latency buckets the dashboard's percentiles are computed from
+        assertThat(timer.takeSnapshot().histogramCounts()).hasSize(6);
     }
 }
