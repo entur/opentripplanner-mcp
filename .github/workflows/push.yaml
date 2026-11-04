@@ -81,7 +81,7 @@ jobs:
 
   helm-deploy-dev:
     needs: [ helm-lint, docker-push ]
-    uses: entur/gha-helm/.github/workflows/deploy.yml@bd1e0a9b022ee0fafe43723b7c80c0eb48171593 # v1.7.0
+    uses: entur/gha-helm/.github/workflows/deploy.yml@080c3d42794f3be06b42e3a81ff23a3a0e3b0235 # v2.1.0
     with:
       environment: dev
       image: ${{ needs.docker-push.outputs.image_name }}:${{ needs.docker-push.outputs.image_tag}}
@@ -90,7 +90,7 @@ jobs:
 
   helm-deploy-tst:
     needs: [ helm-lint, docker-push ]
-    uses: entur/gha-helm/.github/workflows/deploy.yml@bd1e0a9b022ee0fafe43723b7c80c0eb48171593 # v1.7.0
+    uses: entur/gha-helm/.github/workflows/deploy.yml@080c3d42794f3be06b42e3a81ff23a3a0e3b0235 # v2.1.0
     with:
       environment: tst
       image: ${{ needs.docker-push.outputs.image_name }}:${{ needs.docker-push.outputs.image_tag}}
@@ -99,7 +99,7 @@ jobs:
 
   helm-deploy-prd:
     needs: [ helm-lint, docker-push ]
-    uses: entur/gha-helm/.github/workflows/deploy.yml@bd1e0a9b022ee0fafe43723b7c80c0eb48171593 # v1.7.0
+    uses: entur/gha-helm/.github/workflows/deploy.yml@080c3d42794f3be06b42e3a81ff23a3a0e3b0235 # v2.1.0
     with:
       environment: prd
       image: ${{ needs.docker-push.outputs.image_name }}:${{ needs.docker-push.outputs.image_tag}}
