@@ -905,6 +905,42 @@ class OtpSearchServiceTest {
             .isInstanceOf(TripPlanningException.class);
     }
 
+    @Test
+    @DisplayName("A coordinate outside OTP's street network has no nearby stops, not an error")
+    @SuppressWarnings("unchecked")
+    void handleNearbyStopsRequest_locationNotFound_returnsNoStops() {
+        // What OTP sends for a point it cannot link to its street network: Denmark, or at sea
+        mockWebServer.enqueue(new MockResponse.Builder()
+            .code(200)
+            .body("""
+                {"errors":[{"message":"Exception while fetching data (/nearest) : RoutingError{code: LOCATION_NOT_FOUND, inputField: FROM_PLACE}",
+                  "locations":[{"line":1,"column":3}],"path":["nearest"],
+                  "extensions":{"classification":"DataFetchingException"}}],
+                 "data":{"nearest":null}}
+                """).build());
+
+        Map<String, Object> result = otpSearchService.handleNearbyStopsRequest(57.59, 9.96, 500, 10, null);
+
+        assertThat((Map<String, Object>) result.get("nearest"))
+            .containsEntry("edges", List.of());
+    }
+
+    @Test
+    @DisplayName("Any other error in the nearest query is still an error")
+    void handleNearbyStopsRequest_otherDataFetchingError_stillThrows() {
+        mockWebServer.enqueue(new MockResponse.Builder()
+            .code(200)
+            .body("""
+                {"errors":[{"message":"Exception while fetching data (/nearest) : java.lang.NullPointerException",
+                  "path":["nearest"],"extensions":{"classification":"DataFetchingException"}}],
+                 "data":{"nearest":null}}
+                """).build());
+
+        assertThatThrownBy(() ->
+            otpSearchService.handleNearbyStopsRequest(59.911, 10.748, 500, 10, null))
+            .isInstanceOf(TripPlanningException.class);
+    }
+
     // ==================== New Field Tests ====================
 
     @Test

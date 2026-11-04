@@ -949,6 +949,10 @@ public class OtpSearchService {
 
         if (result.containsKey("errors")) {
             List<?> errors = (List<?>) result.get("errors");
+            if (errors != null && !errors.isEmpty() && errors.stream().allMatch(OtpSearchService::isLocationNotFound)) {
+                log.info("Nearest query: the location is outside the street network, no stops");
+                return Map.of("nearest", Map.of("edges", List.of()));
+            }
             if (errors != null && !errors.isEmpty()) {
                 log.error("Nearest query returned {}", GraphQlErrors.summary(errors));
                 log.debug("Nearest query errors: {}", errors);
@@ -964,5 +968,19 @@ public class OtpSearchService {
 
         log.debug("Successfully fetched nearby stops at ({}, {})", latitude, longitude);
         return data;
+    }
+
+    /**
+     * Whether a GraphQL error is OTP failing to link a coordinate to its street network.
+     *
+     * <p>{@code nearest} reports it for a point outside OTP's coverage (Denmark, out at sea) as a
+     * {@code DataFetchingException} whose message names {@code LOCATION_NOT_FOUND}; the message is
+     * the only place the code appears. There are no stops there as far as OTP knows, so it is an
+     * empty answer, not an upstream failure.
+     */
+    private static boolean isLocationNotFound(Object error) {
+        return error instanceof Map<?, ?> e
+            && e.get("message") instanceof String message
+            && message.contains("LOCATION_NOT_FOUND");
     }
 }
