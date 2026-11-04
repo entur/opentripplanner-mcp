@@ -1,4 +1,4 @@
-FROM bellsoft/liberica-openjre-alpine:25.0.5.0.3-5@sha256:d85a0ec55e191c5419b9338e3dd967236f0a948db0443a331514812dcdf6d751
+FROM bellsoft/liberica-openjre-alpine:27-36@sha256:e598f7ef012857bc8d679d245ccee4663906c338c37de19b83814cec85e7d263
 WORKDIR /deployments
 COPY target/opentripplanner-mcp-0.0.1-SNAPSHOT.jar opentripplanner-mcp.jar
 RUN addgroup appuser && adduser --disabled-password appuser --ingroup appuser
