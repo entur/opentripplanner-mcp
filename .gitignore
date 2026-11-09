@@ -4,3 +4,4 @@
 **/charts/*.tgz
 /docs/
 /.superpowers/
+/.claude/settings.local.json
