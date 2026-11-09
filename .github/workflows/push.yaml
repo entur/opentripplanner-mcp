@@ -60,7 +60,7 @@ jobs:
   docker-build:
     if: github.repository_owner == 'entur' && github.event_name == 'push' && github.ref == 'refs/heads/master'
     needs: [maven-verify]
-    uses: entur/gha-docker/.github/workflows/build.yml@dcdc76ce2d251de20f35a92c566d8fe99036e03e # v1.13.0
+    uses: entur/gha-docker/.github/workflows/build.yml@a1d476b895a271d0fe8557f1b763529b64fb0554 # v1.14.0
     with:
       build_artifact_name: artifact
       build_artifact_path: target
