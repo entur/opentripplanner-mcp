@@ -36,7 +36,7 @@ jobs:
           path: target/*.jar
 
   openapi-lint:
-    uses: entur/gha-api/.github/workflows/lint.yml@bcd4972699e455cebffe1328cfb47789a75ca588 # v6.11.0
+    uses: entur/gha-api/.github/workflows/lint.yml@d4e33b6cd6affd719379acffd5eb7a2aa03750d1 # v6.12.1
     secrets: inherit
     with:
       path: 'specs/openapi.yaml'
