@@ -36,7 +36,7 @@ jobs:
           path: target/*.jar
 
   openapi-lint:
-    uses: entur/gha-api/.github/workflows/lint.yml@bcd4972699e455cebffe1328cfb47789a75ca588 # v6.11.0
+    uses: entur/gha-api/.github/workflows/lint.yml@v6
     secrets: inherit
     with:
       path: 'specs/openapi.yaml'
@@ -45,14 +45,14 @@ jobs:
   # validate signs in to Google Cloud, which forks and fork pull requests cannot do
   openapi-validate:
     if: github.repository_owner == 'entur' && (github.event_name == 'push' || github.event.pull_request.head.repo.full_name == github.repository)
-    uses: entur/gha-api/.github/workflows/validate.yml@9c4ec6ca428cd425955810eb62745e0067bd5635 # v6.5.0
+    uses: entur/gha-api/.github/workflows/validate.yml@v6
     with:
       path: 'specs/openapi.yaml'
 
   openapi-publish:
     if: github.repository_owner == 'entur' && github.event_name == 'push' && github.ref == 'refs/heads/master'
     needs: [ openapi-lint, openapi-validate ]
-    uses: entur/gha-api/.github/workflows/publish.yml@d4e33b6cd6affd719379acffd5eb7a2aa03750d1 # v6.12.1
+    uses: entur/gha-api/.github/workflows/publish.yml@v6
     secrets: inherit
     with:
       path: 'specs/openapi.yaml'
@@ -60,28 +60,28 @@ jobs:
   docker-build:
     if: github.repository_owner == 'entur' && github.event_name == 'push' && github.ref == 'refs/heads/master'
     needs: [maven-verify]
-    uses: entur/gha-docker/.github/workflows/build.yml@dcdc76ce2d251de20f35a92c566d8fe99036e03e # v1.13.0
+    uses: entur/gha-docker/.github/workflows/build.yml@v1
     with:
       build_artifact_name: artifact
       build_artifact_path: target
   docker-push:
     needs: [docker-build]
-    uses: entur/gha-docker/.github/workflows/push.yml@dcdc76ce2d251de20f35a92c566d8fe99036e03e # v1.13.0
+    uses: entur/gha-docker/.github/workflows/push.yml@v1
 
   docker-scan:
     needs: [ docker-build ]
-    uses: entur/gha-security/.github/workflows/docker-scan.yml@0962fb4f3f9004eeaea88582db8639e140ec6fda # v2.17.1
+    uses: entur/gha-security/.github/workflows/docker-scan.yml@v2
     with:
       image_artifact: ${{ needs.docker-build.outputs.image_artifact }}
 
   helm-lint:
-    uses: entur/gha-helm/.github/workflows/lint.yml@bd1e0a9b022ee0fafe43723b7c80c0eb48171593 # v1.7.0
+    uses: entur/gha-helm/.github/workflows/lint.yml@v1
     with:
       environment: dev
 
   helm-deploy-dev:
     needs: [ helm-lint, docker-push ]
-    uses: entur/gha-helm/.github/workflows/deploy.yml@bd1e0a9b022ee0fafe43723b7c80c0eb48171593 # v1.7.0
+    uses: entur/gha-helm/.github/workflows/deploy.yml@v1
     with:
       environment: dev
       image: ${{ needs.docker-push.outputs.image_name }}:${{ needs.docker-push.outputs.image_tag}}
@@ -90,7 +90,7 @@ jobs:
 
   helm-deploy-tst:
     needs: [ helm-lint, docker-push ]
-    uses: entur/gha-helm/.github/workflows/deploy.yml@bd1e0a9b022ee0fafe43723b7c80c0eb48171593 # v1.7.0
+    uses: entur/gha-helm/.github/workflows/deploy.yml@v1
     with:
       environment: tst
       image: ${{ needs.docker-push.outputs.image_name }}:${{ needs.docker-push.outputs.image_tag}}
@@ -99,7 +99,7 @@ jobs:
 
   helm-deploy-prd:
     needs: [ helm-lint, docker-push ]
-    uses: entur/gha-helm/.github/workflows/deploy.yml@bd1e0a9b022ee0fafe43723b7c80c0eb48171593 # v1.7.0
+    uses: entur/gha-helm/.github/workflows/deploy.yml@v1
     with:
       environment: prd
       image: ${{ needs.docker-push.outputs.image_name }}:${{ needs.docker-push.outputs.image_tag}}
