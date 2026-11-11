@@ -54,6 +54,10 @@ MCP server for OpenTripPlanner's transmodel GraphQL API. Java/Spring Boot with M
   common case that already has results. It is best-effort: a failure there must not turn a valid
   empty result into an error. The trip UI offers the time as a button that re-plans via
   `poll-trip`.
+- The departure board auto-refreshes (`poll-departures`, every 10s) only while it can be seen: the
+  host page is visible, the board is in the viewport (IntersectionObserver), and there was user
+  activity or a new tool result in the last 15 minutes. A board left open polled for hours otherwise.
+  It shows "Live updates paused" and refreshes at once on resume.
 - `trip` renders service disruptions: a banner per affected leg in the expanded card and a count on
   every option. OTP returns each summary in all languages and repeats a disruption across every leg
   it touches, so the app picks by `language` and de-duplicates on `situationNumber`.
