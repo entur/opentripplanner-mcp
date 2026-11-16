@@ -750,7 +750,8 @@ class OtpSearchServiceTest {
             otpSearchService.handleDepartureBoardRequest(
                 "NSR:StopPlace:337", 10, null, 60, List.of("hovercraft")))
             .isInstanceOf(ValidationException.class)
-            .hasMessageContaining("hovercraft");
+            .hasMessageNotContaining("hovercraft")
+            .hasMessageContaining("not recognised (positions");
     }
 
     // ==================== Situations Tests ====================
@@ -762,7 +763,7 @@ class OtpSearchServiceTest {
             .code(200)
             .body(TestFixtures.createSituationsResponse()).build());
 
-        Map<String, Object> result = otpSearchService.handleSituationsRequest(null);
+        Map<String, Object> result = otpSearchService.handleSituationsRequest(null, null);
 
         assertThat(result).isNotNull();
         assertThat(result).containsKey("situations");
@@ -775,7 +776,7 @@ class OtpSearchServiceTest {
             .code(200)
             .body(TestFixtures.createSituationsResponse()).build());
 
-        otpSearchService.handleSituationsRequest(List.of("normal", "severe"));
+        otpSearchService.handleSituationsRequest(List.of("normal", "severe"), null);
 
         JsonNode severities = variables(mockWebServer.takeRequest()).get("severities");
         assertThat(severities).extracting(JsonNode::asText).containsExactly("normal", "severe");
@@ -788,7 +789,7 @@ class OtpSearchServiceTest {
             .code(200)
             .body(TestFixtures.createSituationsResponse()).build());
 
-        otpSearchService.handleSituationsRequest(null);
+        otpSearchService.handleSituationsRequest(null, null);
 
         // Left out entirely rather than sent as null, so OTP applies no severity filter.
         assertThat(variables(mockWebServer.takeRequest()).has("severities")).isFalse();
@@ -801,7 +802,7 @@ class OtpSearchServiceTest {
             .code(200)
             .body(TestFixtures.createOtpErrorResponse("Situations query failed")).build());
 
-        assertThatThrownBy(() -> otpSearchService.handleSituationsRequest(null))
+        assertThatThrownBy(() -> otpSearchService.handleSituationsRequest(null, null))
             .isInstanceOf(TripPlanningException.class);
     }
 
@@ -812,13 +813,103 @@ class OtpSearchServiceTest {
             .code(200)
             .body(TestFixtures.createSituationsResponse()).build());
 
-        otpSearchService.handleSituationsRequest(null);
+        otpSearchService.handleSituationsRequest(null, null);
 
         RecordedRequest request = mockWebServer.takeRequest();
         String requestBody = request.getBody().utf8();
         assertThat(requestBody).contains("AffectedLine");
         assertThat(requestBody).contains("AffectedStopPlace");
         assertThat(requestBody).contains("validityPeriod");
+    }
+
+    private static String situationsResponse(String... severities) {
+        StringBuilder items = new StringBuilder();
+        for (int i = 0; i < severities.length; i++) {
+            if (i > 0) items.append(',');
+            items.append(String.format("{\"situationNumber\":\"S%d\",\"severity\":\"%s\"}", i, severities[i]));
+        }
+        return "{\"data\":{\"situations\":[" + items + "]}}";
+    }
+
+    @Test
+    @DisplayName("Situations come back most severe first, capped at maxResults, with the total")
+    void handleSituationsRequest_shouldSortBySeverityAndCap() {
+        mockWebServer.enqueue(new MockResponse.Builder().code(200)
+            .body(situationsResponse("slight", "verySevere", "unknown", "normal", "severe")).build());
+
+        Map<String, Object> result = otpSearchService.handleSituationsRequest(null, 3);
+
+        assertThat((List<Map<String, Object>>) result.get("situations"))
+            .extracting(s -> s.get("severity"))
+            .containsExactly("verySevere", "severe", "normal");
+        assertThat(result.get("situationCount")).isEqualTo(5);
+        assertThat((String) result.get("moreSituations")).contains("3 most severe of 5");
+    }
+
+    @Test
+    @DisplayName("Without maxResults at most 20 situations are returned")
+    void handleSituationsRequest_shouldDefaultTo20() {
+        String[] severities = new String[30];
+        java.util.Arrays.fill(severities, "normal");
+        mockWebServer.enqueue(new MockResponse.Builder().code(200).body(situationsResponse(severities)).build());
+
+        Map<String, Object> result = otpSearchService.handleSituationsRequest(null, null);
+
+        assertThat((List<?>) result.get("situations")).hasSize(20);
+        assertThat(result.get("situationCount")).isEqualTo(30);
+    }
+
+    @Test
+    @DisplayName("No moreSituations advice when every situation fits")
+    void handleSituationsRequest_allFit_shouldHaveNoAdvice() {
+        mockWebServer.enqueue(new MockResponse.Builder().code(200)
+            .body(situationsResponse("normal", "severe")).build());
+
+        Map<String, Object> result = otpSearchService.handleSituationsRequest(null, null);
+
+        assertThat((List<?>) result.get("situations")).hasSize(2);
+        assertThat(result).doesNotContainKey("moreSituations");
+    }
+
+    @Test
+    @DisplayName("At maxResults 50 the advice does not suggest raising it")
+    void handleSituationsRequest_atCap_shouldNotSuggestRaisingMaxResults() {
+        String[] severities = new String[60];
+        java.util.Arrays.fill(severities, "normal");
+        mockWebServer.enqueue(new MockResponse.Builder().code(200).body(situationsResponse(severities)).build());
+
+        Map<String, Object> result = otpSearchService.handleSituationsRequest(null, 50);
+
+        assertThat((String) result.get("moreSituations"))
+            .contains("50 most severe of 60")
+            .doesNotContain("raise maxResults");
+    }
+
+    @Test
+    @DisplayName("An unknown severity is a validation error, before anything is sent")
+    void handleSituationsRequest_invalidSeverity_shouldThrow() {
+        assertThatThrownBy(() -> otpSearchService.handleSituationsRequest(List.of("catastrophic"), null))
+            .isInstanceOf(ValidationException.class);
+        assertThat(mockWebServer.getRequestCount()).isZero();
+    }
+
+    @Test
+    @DisplayName("maxResults outside 1-50 is a validation error")
+    void handleSituationsRequest_maxResultsOutOfRange_shouldThrow() {
+        assertThatThrownBy(() -> otpSearchService.handleSituationsRequest(null, 51))
+            .isInstanceOf(ValidationException.class);
+    }
+
+    @Test
+    @DisplayName("An upstream response over the size limit fails, telling the model not to retry")
+    void oversizedResponse_shouldFailWithoutInvitingRetry() {
+        mockWebServer.enqueue(new MockResponse.Builder().code(200)
+            .body("x".repeat(UpstreamHttp.MAX_RESPONSE_BYTES + 1)).build());
+
+        assertThatThrownBy(() -> otpSearchService.handleSituationsRequest(null, null))
+            .isInstanceOf(TripPlanningException.class)
+            .hasMessage(UpstreamHttp.TOO_LARGE_ADVICE)
+            .hasRootCauseInstanceOf(UpstreamHttp.ResponseTooLargeException.class);
     }
 
     // ==================== Nearby Stops Tests ====================
@@ -874,7 +965,8 @@ class OtpSearchServiceTest {
         assertThatThrownBy(() ->
             otpSearchService.handleNearbyStopsRequest(59.911, 10.748, 500, 10, List.of("hovercraft")))
             .isInstanceOf(ValidationException.class)
-            .hasMessageContaining("hovercraft");
+            .hasMessageNotContaining("hovercraft")
+            .hasMessageContaining("not recognised (positions");
     }
 
     @Test
@@ -1106,7 +1198,8 @@ class OtpSearchServiceTest {
         assertThatThrownBy(() ->
             otpSearchService.handleTripRequest("Oslo", "Asker", null, null, 3, List.of("hovercraft")))
             .isInstanceOf(ValidationException.class)
-            .hasMessageContaining("hovercraft");
+            .hasMessageNotContaining("hovercraft")
+            .hasMessageContaining("not recognised (positions");
     }
 
     @Test

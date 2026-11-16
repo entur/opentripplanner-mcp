@@ -612,12 +612,12 @@ class TripSearchToolUnitTest {
     @Test
     @DisplayName("Alerts tool should return valid JSON containing situations on success")
     void alerts_withNoFilters_shouldReturnSituationsJSON() throws Exception {
-        when(otpSearchService.handleSituationsRequest(null))
+        when(otpSearchService.handleSituationsRequest(null, null))
             .thenReturn(Map.of("situations", List.of(
                 Map.of("id", "TST:SituationNumber:123", "severity", "normal")
             )));
 
-        String result = tripSearchTool.alerts(null);
+        String result = tripSearchTool.alerts(null, null);
 
         assertThat(result).contains("situations");
         assertThat(result).contains("TST:SituationNumber:123");
@@ -629,10 +629,10 @@ class TripSearchToolUnitTest {
     @DisplayName("Alerts tool should pass severity list to service")
     void alerts_withSeverityFilter_shouldPassToService() throws Exception {
         List<String> severities = List.of("normal", "severe");
-        when(otpSearchService.handleSituationsRequest(severities))
+        when(otpSearchService.handleSituationsRequest(severities, null))
             .thenReturn(Map.of("situations", List.of()));
 
-        String result = tripSearchTool.alerts(severities);
+        String result = tripSearchTool.alerts(severities, null);
 
         assertThat(result).contains("situations");
         assertThatCode(() -> objectMapper.readTree(result)).doesNotThrowAnyException();
@@ -641,10 +641,10 @@ class TripSearchToolUnitTest {
     @Test
     @DisplayName("Alerts tool should return TRIP_PLANNING_ERROR on TripPlanningException")
     void alerts_withTripPlanningException_shouldReturnErrorResponse() throws Exception {
-        when(otpSearchService.handleSituationsRequest(any()))
+        when(otpSearchService.handleSituationsRequest(any(), any()))
             .thenThrow(new TripPlanningException("Situations API unavailable"));
 
-        String result = tripSearchTool.alerts(null);
+        String result = tripSearchTool.alerts(null, null);
 
         assertThat(result).contains("TRIP_PLANNING_ERROR");
         assertThat(result).contains("Situations API unavailable");
@@ -656,10 +656,10 @@ class TripSearchToolUnitTest {
     @Test
     @DisplayName("Alerts tool should return generic ERROR on unexpected exception")
     void alerts_withUnexpectedException_shouldReturnGenericError() throws Exception {
-        when(otpSearchService.handleSituationsRequest(any()))
+        when(otpSearchService.handleSituationsRequest(any(), any()))
             .thenThrow(new RuntimeException("connect to 10.0.0.7:8080 failed"));
 
-        String result = tripSearchTool.alerts(null);
+        String result = tripSearchTool.alerts(null, null);
 
         assertThat(result).contains("ERROR");
         assertThat(result).contains("An unexpected error occurred");
@@ -672,7 +672,10 @@ class TripSearchToolUnitTest {
     @Test
     @DisplayName("Alerts tool should return VALIDATION_ERROR on invalid severity")
     void alerts_withInvalidSeverity_shouldReturnValidationError() throws Exception {
-        String result = tripSearchTool.alerts(List.of("invalidSeverity"));
+        when(otpSearchService.handleSituationsRequest(List.of("invalidSeverity"), null))
+            .thenThrow(new ValidationException("severities", "Invalid severities"));
+
+        String result = tripSearchTool.alerts(List.of("invalidSeverity"), null);
 
         Map<String, Object> errorMap = objectMapper.readValue(result, Map.class);
         assertThat(errorMap).containsEntry("error", "VALIDATION_ERROR");

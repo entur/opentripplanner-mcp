@@ -216,4 +216,16 @@ class MobilityServiceTest {
             .isInstanceOf(MobilityException.class)
             .hasRootCauseInstanceOf(HttpTimeoutException.class);
     }
+
+    @Test
+    @DisplayName("A mobility response over the size limit fails, telling the model not to retry")
+    void findNearby_oversizedResponse_shouldFailWithoutInvitingRetry() {
+        String huge = "x".repeat(UpstreamHttp.MAX_RESPONSE_BYTES + 1);
+        mockWebServer.enqueue(new MockResponse.Builder().code(200).body(huge).build());
+        mockWebServer.enqueue(new MockResponse.Builder().code(200).body(huge).build());
+
+        assertThatThrownBy(() -> mobilityService.findNearby(59.91, 10.75, 500, null, null, null, 20))
+            .isInstanceOf(MobilityException.class)
+            .hasMessage(UpstreamHttp.TOO_LARGE_ADVICE);
+    }
 }

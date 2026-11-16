@@ -91,6 +91,8 @@ public class TripSearchTool {
 
     @McpTool(
         name = "trip",
+        annotations = @McpTool.McpAnnotations(readOnlyHint = true, destructiveHint = false,
+            idempotentHint = true, openWorldHint = true),
         description = """
                 Plan multi-leg public transport routes between two locations across Norway and the Nordic region.
                 Use when the user needs journey options with departure/arrival times, transfers, occupancy, and trip duration.
@@ -169,6 +171,8 @@ public class TripSearchTool {
 
     @McpTool(
         name = "geocode",
+        annotations = @McpTool.McpAnnotations(readOnlyHint = true, destructiveHint = false,
+            idempotentHint = true, openWorldHint = true),
         description = """
                 Convert place names or addresses into geographic coordinates.
                 Stops come back with an NSR:StopPlace ID in properties.id, which the trip and
@@ -196,6 +200,8 @@ public class TripSearchTool {
 
     @McpTool(
         name = "departures",
+        annotations = @McpTool.McpAnnotations(readOnlyHint = true, destructiveHint = false,
+            idempotentHint = true, openWorldHint = true),
         description = """
                         Get real-time departures from a single stop or station in Norway. Use when the user
                         wants to see what's leaving soon from a specific location. Shows upcoming vehicles with
@@ -269,25 +275,33 @@ public class TripSearchTool {
 
     @McpTool(
         name = "alerts",
+        annotations = @McpTool.McpAnnotations(readOnlyHint = true, destructiveHint = false,
+            idempotentHint = true, openWorldHint = true),
         description = """
             Get active service disruptions and alerts for Norwegian public transport.
             Returns situations with severity, affected lines/stops, validity period,
             and descriptions in Norwegian and English.
             Use when the user asks about delays, cancellations, strikes, or service disruptions.
             Severity levels from lowest to highest: noImpact, verySlight, slight, normal, severe, verySevere.
+            Returns the most severe situations first, at most maxResults of them; situationCount
+            gives the total, and moreSituations is present when some were left out.
             """
     )
     public String alerts(
         @McpToolParam(
             description = "Filter by severity. Valid values: noImpact, verySlight, slight, normal, severe, verySevere. Default: returns all severities.",
             required = false
-        ) List<String> severities
+        ) List<String> severities,
+
+        @McpToolParam(
+            description = "Maximum number of situations to return, most severe first (1-50). Default: 20.",
+            required = false
+        ) Integer maxResults
     ) {
         ToolMetrics.Call call = toolMetrics.start("alerts", null);
         try {
-            log.debug("Alerts tool called with severities={}", severities);
-            InputValidator.validateSeverities(severities);
-            Map<String, Object> response = otpSearchService.handleSituationsRequest(severities);
+            log.debug("Alerts tool called with severities={}, maxResults={}", severities, maxResults);
+            Map<String, Object> response = otpSearchService.handleSituationsRequest(severities, maxResults);
             String json = objectMapper.writeValueAsString(response);
             call.finish(ToolResults.hasItems(response.get("situations")) ? Outcome.OK : Outcome.NO_RESULTS);
             return json;
@@ -300,6 +314,8 @@ public class TripSearchTool {
 
     @McpTool(
         name = "nearby-stops",
+        annotations = @McpTool.McpAnnotations(readOnlyHint = true, destructiveHint = false,
+            idempotentHint = true, openWorldHint = true),
         description = """
                 Find public transport stops near a location in Norway. Use this whenever
                 the user asks about stops, holdeplasser, or transit options near a place,
@@ -383,6 +399,8 @@ public class TripSearchTool {
 
     @McpTool(
         name = "poll-departures",
+        annotations = @McpTool.McpAnnotations(readOnlyHint = true, destructiveHint = false,
+            idempotentHint = true, openWorldHint = true),
         description = "Refreshes departure data for a stop. Called by the departures UI.",
         metaProvider = TripSearchTool.AppOnlyMeta.class
     )
@@ -402,6 +420,8 @@ public class TripSearchTool {
 
     @McpTool(
         name = "poll-trip",
+        annotations = @McpTool.McpAnnotations(readOnlyHint = true, destructiveHint = false,
+            idempotentHint = true, openWorldHint = true),
         description = "Re-plans a trip with updated parameters. Called by the trip map UI.",
         metaProvider = TripSearchTool.AppOnlyMeta.class
     )

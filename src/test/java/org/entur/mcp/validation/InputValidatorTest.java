@@ -330,7 +330,7 @@ class InputValidatorTest {
     void validateSeverities_withInvalidValue_shouldThrow() {
         assertThatThrownBy(() -> InputValidator.validateSeverities(List.of("normal", "invalid")))
             .isInstanceOf(ValidationException.class)
-            .hasMessageContaining("Invalid severities values");
+            .hasMessageContaining("Invalid severities: 1 of 2 values are not recognised (positions 1,");
     }
 
     // ==================== Form Factors Validation Tests ====================
@@ -359,7 +359,8 @@ class InputValidatorTest {
     void validateFormFactors_invalidValue_throws() {
         assertThatThrownBy(() -> InputValidator.validateFormFactors(List.of("BICYCLE", "AIRPLANE")))
             .isInstanceOf(ValidationException.class)
-            .hasMessageContaining("AIRPLANE")
+            .hasMessageNotContaining("AIRPLANE")
+            .hasMessageContaining("not recognised (positions")
             .hasMessageContaining("formFactors");
     }
 
@@ -377,7 +378,8 @@ class InputValidatorTest {
     void validatePropulsionTypes_invalidValue_throws() {
         assertThatThrownBy(() -> InputValidator.validatePropulsionTypes(List.of("STEAM")))
             .isInstanceOf(ValidationException.class)
-            .hasMessageContaining("STEAM");
+            .hasMessageNotContaining("STEAM")
+            .hasMessageContaining("not recognised (positions");
     }
 
     // ==================== Transport Modes Validation Tests ====================
@@ -415,7 +417,8 @@ class InputValidatorTest {
     void validateTransportModes_rejectsUnknownValues() {
         assertThatThrownBy(() -> InputValidator.validateTransportModes(List.of("rail", "hovercraft")))
             .isInstanceOf(ValidationException.class)
-            .hasMessageContaining("hovercraft");
+            .hasMessageNotContaining("hovercraft")
+            .hasMessageContaining("not recognised (positions");
     }
 
     // ==================== List Size and Echo Tests ====================
@@ -437,14 +440,17 @@ class InputValidatorTest {
     }
 
     @Test
-    @DisplayName("the error echoes only a few short samples of the invalid values")
-    void validateFormFactors_invalidValues_echoIsBounded() {
+    @DisplayName("the error names the positions of invalid values, never the values")
+    void validateFormFactors_invalidValues_areNotEchoed() {
         List<String> invalid = java.util.stream.IntStream.range(0, 15)
-            .mapToObj(n -> "x".repeat(1000) + n)
+            .mapToObj(n -> "secret\ninput" + n)
             .toList();
         assertThatThrownBy(() -> InputValidator.validateFormFactors(invalid))
             .isInstanceOf(ValidationException.class)
-            .satisfies(e -> assertThat(e.getMessage().length()).isLessThan(600));
+            .satisfies(e -> assertThat(e.getMessage())
+                .doesNotContainIgnoringCase("secret")
+                .contains("15 of 15 values", "positions 0, 1, 2, 3, 4, ...")
+                .hasSizeLessThan(600));
     }
 
     // ==================== Coordinate Validation Tests ====================

@@ -122,6 +122,10 @@ public class MobilityService {
         } catch (ExecutionException e) {
             Throwable cause = e.getCause();
             if (cause instanceof MobilityException me) throw me;
+            if (UpstreamHttp.isTooLarge(cause)) {
+                log.error("Mobility response too large: {}", cause.getMessage());
+                throw new MobilityException(UpstreamHttp.TOO_LARGE_ADVICE, cause);
+            }
             throw new MobilityException("Mobility query failed", cause);
         }
 
@@ -181,7 +185,7 @@ public class MobilityService {
             .POST(HttpRequest.BodyPublishers.ofString(reqJSON))
             .build();
 
-        return client.sendAsync(request, HttpResponse.BodyHandlers.ofString())
+        return client.sendAsync(request, UpstreamHttp.boundedString())
             .thenApply(this::parseResponse);
     }
 

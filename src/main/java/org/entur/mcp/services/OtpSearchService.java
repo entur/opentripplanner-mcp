@@ -22,6 +22,7 @@ import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
 import java.time.Duration;
 import java.util.ArrayList;
+import java.util.Comparator;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -652,8 +653,12 @@ public class OtpSearchService {
 
         HttpResponse<String> response;
         try {
-            response = client.send(request, HttpResponse.BodyHandlers.ofString());
+            response = client.send(request, UpstreamHttp.boundedString());
         } catch (IOException e) {
+            if (UpstreamHttp.isTooLarge(e)) {
+                log.error("Trip planning response too large: {}", e.getMessage());
+                throw new TripPlanningException(UpstreamHttp.TOO_LARGE_ADVICE, e);
+            }
             log.error("IO error during trip planning request: {}", e.getMessage());
             throw new TripPlanningException("Network error while planning trip", e);
         } catch (InterruptedException e) {
@@ -857,10 +862,22 @@ public class OtpSearchService {
             && !"railReplacementBus".equals(journey.get("transportSubmode"));
     }
 
-    public Map<String, Object> handleSituationsRequest(List<String> severities) {
-        log.info("Fetching situations (severities: {})", severities);
+    /** Least to most severe, as OTP orders them; anything else (e.g. "unknown") ranks lowest. */
+    private static final List<String> SEVERITY_ORDER = List.of(
+        "noImpact", "verySlight", "slight", "normal", "severe", "verySevere");
 
-        InputValidator.validateSeverities(severities);
+    /**
+     * Active situations, most severe first, at most {@code maxResults} of them (default
+     * {@value #DEFAULT_SITUATIONS}). Unfiltered, OTP returns every situation in the country -
+     * about 500 of them and half a megabyte, far too much to hand the model. When some are left
+     * out, {@code situationCount} gives the total and {@code moreSituations} says how to see them.
+     */
+    @SuppressWarnings("unchecked")
+    public Map<String, Object> handleSituationsRequest(List<String> severities, Integer maxResults) {
+        // Logged once validated: from then on the values come from a fixed set, not the caller
+        severities = InputValidator.validateSeverities(severities);
+        log.info("Fetching situations (severities: {})", severities);
+        int limit = InputValidator.validateAndNormalizeMaxResults(maxResults, DEFAULT_SITUATIONS);
 
         Map<String, Object> variables = new HashMap<>();
         if (severities != null && !severities.isEmpty()) {
@@ -893,7 +910,8 @@ public class OtpSearchService {
         if (result.containsKey("errors")) {
             List<?> errors = (List<?>) result.get("errors");
             if (errors != null && !errors.isEmpty()) {
-                log.error("Situations query returned errors: {}", errors);
+                log.error("Situations query returned {}", GraphQlErrors.summary(errors));
+                log.debug("Situations query errors: {}", errors);
                 throw new TripPlanningException("Situations query failed");
             }
         }
@@ -904,9 +922,32 @@ public class OtpSearchService {
             throw new TripPlanningException("No data returned from situations API");
         }
 
-        List<?> situations = (List<?>) data.getOrDefault("situations", List.of());
+        List<Map<String, Object>> situations = data.get("situations") instanceof List<?> list
+            ? (List<Map<String, Object>>) list : List.of();
         log.info("Successfully fetched {} situations", situations.size());
-        return data;
+
+        Map<String, Object> trimmed = new HashMap<>(data);
+        trimmed.put("situations", situations.stream()
+            .sorted(Comparator.comparingInt(OtpSearchService::severityRank).reversed())
+            .limit(limit)
+            .toList());
+        trimmed.put("situationCount", situations.size());
+        if (situations.size() > limit) {
+            // At the cap, raising maxResults is no way out: suggesting it invites a futile retry
+            String howToSeeOthers = limit < InputValidator.MAX_RESULTS_LIMIT
+                ? String.format("filter by severities or raise maxResults (at most %d)", InputValidator.MAX_RESULTS_LIMIT)
+                : "filter by severities (maxResults is already at its maximum)";
+            trimmed.put("moreSituations", String.format(
+                "Showing the %d most severe of %d active situations. To see others, %s.",
+                limit, situations.size(), howToSeeOthers));
+        }
+        return trimmed;
+    }
+
+    private static final int DEFAULT_SITUATIONS = 20;
+
+    private static int severityRank(Map<String, Object> situation) {
+        return SEVERITY_ORDER.indexOf(String.valueOf(situation.get("severity")));
     }
 
     public Map<String, Object> handleNearbyStopsRequest(double latitude, double longitude,
