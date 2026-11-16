@@ -9,11 +9,12 @@ import java.util.Set;
 import java.util.function.UnaryOperator;
 import java.util.regex.Pattern;
 import java.util.stream.Collectors;
+import java.util.stream.IntStream;
 
 public class InputValidator {
 
     private static final DateTimeFormatter ISO_DATE_TIME_FORMATTER = DateTimeFormatter.ISO_DATE_TIME;
-    private static final int MAX_RESULTS_LIMIT = 50;
+    public static final int MAX_RESULTS_LIMIT = 50;
     private static final Set<String> VALID_SEVERITIES = Set.of(
         "noImpact", "verySlight", "slight", "normal", "severe", "verySevere"
     );
@@ -37,8 +38,7 @@ public class InputValidator {
     private static final int MIN_RADIUS_METERS = 1;
     // No enum has more than 14 values, so 20 leaves room for duplicates without allowing bulk input
     private static final int MAX_LIST_SIZE = 20;
-    private static final int MAX_ECHOED_INVALID_VALUES = 5;
-    private static final int MAX_ECHOED_VALUE_LENGTH = 40;
+    private static final int MAX_REPORTED_POSITIONS = 5;
 
 
     public static void validateLocation(String location, String fieldName) {
@@ -141,8 +141,8 @@ public class InputValidator {
     /**
      * Checks every value against {@code allowed} and returns the normalized values without
      * duplicates. The list is capped first, so an oversized one is rejected before any work is
-     * done on it, and the error names only a few short samples of the invalid values instead of
-     * echoing the caller's whole input back.
+     * done on it. The error gives the positions of the invalid values, never the values: the
+     * message is logged at WARN, and the caller's input stays out of logs above DEBUG.
      */
     private static List<String> validateEnumList(List<String> values, Set<String> allowed, String fieldName,
                                                  UnaryOperator<String> normalize) {
@@ -155,20 +155,24 @@ public class InputValidator {
 
         List<String> normalized = values.stream()
             .map(v -> v == null ? "" : normalize.apply(v.trim()))
-            .distinct()
-            .collect(Collectors.toList());
+            .toList();
 
-        List<String> invalid = normalized.stream()
-            .filter(v -> !allowed.contains(v))
-            .limit(MAX_ECHOED_INVALID_VALUES)
-            .map(v -> v.length() > MAX_ECHOED_VALUE_LENGTH ? v.substring(0, MAX_ECHOED_VALUE_LENGTH) + "…" : v)
-            .collect(Collectors.toList());
+        List<Integer> invalidPositions = IntStream.range(0, normalized.size())
+            .filter(i -> !allowed.contains(normalized.get(i)))
+            .boxed()
+            .toList();
 
-        if (!invalid.isEmpty()) {
-            throw new ValidationException(fieldName,
-                String.format("Invalid %s values: %s. Valid values: %s", fieldName, invalid, allowed));
+        if (!invalidPositions.isEmpty()) {
+            String positions = invalidPositions.stream()
+                .limit(MAX_REPORTED_POSITIONS)
+                .map(String::valueOf)
+                .collect(Collectors.joining(", "))
+                + (invalidPositions.size() > MAX_REPORTED_POSITIONS ? ", ..." : "");
+            throw new ValidationException(fieldName, String.format(
+                "Invalid %s: %d of %d values are not recognised (positions %s, counting from 0). Valid values: %s",
+                fieldName, invalidPositions.size(), normalized.size(), positions, allowed));
         }
-        return normalized;
+        return normalized.stream().distinct().collect(Collectors.toList());
     }
 
     /**

@@ -79,3 +79,5 @@ MCP server for OpenTripPlanner's transmodel GraphQL API. Java/Spring Boot with M
   client_type/language), `mcp.trip.locations` (name/stop_id/coordinates) and
   `mcp.trip.searches`. Every tag comes from a fixed set; never tag a metric with user input.
   `poll-trip`/`poll-departures` count as their own tools, which measures UI interaction.
+  Validation messages are logged at WARN, so they name the parameter, the accepted values and
+  the positions of bad entries, never the values the caller sent.

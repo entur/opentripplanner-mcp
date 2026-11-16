@@ -655,6 +655,10 @@ public class OtpSearchService {
         try {
             response = client.send(request, UpstreamHttp.boundedString());
         } catch (IOException e) {
+            if (UpstreamHttp.isTooLarge(e)) {
+                log.error("Trip planning response too large: {}", e.getMessage());
+                throw new TripPlanningException(UpstreamHttp.TOO_LARGE_ADVICE, e);
+            }
             log.error("IO error during trip planning request: {}", e.getMessage());
             throw new TripPlanningException("Network error while planning trip", e);
         } catch (InterruptedException e) {
@@ -870,9 +874,9 @@ public class OtpSearchService {
      */
     @SuppressWarnings("unchecked")
     public Map<String, Object> handleSituationsRequest(List<String> severities, Integer maxResults) {
+        // Logged once validated: from then on the values come from a fixed set, not the caller
+        severities = InputValidator.validateSeverities(severities);
         log.info("Fetching situations (severities: {})", severities);
-
-        InputValidator.validateSeverities(severities);
         int limit = InputValidator.validateAndNormalizeMaxResults(maxResults, DEFAULT_SITUATIONS);
 
         Map<String, Object> variables = new HashMap<>();
@@ -929,9 +933,13 @@ public class OtpSearchService {
             .toList());
         trimmed.put("situationCount", situations.size());
         if (situations.size() > limit) {
+            // At the cap, raising maxResults is no way out: suggesting it invites a futile retry
+            String howToSeeOthers = limit < InputValidator.MAX_RESULTS_LIMIT
+                ? String.format("filter by severities or raise maxResults (at most %d)", InputValidator.MAX_RESULTS_LIMIT)
+                : "filter by severities (maxResults is already at its maximum)";
             trimmed.put("moreSituations", String.format(
-                "Showing the %d most severe of %d active situations. To see others, filter by "
-                    + "severities or raise maxResults (at most 50).", limit, situations.size()));
+                "Showing the %d most severe of %d active situations. To see others, %s.",
+                limit, situations.size(), howToSeeOthers));
         }
         return trimmed;
     }

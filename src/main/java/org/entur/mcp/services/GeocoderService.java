@@ -80,6 +80,10 @@ public class GeocoderService {
         try {
             response = client.send(request, UpstreamHttp.boundedString());
         } catch (IOException e) {
+            if (UpstreamHttp.isTooLarge(e)) {
+                log.error("Geocoder response too large: {}", e.getMessage());
+                throw new GeocodingException(text, UpstreamHttp.TOO_LARGE_ADVICE, e);
+            }
             log.error("IO error during geocoding request: {}", e.getMessage());
             throw new GeocodingException(text, "Network error while geocoding location", e);
         } catch (InterruptedException e) {

@@ -357,4 +357,15 @@ class GeocoderServiceTest {
             .isInstanceOf(GeocodingException.class)
             .hasRootCauseInstanceOf(HttpTimeoutException.class);
     }
+
+    @Test
+    @DisplayName("A geocoder response over the size limit fails, telling the model not to retry")
+    void handleGeocodeRequest_oversizedResponse_shouldFailWithoutInvitingRetry() {
+        mockWebServer.enqueue(new MockResponse.Builder().code(200)
+            .body("x".repeat(UpstreamHttp.MAX_RESPONSE_BYTES + 1)).build());
+
+        assertThatThrownBy(() -> geocoderService.handleGeocodeRequest("Oslo S", 5))
+            .isInstanceOf(GeocodingException.class)
+            .hasMessage(UpstreamHttp.TOO_LARGE_ADVICE);
+    }
 }

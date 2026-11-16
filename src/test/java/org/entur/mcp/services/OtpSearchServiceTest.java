@@ -750,7 +750,8 @@ class OtpSearchServiceTest {
             otpSearchService.handleDepartureBoardRequest(
                 "NSR:StopPlace:337", 10, null, 60, List.of("hovercraft")))
             .isInstanceOf(ValidationException.class)
-            .hasMessageContaining("hovercraft");
+            .hasMessageNotContaining("hovercraft")
+            .hasMessageContaining("not recognised (positions");
     }
 
     // ==================== Situations Tests ====================
@@ -871,6 +872,28 @@ class OtpSearchServiceTest {
     }
 
     @Test
+    @DisplayName("At maxResults 50 the advice does not suggest raising it")
+    void handleSituationsRequest_atCap_shouldNotSuggestRaisingMaxResults() {
+        String[] severities = new String[60];
+        java.util.Arrays.fill(severities, "normal");
+        mockWebServer.enqueue(new MockResponse.Builder().code(200).body(situationsResponse(severities)).build());
+
+        Map<String, Object> result = otpSearchService.handleSituationsRequest(null, 50);
+
+        assertThat((String) result.get("moreSituations"))
+            .contains("50 most severe of 60")
+            .doesNotContain("raise maxResults");
+    }
+
+    @Test
+    @DisplayName("An unknown severity is a validation error, before anything is sent")
+    void handleSituationsRequest_invalidSeverity_shouldThrow() {
+        assertThatThrownBy(() -> otpSearchService.handleSituationsRequest(List.of("catastrophic"), null))
+            .isInstanceOf(ValidationException.class);
+        assertThat(mockWebServer.getRequestCount()).isZero();
+    }
+
+    @Test
     @DisplayName("maxResults outside 1-50 is a validation error")
     void handleSituationsRequest_maxResultsOutOfRange_shouldThrow() {
         assertThatThrownBy(() -> otpSearchService.handleSituationsRequest(null, 51))
@@ -878,13 +901,14 @@ class OtpSearchServiceTest {
     }
 
     @Test
-    @DisplayName("An upstream response over the size limit is a network error, not an OOM")
-    void oversizedResponse_shouldFailAsNetworkError() {
+    @DisplayName("An upstream response over the size limit fails, telling the model not to retry")
+    void oversizedResponse_shouldFailWithoutInvitingRetry() {
         mockWebServer.enqueue(new MockResponse.Builder().code(200)
             .body("x".repeat(UpstreamHttp.MAX_RESPONSE_BYTES + 1)).build());
 
         assertThatThrownBy(() -> otpSearchService.handleSituationsRequest(null, null))
             .isInstanceOf(TripPlanningException.class)
+            .hasMessage(UpstreamHttp.TOO_LARGE_ADVICE)
             .hasRootCauseInstanceOf(UpstreamHttp.ResponseTooLargeException.class);
     }
 
@@ -941,7 +965,8 @@ class OtpSearchServiceTest {
         assertThatThrownBy(() ->
             otpSearchService.handleNearbyStopsRequest(59.911, 10.748, 500, 10, List.of("hovercraft")))
             .isInstanceOf(ValidationException.class)
-            .hasMessageContaining("hovercraft");
+            .hasMessageNotContaining("hovercraft")
+            .hasMessageContaining("not recognised (positions");
     }
 
     @Test
@@ -1173,7 +1198,8 @@ class OtpSearchServiceTest {
         assertThatThrownBy(() ->
             otpSearchService.handleTripRequest("Oslo", "Asker", null, null, 3, List.of("hovercraft")))
             .isInstanceOf(ValidationException.class)
-            .hasMessageContaining("hovercraft");
+            .hasMessageNotContaining("hovercraft")
+            .hasMessageContaining("not recognised (positions");
     }
 
     @Test

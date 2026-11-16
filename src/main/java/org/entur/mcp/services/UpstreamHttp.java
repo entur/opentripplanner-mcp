@@ -40,7 +40,28 @@ final class UpstreamHttp {
      */
     static final int MAX_RESPONSE_BYTES = 5 * 1024 * 1024;
 
+    /**
+     * What the model is told when a response was too large. Not "network error": that reads as
+     * transient, and the model would retry a request that fails the same way every time.
+     */
+    static final String TOO_LARGE_ADVICE = "The response was too large to process. Repeating "
+        + "the same request will fail the same way; ask for fewer results or a narrower search.";
+
     private UpstreamHttp() {}
+
+    /**
+     * Whether {@code e} is, or was caused by, a body over the limit. {@link HttpClient#send}
+     * rethrows the body subscriber's exception wrapped in a new {@code IOException}, and
+     * {@code sendAsync} in a {@code CompletionException}, so the type alone is not enough.
+     */
+    static boolean isTooLarge(Throwable e) {
+        for (Throwable t = e; t != null; t = t.getCause()) {
+            if (t instanceof ResponseTooLargeException) {
+                return true;
+            }
+        }
+        return false;
+    }
 
     static HttpClient newClient() {
         return HttpClient.newBuilder()

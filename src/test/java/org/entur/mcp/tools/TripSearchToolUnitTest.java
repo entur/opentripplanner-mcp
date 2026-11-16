@@ -672,6 +672,9 @@ class TripSearchToolUnitTest {
     @Test
     @DisplayName("Alerts tool should return VALIDATION_ERROR on invalid severity")
     void alerts_withInvalidSeverity_shouldReturnValidationError() throws Exception {
+        when(otpSearchService.handleSituationsRequest(List.of("invalidSeverity"), null))
+            .thenThrow(new ValidationException("severities", "Invalid severities"));
+
         String result = tripSearchTool.alerts(List.of("invalidSeverity"), null);
 
         Map<String, Object> errorMap = objectMapper.readValue(result, Map.class);
