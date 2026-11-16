@@ -906,7 +906,8 @@ public class OtpSearchService {
         if (result.containsKey("errors")) {
             List<?> errors = (List<?>) result.get("errors");
             if (errors != null && !errors.isEmpty()) {
-                log.error("Situations query returned errors: {}", errors);
+                log.error("Situations query returned {}", GraphQlErrors.summary(errors));
+                log.debug("Situations query errors: {}", errors);
                 throw new TripPlanningException("Situations query failed");
             }
         }
