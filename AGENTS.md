@@ -27,6 +27,10 @@ MCP server for OpenTripPlanner's transmodel GraphQL API. Java/Spring Boot with M
   is not always the place meant ("Hirtshals Fjordline terminal" ranks the Color Line terminal
   first), so the UI header shows the resolved name and the `noTripsFound` advice names the stops
   and points the model at `geocode`. `query.from`/`to` stay as typed: re-planning resends them.
+- Upstream responses are read with `UpstreamHttp.boundedString()` (5 MB cap), never
+  `BodyHandlers.ofString()`, which reads a body of any size into memory. `alerts` returns at
+  most `maxResults` (default 20) situations, most severe first, with `situationCount` and a
+  `moreSituations` advisory: unfiltered, OTP returns ~500 (0.5 MB), far too much for the model.
 - `nearby-mobility` hoists repeated `system` objects into a top-level `systems` map keyed by system id;
   items carry `systemId` instead of `system`
 - `src/main/resources/app/entur-tokens.css` and `entur-travel.css` are **generated — do not hand-edit**.

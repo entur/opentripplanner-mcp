@@ -22,6 +22,7 @@ import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
 import java.time.Duration;
 import java.util.ArrayList;
+import java.util.Comparator;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -652,7 +653,7 @@ public class OtpSearchService {
 
         HttpResponse<String> response;
         try {
-            response = client.send(request, HttpResponse.BodyHandlers.ofString());
+            response = client.send(request, UpstreamHttp.boundedString());
         } catch (IOException e) {
             log.error("IO error during trip planning request: {}", e.getMessage());
             throw new TripPlanningException("Network error while planning trip", e);
@@ -857,10 +858,22 @@ public class OtpSearchService {
             && !"railReplacementBus".equals(journey.get("transportSubmode"));
     }
 
-    public Map<String, Object> handleSituationsRequest(List<String> severities) {
+    /** Least to most severe, as OTP orders them; anything else (e.g. "unknown") ranks lowest. */
+    private static final List<String> SEVERITY_ORDER = List.of(
+        "noImpact", "verySlight", "slight", "normal", "severe", "verySevere");
+
+    /**
+     * Active situations, most severe first, at most {@code maxResults} of them (default
+     * {@value #DEFAULT_SITUATIONS}). Unfiltered, OTP returns every situation in the country -
+     * about 500 of them and half a megabyte, far too much to hand the model. When some are left
+     * out, {@code situationCount} gives the total and {@code moreSituations} says how to see them.
+     */
+    @SuppressWarnings("unchecked")
+    public Map<String, Object> handleSituationsRequest(List<String> severities, Integer maxResults) {
         log.info("Fetching situations (severities: {})", severities);
 
         InputValidator.validateSeverities(severities);
+        int limit = InputValidator.validateAndNormalizeMaxResults(maxResults, DEFAULT_SITUATIONS);
 
         Map<String, Object> variables = new HashMap<>();
         if (severities != null && !severities.isEmpty()) {
@@ -904,9 +917,28 @@ public class OtpSearchService {
             throw new TripPlanningException("No data returned from situations API");
         }
 
-        List<?> situations = (List<?>) data.getOrDefault("situations", List.of());
+        List<Map<String, Object>> situations = data.get("situations") instanceof List<?> list
+            ? (List<Map<String, Object>>) list : List.of();
         log.info("Successfully fetched {} situations", situations.size());
-        return data;
+
+        Map<String, Object> trimmed = new HashMap<>(data);
+        trimmed.put("situations", situations.stream()
+            .sorted(Comparator.comparingInt(OtpSearchService::severityRank).reversed())
+            .limit(limit)
+            .toList());
+        trimmed.put("situationCount", situations.size());
+        if (situations.size() > limit) {
+            trimmed.put("moreSituations", String.format(
+                "Showing the %d most severe of %d active situations. To see others, filter by "
+                    + "severities or raise maxResults (at most 50).", limit, situations.size()));
+        }
+        return trimmed;
+    }
+
+    private static final int DEFAULT_SITUATIONS = 20;
+
+    private static int severityRank(Map<String, Object> situation) {
+        return SEVERITY_ORDER.indexOf(String.valueOf(situation.get("severity")));
     }
 
     public Map<String, Object> handleNearbyStopsRequest(double latitude, double longitude,

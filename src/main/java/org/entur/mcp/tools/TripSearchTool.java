@@ -275,19 +275,26 @@ public class TripSearchTool {
             and descriptions in Norwegian and English.
             Use when the user asks about delays, cancellations, strikes, or service disruptions.
             Severity levels from lowest to highest: noImpact, verySlight, slight, normal, severe, verySevere.
+            Returns the most severe situations first, at most maxResults of them; situationCount
+            gives the total, and moreSituations is present when some were left out.
             """
     )
     public String alerts(
         @McpToolParam(
             description = "Filter by severity. Valid values: noImpact, verySlight, slight, normal, severe, verySevere. Default: returns all severities.",
             required = false
-        ) List<String> severities
+        ) List<String> severities,
+
+        @McpToolParam(
+            description = "Maximum number of situations to return, most severe first (1-50). Default: 20.",
+            required = false
+        ) Integer maxResults
     ) {
         ToolMetrics.Call call = toolMetrics.start("alerts", null);
         try {
-            log.debug("Alerts tool called with severities={}", severities);
+            log.debug("Alerts tool called with severities={}, maxResults={}", severities, maxResults);
             InputValidator.validateSeverities(severities);
-            Map<String, Object> response = otpSearchService.handleSituationsRequest(severities);
+            Map<String, Object> response = otpSearchService.handleSituationsRequest(severities, maxResults);
             String json = objectMapper.writeValueAsString(response);
             call.finish(ToolResults.hasItems(response.get("situations")) ? Outcome.OK : Outcome.NO_RESULTS);
             return json;

@@ -181,7 +181,7 @@ public class MobilityService {
             .POST(HttpRequest.BodyPublishers.ofString(reqJSON))
             .build();
 
-        return client.sendAsync(request, HttpResponse.BodyHandlers.ofString())
+        return client.sendAsync(request, UpstreamHttp.boundedString())
             .thenApply(this::parseResponse);
     }
 

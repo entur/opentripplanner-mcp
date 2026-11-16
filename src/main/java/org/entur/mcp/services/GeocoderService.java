@@ -78,7 +78,7 @@ public class GeocoderService {
         // Send the request
         HttpResponse<String> response;
         try {
-            response = client.send(request, HttpResponse.BodyHandlers.ofString());
+            response = client.send(request, UpstreamHttp.boundedString());
         } catch (IOException e) {
             log.error("IO error during geocoding request: {}", e.getMessage());
             throw new GeocodingException(text, "Network error while geocoding location", e);
