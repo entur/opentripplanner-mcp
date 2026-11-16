@@ -52,6 +52,8 @@ public class MobilityTool {
 
     @McpTool(
         name = "nearby-mobility",
+        annotations = @McpTool.McpAnnotations(readOnlyHint = true, destructiveHint = false,
+            idempotentHint = true, openWorldHint = false),
         description = """
                 Find the closest shared-mobility vehicles (e-scooters, city bikes, car-share, mopeds)
                 and rental stations near a location in Norway. Use when the user asks about renting a
