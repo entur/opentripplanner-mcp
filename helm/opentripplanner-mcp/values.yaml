@@ -15,7 +15,7 @@ common:
   container:
     env:
       - name: JDK_JAVA_OPTIONS
-        value: "-server -Dspring.config.location=/etc/application-config/application.properties
+        value: "-server -XX:-UseBASE64Intrinsics -Dspring.config.location=/etc/application-config/application.properties
         -Dfile.encoding=UTF-8 --add-opens java.base/java.lang=ALL-UNNAMED"
     image: <+artifacts.primary.image>
     cpu: 0.3
