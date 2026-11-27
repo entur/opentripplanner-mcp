@@ -13,7 +13,7 @@ public class DepartureRequest {
 
     @NotBlank(message = "stop is required")
     @Size(max = 500, message = "stop must not exceed 500 characters")
-    @Schema(description = "Stop place name (e.g., 'Oslo S', 'Bergen stasjon') or NSR ID (e.g., NSR:StopPlace:337)",
+    @Schema(description = "Stop place name (e.g., 'Oslo S', 'Bergen stasjon') or stop ID (e.g., NSR:StopPlace:337 or SSR:StopPlace:<digits>)",
             example = "Oslo S")
     private String stop;
 

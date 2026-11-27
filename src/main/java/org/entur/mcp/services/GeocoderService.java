@@ -160,7 +160,7 @@ public class GeocoderService {
         // Keep the stop ID when the hit is a stop: OTP routes from a stop ID directly, while a
         // coordinate must first be linked to the street network, which fails where OTP has
         // none (e.g. the ferry terminals in Denmark).
-        String stopId = properties.get("id") instanceof String id && InputValidator.isNsrStopId(id)
+        String stopId = properties.get("id") instanceof String id && InputValidator.isStopId(id)
             ? id : null;
 
         log.debug("Successfully geocoded '{}' to '{}' (lat={}, lng={}, stopId={})",
@@ -177,15 +177,15 @@ public class GeocoderService {
         InputValidator.validateLocation(input, "stop");
 
         // If already an NSR ID, return as-is
-        if (InputValidator.isNsrStopId(input)) {
+        if (InputValidator.isStopId(input)) {
             log.debug("Input is already an NSR ID: {}", input);
             return input;
         }
         // Looks like an ID but isn't a well-formed one; geocoding it as free text would only
         // return some unrelated stop.
-        if (input.startsWith("NSR:")) {
+        if (InputValidator.looksLikeStopId(input)) {
             throw new ValidationException("stop",
-                "Invalid stop ID. Expected NSR:StopPlace:<digits> or NSR:Quay:<digits>");
+                "Invalid stop ID. Expected NSR:StopPlace:<digits> or NSR:Quay:<digits> (or the same with an SSR: prefix)");
         }
 
         // Geocode and extract ID from first result

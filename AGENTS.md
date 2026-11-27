@@ -16,8 +16,9 @@ MCP server for OpenTripPlanner's transmodel GraphQL API. Java/Spring Boot with M
   replaced train is a bus trip on the rail line, so `rail` alone finds nothing during a closure.
   `departures` does the same, but its `whiteListedModes` takes no submodes: it fetches buses too
   (asking for 4x the departures) and drops every bus that is not a replacement bus
-- `trip` sends stops to OTP by ID in `place`, not as coordinates: an NSR ID input skips the
-  geocoder, and a geocoded stop keeps its ID. A coordinate must first be linked to OTP's street
+- `trip` sends stops to OTP by ID in `place`, not as coordinates: a stop ID input skips the
+  geocoder, and a geocoded stop keeps its ID. Stop IDs carry an `NSR:` or `SSR:` prefix
+  (`InputValidator.isStopId`); a malformed one with either prefix is rejected, not geocoded. A coordinate must first be linked to OTP's street
   network, which fails where there is none (the Fjord Line terminals in Denmark). OTP then
   reports `locationNotFound`, which the MCP turns into an error rather than an empty result.
   `nearby-stops` is the opposite: `nearest` fails with a `LOCATION_NOT_FOUND` DataFetchingException

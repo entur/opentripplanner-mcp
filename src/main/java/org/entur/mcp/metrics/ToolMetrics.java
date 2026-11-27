@@ -89,7 +89,7 @@ public class ToolMetrics {
 
     static String locationKind(String input) {
         if (input == null || input.isBlank()) return "empty";
-        if (InputValidator.isNsrStopId(input)) return "stop_id";
+        if (InputValidator.isStopId(input)) return "stop_id";
         if (GeocoderService.isCoordinates(input)) return "coordinates";
         return "name";
     }

@@ -397,17 +397,31 @@ class InputValidatorTest {
     }
 
     @Test
-    @DisplayName("Should accept only well-formed NSR StopPlace and Quay IDs")
-    void isNsrStopId_matchesStrictPattern() {
-        assertThat(InputValidator.isNsrStopId("NSR:StopPlace:337")).isTrue();
-        assertThat(InputValidator.isNsrStopId("NSR:Quay:566")).isTrue();
+    @DisplayName("Should accept only well-formed NSR/SSR StopPlace and Quay IDs")
+    void isStopId_matchesStrictPattern() {
+        assertThat(InputValidator.isStopId("NSR:StopPlace:337")).isTrue();
+        assertThat(InputValidator.isStopId("NSR:Quay:566")).isTrue();
+        assertThat(InputValidator.isStopId("SSR:StopPlace:337")).isTrue();
+        assertThat(InputValidator.isStopId("SSR:Quay:566")).isTrue();
 
-        assertThat(InputValidator.isNsrStopId(null)).isFalse();
-        assertThat(InputValidator.isNsrStopId("NSR:StopPlace:337\"")).isFalse();
-        assertThat(InputValidator.isNsrStopId("NSR:StopPlace:337 ")).isFalse();
-        assertThat(InputValidator.isNsrStopId("NSR:StopPlace:337\n")).isFalse();
-        assertThat(InputValidator.isNsrStopId("NSR:Line:1")).isFalse();
-        assertThat(InputValidator.isNsrStopId("Oslo S")).isFalse();
+        assertThat(InputValidator.isStopId(null)).isFalse();
+        assertThat(InputValidator.isStopId("NSR:StopPlace:337\"")).isFalse();
+        assertThat(InputValidator.isStopId("NSR:StopPlace:337 ")).isFalse();
+        assertThat(InputValidator.isStopId("NSR:StopPlace:337\n")).isFalse();
+        assertThat(InputValidator.isStopId("NSR:Line:1")).isFalse();
+        assertThat(InputValidator.isStopId("Oslo S")).isFalse();
+        assertThat(InputValidator.isStopId("XYZ:StopPlace:337")).isFalse();
+        assertThat(InputValidator.isStopId("ssr:StopPlace:337")).isFalse();
+    }
+
+    @Test
+    @DisplayName("Should recognise NSR and SSR prefixes as stop-ID-like input")
+    void looksLikeStopId_matchesPrefixes() {
+        assertThat(InputValidator.looksLikeStopId("NSR:StopPlace:abc")).isTrue();
+        assertThat(InputValidator.looksLikeStopId("SSR:Quay:")).isTrue();
+        assertThat(InputValidator.looksLikeStopId("Oslo S")).isFalse();
+        assertThat(InputValidator.looksLikeStopId("SSRStopPlace")).isFalse();
+        assertThat(InputValidator.looksLikeStopId(null)).isFalse();
     }
 
     @Test

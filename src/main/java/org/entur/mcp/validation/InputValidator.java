@@ -29,7 +29,8 @@ public class InputValidator {
         "air", "bus", "cableway", "water", "funicular", "lift", "rail",
         "metro", "taxi", "tram", "trolleybus", "monorail", "coach", "unknown"
     );
-    private static final Pattern NSR_STOP_ID = Pattern.compile("^NSR:(StopPlace|Quay):[0-9]+$");
+    private static final Pattern STOP_ID = Pattern.compile("^(NSR|SSR):(StopPlace|Quay):[0-9]+$");
+    private static final Pattern STOP_ID_PREFIX = Pattern.compile("^(NSR|SSR):");
     private static final int MIN_RESULTS = 1;
     private static final int MAX_TIME_RANGE_MINUTES = 1440; // 24 hours
     private static final int MIN_TIME_RANGE_MINUTES = 1;
@@ -53,8 +54,13 @@ public class InputValidator {
         }
     }
 
-    public static boolean isNsrStopId(String value) {
-        return value != null && NSR_STOP_ID.matcher(value).matches();
+    public static boolean isStopId(String value) {
+        return value != null && STOP_ID.matcher(value).matches();
+    }
+
+    /** True for input that starts like a stop ID (NSR: or SSR:), well-formed or not. */
+    public static boolean looksLikeStopId(String value) {
+        return value != null && STOP_ID_PREFIX.matcher(value).find();
     }
 
     public static void validateDateTime(String dateTime, String fieldName) {

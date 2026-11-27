@@ -541,9 +541,9 @@ public class OtpSearchService {
                 String location = isTo ? to : from;
                 log.warn("OTP could not find the '{}' location", isTo ? "to" : "from");
                 log.debug("OTP could not find location '{}'", location);
-                String advice = InputValidator.isNsrStopId(location)
+                String advice = InputValidator.isStopId(location)
                     ? "Check the stop ID with the geocode tool."
-                    : "If it is a stop, pass its NSR:StopPlace ID from the geocode tool; "
+                    : "If it is a stop, pass its stop place ID (NSR:StopPlace:… or SSR:StopPlace:…) from the geocode tool; "
                         + "otherwise try a nearby stop or address.";
                 throw new TripPlanningException(String.format(
                     "The journey planner could not route %s '%s'. %s",
@@ -701,14 +701,14 @@ public class OtpSearchService {
 
     private Location getLocation(String locationName) {
         // A stop ID goes to OTP as is: the geocoder searches free text and finds nothing for it
-        if (InputValidator.isNsrStopId(locationName)) {
+        if (InputValidator.isStopId(locationName)) {
             Location stop = Location.ofStopId(locationName);
             stopName(locationName).ifPresent(stop::setPlace);
             return stop;
         }
-        if (locationName.startsWith("NSR:")) {
+        if (InputValidator.looksLikeStopId(locationName)) {
             throw new ValidationException("location",
-                "Invalid stop ID. Expected NSR:StopPlace:<digits> or NSR:Quay:<digits>");
+                "Invalid stop ID. Expected NSR:StopPlace:<digits> or NSR:Quay:<digits> (or the same with an SSR: prefix)");
         }
         Location location;
         try {

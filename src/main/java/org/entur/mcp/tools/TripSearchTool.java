@@ -98,8 +98,8 @@ public class TripSearchTool {
         metaProvider = TripSearchTool.TripUiMeta.class
     )
     public CallToolResult trip(
-        @McpToolParam(description = "Starting location: address, place name, coordinates (lat,lng), or a stop ID (NSR:StopPlace:<digits>). A name uses the geocoder's first match; when it is ambiguous, such as a town with several ferry terminals, call geocode and pass the right stop's ID.", required = true) String from,
-        @McpToolParam(description = "Destination location: address, place name, coordinates (lat,lng), or a stop ID (NSR:StopPlace:<digits>). A name uses the geocoder's first match; when it is ambiguous, such as a town with several ferry terminals, call geocode and pass the right stop's ID.", required = true) String to,
+        @McpToolParam(description = "Starting location: address, place name, coordinates (lat,lng), or a stop ID (NSR:StopPlace:<digits> or SSR:StopPlace:<digits>). A name uses the geocoder's first match; when it is ambiguous, such as a town with several ferry terminals, call geocode and pass the right stop's ID.", required = true) String from,
+        @McpToolParam(description = "Destination location: address, place name, coordinates (lat,lng), or a stop ID (NSR:StopPlace:<digits> or SSR:StopPlace:<digits>). A name uses the geocoder's first match; when it is ambiguous, such as a town with several ferry terminals, call geocode and pass the right stop's ID.", required = true) String to,
         @McpToolParam(description = "Departure time in ISO format (e.g., 2023-05-26T12:00:00)", required = false) String departureTime,
         @McpToolParam(description = "Arrival time in ISO format (e.g., 2023-05-26T14:00:00)", required = false) String arrivalTime,
         @McpToolParam(description = "Maximum number of trip options to return", required = false) Integer maxResults,
@@ -171,7 +171,7 @@ public class TripSearchTool {
         name = "geocode",
         description = """
                 Convert place names or addresses into geographic coordinates.
-                Stops come back with an NSR:StopPlace ID in properties.id, which the trip and
+                Stops come back with a stop place ID (NSR:StopPlace:… or SSR:StopPlace:…) in properties.id, which the trip and
                 departures tools accept as a location."""
     )
     public String geocode(
@@ -206,7 +206,7 @@ public class TripSearchTool {
     )
     public CallToolResult departures(
         @McpToolParam(
-            description = "Stop place name (e.g., 'Oslo S', 'Bergen stasjon') or NSR ID (e.g., NSR:StopPlace:337)",
+            description = "Stop place name (e.g., 'Oslo S', 'Bergen stasjon') or stop ID (e.g., NSR:StopPlace:337 or SSR:StopPlace:<digits>)",
             required = true
         ) String stop,
 
@@ -387,7 +387,7 @@ public class TripSearchTool {
         metaProvider = TripSearchTool.AppOnlyMeta.class
     )
     public CallToolResult pollDepartures(
-        @McpToolParam(description = "NSR stop place ID (e.g. NSR:StopPlace:337)", required = true) String stop,
+        @McpToolParam(description = "Stop place ID (e.g. NSR:StopPlace:337 or SSR:StopPlace:<digits>)", required = true) String stop,
         @McpToolParam(description = "Number of departures to return", required = false) Integer numberOfDepartures,
         @McpToolParam(description = "Start time in ISO format", required = false) String startTime,
         @McpToolParam(description = "Time range in minutes", required = false) Integer timeRangeMinutes,
@@ -514,7 +514,7 @@ public class TripSearchTool {
         }
         return "The query was valid; " + String.join(" and ", picks) + ". If that is not the "
             + "place the user meant, look it up with geocode and search again with the right "
-            + "NSR:StopPlace ID. ";
+            + "stop place ID. ";
     }
 
     private String toErrorJson(ErrorResponse errorResponse) {

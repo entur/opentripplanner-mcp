@@ -39,7 +39,7 @@ This MCP server exposes five model-visible tools and two app-only tools:
 
 2. **departures** — Real-time departures from a stop or station
    - Parameters:
-     - `stop`: Stop name (e.g. "Oslo S") or NSR ID (e.g. "NSR:StopPlace:337")
+     - `stop`: Stop name (e.g. "Oslo S") or stop ID (e.g. "NSR:StopPlace:337"; `SSR:` IDs are accepted too)
      - `numberOfDepartures`: Number of departures to return (default: 10, max: 50)
      - `startTime`: Optional start time in ISO format (default: now)
      - `timeRangeMinutes`: Time window in minutes (default: 60, max: 1440)
