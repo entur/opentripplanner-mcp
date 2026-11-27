@@ -468,6 +468,10 @@ class OtpSearchServiceTest {
             "NSR:StopPlace:abc", "Asker", null, null, 3, null))
             .isInstanceOf(ValidationException.class)
             .hasMessageContaining("Invalid stop ID");
+        assertThatThrownBy(() -> otpSearchService.handleTripRequest(
+            "SSR:Quay:abc", "Asker", null, null, 3, null))
+            .isInstanceOf(ValidationException.class)
+            .hasMessageContaining("Invalid stop ID");
         verifyNoInteractions(geocoderService);
     }
 
